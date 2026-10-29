@@ -10,23 +10,8 @@ import {
   INITIAL_EVENEMENTS,
   INITIAL_PUBLICATIONS
 } from '../data/mockData';
-
-const STORAGE_KEYS = {
-  DATA_VERSION: 'fiaram_v2_clean',
-  CURRENT_USER_ID: 'fiaram_current_user_id',
-  THEME: 'fiaram_theme',
-  MEMBRES: 'fiaram_membres_v2',
-  GROUPES: 'fiaram_groupes_v2',
-  PRESENCES: 'fiaram_presences_v2',
-  FINANCES: 'fiaram_finances_v2',
-  COTISATIONS: 'fiaram_cotisations_v2',
-  CHANSONS: 'fiaram_chansons_v2',
-  MESSAGES: 'fiaram_messages_v2',
-  EVENEMENTS: 'fiaram_evenements_v2',
-  PUBLICATIONS: 'fiaram_publications_v1',
-  CATEGORIES_RESSOURCES: 'fiaram_ressource_categories_v1',
-  ADMIN_SETTINGS: 'fiaram_admin_settings_v2'
-};
+import { STORAGE_KEYS } from './storageKeys';
+import { pushKey, deleteKey } from './supabaseSync';
 
 const DEFAULT_RESSOURCE_CATEGORIES: CategorieChanson[] = [
   { id: 'cat_doc', nom: 'Documents' },
@@ -74,6 +59,7 @@ function getStoredItem<T>(key: string, defaultValue: T): T {
 function setStoredItem<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    pushKey(key, value);
   } catch (e) {
     console.error(`Error saving key ${key}:`, e);
   }
@@ -872,18 +858,24 @@ export const StorageService = {
 
   // Full Reset to Clean Manual State
   resetToCleanState(): void {
-    localStorage.removeItem(STORAGE_KEYS.MEMBRES);
-    localStorage.removeItem(STORAGE_KEYS.GROUPES);
-    localStorage.removeItem(STORAGE_KEYS.PRESENCES);
-    localStorage.removeItem(STORAGE_KEYS.FINANCES);
-    localStorage.removeItem(STORAGE_KEYS.COTISATIONS);
-    localStorage.removeItem(STORAGE_KEYS.CHANSONS);
-    localStorage.removeItem(STORAGE_KEYS.MESSAGES);
-    localStorage.removeItem(STORAGE_KEYS.EVENEMENTS);
-    localStorage.removeItem(STORAGE_KEYS.PUBLICATIONS);
-    localStorage.removeItem(STORAGE_KEYS.CATEGORIES_RESSOURCES);
+    const sharedKeys = [
+      STORAGE_KEYS.MEMBRES,
+      STORAGE_KEYS.GROUPES,
+      STORAGE_KEYS.PRESENCES,
+      STORAGE_KEYS.FINANCES,
+      STORAGE_KEYS.COTISATIONS,
+      STORAGE_KEYS.CHANSONS,
+      STORAGE_KEYS.MESSAGES,
+      STORAGE_KEYS.EVENEMENTS,
+      STORAGE_KEYS.PUBLICATIONS,
+      STORAGE_KEYS.CATEGORIES_RESSOURCES,
+      STORAGE_KEYS.ADMIN_SETTINGS
+    ];
+    sharedKeys.forEach((key) => {
+      localStorage.removeItem(key);
+      deleteKey(key);
+    });
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
-    localStorage.removeItem(STORAGE_KEYS.ADMIN_SETTINGS);
     window.location.reload();
   },
   resetAllData(): void {

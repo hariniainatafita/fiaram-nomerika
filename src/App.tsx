@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from './utils/storage';
+import { subscribeToSupabase } from './utils/supabaseSync';
 import { canAccessView } from './utils/permissions';
 import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication } from './types';
 import { Navbar } from './components/Navbar';
@@ -107,6 +108,27 @@ export function App() {
   const refreshPublications = () => {
     setAllPublications(StorageService.getPublications());
   };
+
+  // Live sync: when another device updates shared data, refresh every store.
+  useEffect(() => {
+    const unsubscribe = subscribeToSupabase(() => {
+      setAllMembres(StorageService.getMembres());
+      setAllGroupes(StorageService.getGroupes());
+      setAllPresences(StorageService.getPresences());
+      setAllFinances(StorageService.getFinances());
+      setAllCotisations(StorageService.getCotisations());
+      setAllChansons(StorageService.getChansons());
+      setAllMessages(StorageService.getMessages());
+      setAllEvenements(StorageService.getEvenements());
+      setAllPublications(StorageService.getPublications());
+      setCurrentUser((prev) => {
+        if (!prev) return prev;
+        return StorageService.getMembres().find((m) => m.id === prev.id) ?? null;
+      });
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
 
   // If user is not logged in, render Login / Registration View
   if (!currentUser) {
