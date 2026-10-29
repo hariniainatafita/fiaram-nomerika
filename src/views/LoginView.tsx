@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Membre, Groupe, RegistrationQuestion } from '../types';
-import { Music, Lock, User, ArrowRight, ShieldCheck, Sparkles, HelpCircle, Clock, ArrowLeft } from 'lucide-react';
+import { Music, Lock, User, ArrowRight, Sparkles, HelpCircle, Clock, ArrowLeft } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import confetti from 'canvas-confetti';
 import { useLanguage, LanguageSwitcher } from '../i18n';
@@ -20,8 +20,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [registeredCode, setRegisteredCode] = useState('');
 
   // Login form state
-  const [loginIdentifier, setLoginIdentifier] = useState('admin');
-  const [loginPassword, setLoginPassword] = useState('admin');
+  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
 
   // Register form state
   const [regNom, setRegNom] = useState('');
@@ -354,24 +354,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
               <span>{t('auth.loginButton')}</span>
               <ArrowRight size={16} />
             </button>
-
-            {/* Default Admin Account Helper Box */}
-            <div style={{
-              marginTop: '10px',
-              padding: '12px',
-              borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border-color)',
-              fontSize: '0.78rem',
-              color: 'var(--text-muted)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-gold)', fontWeight: 700, marginBottom: '4px' }}>
-                <ShieldCheck size={14} />
-                <span>{t('auth.defaultAdminTitle')}:</span>
-              </div>
-              <div>{t('common.username')}: <strong style={{ color: 'var(--text-main)' }}>admin</strong></div>
-              <div>{t('common.password')}: <strong style={{ color: 'var(--text-main)' }}>admin</strong></div>
-            </div>
           </form>
         ) : (
           /* REGISTRATION WIZARD */
