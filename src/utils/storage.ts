@@ -254,7 +254,7 @@ export const StorageService = {
       email: data.email.toLowerCase().trim(),
       password: data.password,
       telephone: data.telephone,
-      groupe_id: data.groupe_id || 'g1',
+      groupe_id: data.groupe_id,
       role: 'membre',
       is_active: true,
       is_approved: false, // Needs admin approval

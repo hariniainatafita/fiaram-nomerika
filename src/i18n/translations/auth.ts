@@ -67,9 +67,19 @@ export const auth: TranslationDictionary = {
     en: 'e.g. hasina@fiaram.mg'
   },
   'auth.groupAssignmentLabel': {
-    mg: 'Vondrona hampidirana anao',
-    fr: "Groupe d'affectation",
-    en: 'Assigned group'
+    mg: 'Vondrona',
+    fr: 'Groupe',
+    en: 'Group'
+  },
+  'auth.groupAssignedByChef': {
+    mg: 'Ny mpitarika vondrona no hampiditra anao ao amin’ny vondrona iray rehefa voamarina ny fisoratana anaranao. Tsy mila misafidy vondrona ianao.',
+    fr: 'Votre groupe sera attribué par un chef après validation de votre inscription. Vous n’avez pas à choisir de groupe.',
+    en: 'A group leader will assign your group once your registration is approved. You do not need to choose a group.'
+  },
+  'auth.groupPendingAssignment': {
+    mg: 'Hampidirin’ny mpitarika vondrona',
+    fr: 'À attribuer par un chef',
+    en: 'To be assigned by a leader'
   },
   'auth.createPasswordPlaceholder': {
     mg: 'Mamorona tenimiafina...',
@@ -145,8 +155,8 @@ export const auth: TranslationDictionary = {
   'auth.step2.label': { mg: '2', fr: '2', en: '2' },
   'auth.step2.title': {
     mg: '2',
-    fr: 'Étape 2 : Contact, groupe & mot de passe',
-    en: 'Step 2: Contact, group & password'
+    fr: 'Étape 2 : Contact & mot de passe',
+    en: 'Step 2: Contact & password'
   },
   'auth.step3.label': { mg: '3', fr: '3', en: '3' },
   'auth.step3.title': {

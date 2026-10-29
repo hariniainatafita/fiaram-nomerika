@@ -142,7 +142,6 @@ export function App() {
           setCurrentUser(user);
           refreshMembres();
         }}
-        allGroupes={allGroupes}
       />
     );
   }

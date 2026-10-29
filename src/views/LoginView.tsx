@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Membre, Groupe, RegistrationQuestion } from '../types';
+import { Membre, RegistrationQuestion } from '../types';
 import { Music, Lock, User, ArrowRight, Sparkles, HelpCircle, Clock, ArrowLeft } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import confetti from 'canvas-confetti';
@@ -7,12 +7,10 @@ import { useLanguage, LanguageSwitcher } from '../i18n';
 
 interface LoginViewProps {
   onLoginSuccess: (user: Membre) => void;
-  allGroupes: Groupe[];
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({
-  onLoginSuccess,
-  allGroupes
+  onLoginSuccess
 }) => {
   const { t } = useLanguage();
   const [isRegisterMode, setIsRegisterMode] = useState(false);
@@ -30,7 +28,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regPhone, setRegPhone] = useState('');
-  const [regGroupeId, setRegGroupeId] = useState(allGroupes[0]?.id || 'g1');
 
   // Registration wizard step
   const [regStep, setRegStep] = useState(1);
@@ -84,7 +81,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
       email: regEmail || `${regUsername.toLowerCase()}@fiaram.mg`,
       password: regPassword,
       telephone: regPhone,
-      groupe_id: regGroupeId,
       registration_answers: answers
     });
 
@@ -142,10 +138,13 @@ export const LoginView: React.FC<LoginViewProps> = ({
           <h2 style={{ fontSize: '1.3rem', marginBottom: '8px', color: '#10b981' }}>
             {t('auth.successTitle')}
           </h2>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: 1.6 }}>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '12px', lineHeight: 1.6 }}>
             {t('auth.successMessagePrefix')}{' '}
             <strong style={{ color: 'var(--accent-gold)' }}>{t('auth.successMessagePending')}</strong>{' '}
             {t('auth.successMessageSuffix')}
+          </p>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '20px', lineHeight: 1.5 }}>
+            {t('auth.groupAssignedByChef')}
           </p>
 
           <div style={{
@@ -483,21 +482,16 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       className="form-input"
                     />
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '4px' }}>
-                      {t('auth.groupAssignmentLabel')} :
-                    </label>
-                    <select
-                      value={regGroupeId}
-                      onChange={(e) => setRegGroupeId(e.target.value)}
-                      className="form-select"
-                    >
-                      {allGroupes.map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.nom_groupe}
-                        </option>
-                      ))}
-                    </select>
+                  <div style={{
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    background: 'rgba(245, 158, 11, 0.08)',
+                    border: '1px solid rgba(245, 158, 11, 0.2)',
+                    fontSize: '0.76rem',
+                    color: 'var(--text-muted)',
+                    lineHeight: 1.5
+                  }}>
+                    {t('auth.groupAssignedByChef')}
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '4px' }}>
@@ -592,7 +586,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       </div>
                       <div>
                         <div style={{ color: 'var(--text-dim)', marginBottom: '2px' }}>{t('auth.groupAssignmentLabel')}</div>
-                        <div style={{ fontWeight: 700 }}>{allGroupes.find((g) => g.id === regGroupeId)?.nom_groupe || '—'}</div>
+                        <div style={{ fontWeight: 700 }}>{t('auth.groupPendingAssignment')}</div>
                       </div>
                     </div>
                     {regQuestions.length > 0 && (
