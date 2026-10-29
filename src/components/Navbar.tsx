@@ -1,5 +1,5 @@
-import React from 'react';
-import { Membre, Role } from '../types';
+import React, { useMemo, useState } from 'react';
+import { Chanson, Evenement, Groupe, Membre, Publication, Role } from '../types';
 import {
   Sun,
   Moon,
@@ -10,9 +10,17 @@ import {
   User,
   Sparkles,
   Menu,
-  LogOut
+  LogOut,
+  Search,
+  X
 } from 'lucide-react';
-import { canAccessAdminPanel } from '../utils/permissions';
+import {
+  canAccessAdminPanel,
+  canAccessView,
+  canViewEvenement,
+  canViewPublication,
+  getVisibleGroupIds
+} from '../utils/permissions';
 import { LanguageSwitcher, useLanguage } from '../i18n';
 
 interface NavbarProps {
@@ -22,8 +30,27 @@ interface NavbarProps {
   onToggleMobileSidebar: () => void;
   activeView: string;
   onSelectView: (view: string) => void;
+  allMembres: Membre[];
+  allGroupes: Groupe[];
+  allEvenements: Evenement[];
+  allPublications: Publication[];
+  allChansons: Chanson[];
   onLogout: () => void;
 }
+
+interface SearchResult {
+  id: string;
+  view: string;
+  label: string;
+  sub: string;
+}
+
+const ROLE_TRANSLATION_KEYS: Record<Membre['role'], string> = {
+  admin: 'common.role.admin',
+  super_chef: 'common.role.superChef',
+  chef: 'common.role.chef',
+  membre: 'common.role.member'
+};
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
@@ -31,10 +58,102 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleTheme,
   onToggleMobileSidebar,
   onSelectView,
+  allMembres,
+  allGroupes,
+  allEvenements,
+  allPublications,
+  allChansons,
   onLogout
 }) => {
   const { t } = useLanguage();
   const canAccessPanel = canAccessAdminPanel(currentUser);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const visibleGroupIds = getVisibleGroupIds(currentUser, allGroupes);
+
+  const searchResults = useMemo<SearchResult[]>(() => {
+    const term = query.toLowerCase().trim();
+    if (term.length < 2) return [];
+
+    const results: SearchResult[] = [];
+    const push = (result: SearchResult) => {
+      if (canAccessView(currentUser, result.view)) results.push(result);
+    };
+
+    allMembres
+      .filter((m) =>
+        m.is_approved !== false && !m.is_blocked &&
+        (`${m.prenom} ${m.nom}`.toLowerCase().includes(term) ||
+        m.code_unique.toLowerCase().includes(term) ||
+        (m.profession || '').toLowerCase().includes(term))
+      )
+      .slice(0, 4)
+      .forEach((m) => push({
+        id: `member-${m.id}`,
+        view: 'members',
+        label: `${m.prenom} ${m.nom}`,
+        sub: t(ROLE_TRANSLATION_KEYS[m.role])
+      }));
+
+    if (canAccessView(currentUser, 'groups')) {
+      allGroupes
+        .filter((g) => g.nom_groupe.toLowerCase().includes(term) && (visibleGroupIds.includes(g.id) || currentUser.role === 'admin' || currentUser.role === 'super_chef'))
+        .slice(0, 3)
+        .forEach((g) => push({
+          id: `group-${g.id}`,
+          view: 'groups',
+          label: g.nom_groupe,
+          sub: t('nav.groups')
+        }));
+    }
+
+    allEvenements
+      .filter((ev) =>
+        ev.nom.toLowerCase().includes(term) &&
+        canViewEvenement(currentUser, ev, allGroupes)
+      )
+      .slice(0, 3)
+      .forEach((ev) => push({
+        id: `event-${ev.id}`,
+        view: 'events',
+        label: ev.nom,
+        sub: t('nav.events')
+      }));
+
+    allPublications
+      .filter((pub) =>
+        pub.contenu.toLowerCase().includes(term) &&
+        canViewPublication(currentUser, pub, allGroupes)
+      )
+      .slice(0, 3)
+      .forEach((pub) => push({
+        id: `publication-${pub.id}`,
+        view: 'publications',
+        label: pub.contenu.slice(0, 70) || t('nav.publications'),
+        sub: t('nav.publications')
+      }));
+
+    allChansons
+      .filter((song) =>
+        song.titre.toLowerCase().includes(term) ||
+        (song.auteur || '').toLowerCase().includes(term)
+      )
+      .slice(0, 3)
+      .forEach((song) => push({
+        id: `song-${song.id}`,
+        view: 'songs',
+        label: song.titre,
+        sub: song.auteur || t('nav.resources')
+      }));
+
+    return results.slice(0, 10);
+  }, [query, currentUser, allMembres, allGroupes, allEvenements, allPublications, allChansons, visibleGroupIds, t]);
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setQuery('');
+  };
 
   const getRoleBadge = (role: Role) => {
     switch (role) {
@@ -150,6 +269,106 @@ export const Navbar: React.FC<NavbarProps> = ({
         }}>
           <Wifi size={13} />
           <span style={{ fontWeight: 600 }}>{t('nav.active')}</span>
+        </div>
+
+        <div className="nav-search" style={{ position: 'relative' }}>
+          <button
+            onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+            className="btn btn-ghost"
+            style={{ width: '38px', height: '38px', padding: 0, borderRadius: '50%' }}
+            title={t('nav.search')}
+          >
+            {searchOpen ? <X size={18} /> : <Search size={18} />}
+          </button>
+
+          {searchOpen && (
+            <div
+              className="glass-card nav-search-panel"
+              style={{
+                position: 'absolute',
+                top: '48px',
+                right: 0,
+                width: 'min(380px, calc(100vw - 32px))',
+                padding: '12px',
+                zIndex: 60
+              }}
+            >
+              <div style={{ position: 'relative' }}>
+                <Search
+                  size={16}
+                  style={{
+                    position: 'absolute',
+                    left: '11px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--text-dim)'
+                  }}
+                />
+                <input
+                  autoFocus
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="form-input"
+                  placeholder={t('nav.searchPlaceholder')}
+                  style={{ paddingLeft: '34px', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              {query.trim().length >= 2 && (
+                <div style={{
+                  marginTop: '10px',
+                  maxHeight: '320px',
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}>
+                  {searchResults.length === 0 ? (
+                    <div style={{ padding: '14px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      {t('nav.searchEmpty')}
+                    </div>
+                  ) : (
+                    searchResults.map((result) => (
+                      <button
+                        key={result.id}
+                        type="button"
+                        onClick={() => {
+                          onSelectView(result.view);
+                          closeSearch();
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                          padding: '9px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid transparent',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          color: 'var(--text-main)',
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                      >
+                        <span style={{
+                          fontSize: '0.82rem',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {result.label}
+                        </span>
+                        <span style={{ fontSize: '0.66rem', color: 'var(--accent-gold)', flexShrink: 0 }}>
+                          {result.sub}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <LanguageSwitcher compact />

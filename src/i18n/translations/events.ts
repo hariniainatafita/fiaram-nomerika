@@ -35,5 +35,11 @@ export const events: TranslationDictionary = {
   'events.donateTitle': { mg: "Fandraisana anjara amin'ny tetikasa", fr: 'Participer au projet', en: 'Contribute to the project' },
   'events.amountLabel': { mg: 'Vola harotsaka (Ariary) :', fr: 'Montant à verser (Ariary) :', en: 'Amount to contribute (Ariary):' },
   'events.submitDonate': { mg: 'Handefa ny vola', fr: 'Verser le montant', en: 'Send contribution' },
-  'events.keepOpen': { mg: 'Ajanona aloha', fr: 'Laisser pour plus tard', en: 'Not now' }
+  'events.keepOpen': { mg: 'Ajanona aloha', fr: 'Laisser pour plus tard', en: 'Not now' },
+  'events.groupLabel': { mg: 'Vondrona :', fr: 'Groupe :', en: 'Group:' },
+  'events.globalOption': {
+    mg: 'Hetsika ho an’ny rehetra',
+    fr: 'Événement pour tous',
+    en: 'Event for everyone'
+  }
 };

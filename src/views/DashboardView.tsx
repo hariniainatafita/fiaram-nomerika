@@ -17,6 +17,7 @@ import {
   Camera
 } from 'lucide-react';
 import { useLanguage } from '../i18n';
+import { canViewEvenement, getMemberGroup } from '../utils/permissions';
 
 interface DashboardViewProps {
   currentUser: Membre;
@@ -53,8 +54,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const userCotisations = allCotisations.filter((c) => c.membre_id === currentUser.id);
   const totalCotisationsPaid = userCotisations.reduce((sum, c) => sum + c.montant, 0);
 
-  // Group of user
-  const userGroup = allGroupes.find((g) => g.chef_id === currentUser.id) || allGroupes[0];
+  // Group of user: only the member's own group (chefs fall back to a managed group)
+  const userGroup = getMemberGroup(currentUser, allGroupes);
+  const visibleEvenements = allEvenements.filter((ev) =>
+    canViewEvenement(currentUser, ev, allGroupes)
+  );
 
   const now = new Date();
   const formattedDate = t('dashboard.dateFormat', {
@@ -259,10 +263,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontWeight: 600 }}>{t('dashboard.kpi.yourGroup')}</div>
               <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: '4px 0' }}>
-                {userGroup.nom_groupe}
+                {userGroup ? userGroup.nom_groupe : t('dashboard.kpi.noGroup')}
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--accent-gold)' }}>
-                {t('dashboard.kpi.groupBalance', { amount: (userGroup.solde || 0).toLocaleString() })}
+                {t('dashboard.kpi.groupBalance', { amount: (userGroup?.solde || 0).toLocaleString() })}
               </div>
             </div>
             <div style={{
@@ -505,7 +509,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-          {allEvenements.map((ev) => {
+          {visibleEvenements.map((ev) => {
             const percent = Math.min(100, Math.round((ev.collecte_actuelle / ev.objectif_financier) * 100));
 
             return (

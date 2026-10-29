@@ -222,7 +222,7 @@ export const SongsView: React.FC<SongsViewProps> = ({
     const catMatch = selectedCategory === 'all' || s.categorie_id === selectedCategory;
     const favMatch = !favoritesOnly || s.is_favori;
     return textMatch && catMatch && favMatch;
-  });
+  }).sort((a, b) => a.titre.localeCompare(b.titre, 'fr', { sensitivity: 'base' }));
 
   return (
     <div className="animate-fade-in" style={{ padding: '24px 20px', maxWidth: '1200px', margin: '0 auto' }}>

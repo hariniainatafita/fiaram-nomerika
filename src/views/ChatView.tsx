@@ -16,6 +16,7 @@ import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
 import { isMemberOnline, PresenceMap } from '../utils/presence';
 import { useLanguage } from '../i18n';
+import { getVisibleGroupIds } from '../utils/permissions';
 
 interface ChatViewProps {
   currentUser: Membre;
@@ -34,9 +35,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
   presence,
   onRefreshMessages
 }) => {
+  const visibleGroupIds = getVisibleGroupIds(currentUser, allGroupes);
+  const visibleGroupes = allGroupes.filter((g) => visibleGroupIds.includes(g.id));
+  const directFallbackId = allMembres.find((m) => m.id !== currentUser.id)?.id || '';
+
   // Active conversation target: either a group id or a member id
-  const [activeChannelType, setActiveChannelType] = useState<'group' | 'direct'>('group');
-  const [activeChannelId, setActiveChannelId] = useState(allGroupes[0]?.id || 'g1');
+  const [activeChannelType, setActiveChannelType] = useState<'group' | 'direct'>(
+    visibleGroupes.length > 0 ? 'group' : 'direct'
+  );
+  const [activeChannelId, setActiveChannelId] = useState(
+    visibleGroupes[0]?.id || directFallbackId
+  );
 
   // New message input
   const [inputText, setInputText] = useState('');
@@ -210,10 +219,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
             
             {/* Groups section */}
             <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-dim)', padding: '6px 10px', textTransform: 'uppercase' }}>
-              {t('chat.groupsSection', { count: allGroupes.length })}
+              {t('chat.groupsSection', { count: visibleGroupes.length })}
             </div>
 
-            {allGroupes.map((g) => {
+            {visibleGroupes.map((g) => {
               const isSelected = activeChannelType === 'group' && activeChannelId === g.id;
               const chef = allMembres.find((m) => m.id === g.chef_id);
 

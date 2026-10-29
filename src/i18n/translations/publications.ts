@@ -215,5 +215,25 @@ export const publications: TranslationDictionary = {
     mg: 'Asehoy ny publication hafa',
     fr: 'Charger plus de publications',
     en: 'Load more posts'
+  },
+  'publications.audience.label': {
+    mg: 'Hizara amin’ny :',
+    fr: 'Partager avec :',
+    en: 'Share with:'
+  },
+  'publications.audience.all': {
+    mg: 'Ny rehetra',
+    fr: 'Tout le monde',
+    en: 'Everyone'
+  },
+  'publications.audience.group': {
+    mg: 'Ny vondrona misy ahy',
+    fr: 'Mon groupe',
+    en: 'My group'
+  },
+  'publications.audience.groupPost': {
+    mg: 'Vondrona · {group}',
+    fr: 'Groupe · {group}',
+    en: 'Group · {group}'
   }
 };

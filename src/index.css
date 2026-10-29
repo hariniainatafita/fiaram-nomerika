@@ -587,3 +587,14 @@ body {
     display: none !important;
   }
 }
+
+/* Global navbar search: keep the dropdown inside small viewports */
+@media (max-width: 640px) {
+  .nav-search-panel {
+    position: fixed !important;
+    top: 68px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+  }
+}

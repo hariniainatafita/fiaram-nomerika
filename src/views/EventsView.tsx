@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Membre, Evenement } from '../types';
+import { Membre, Evenement, Groupe } from '../types';
 import { 
   Pin, 
   Clock, 
@@ -10,20 +10,28 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { StorageService } from '../utils/storage';
-import { canCreateEvenement, isAdmin } from '../utils/permissions';
+import { canCreateEvenement, canViewEvenement, getVisibleGroupIds, isAdmin, isSuperChef } from '../utils/permissions';
 import { useLanguage } from '../i18n';
 
 interface EventsViewProps {
   currentUser: Membre;
+  allGroupes: Groupe[];
   evenements: Evenement[];
   onRefreshEvents: () => void;
 }
 
 export const EventsView: React.FC<EventsViewProps> = ({
   currentUser,
+  allGroupes,
   evenements,
   onRefreshEvents
 }) => {
+  const selectableGroupes = getVisibleGroupIds(currentUser, allGroupes)
+    .map((id) => allGroupes.find((g) => g.id === id))
+    .filter((g): g is Groupe => Boolean(g));
+  const canCreateGlobal = isAdmin(currentUser) || isSuperChef(currentUser);
+  const defaultGroupeId = canCreateGlobal ? '' : selectableGroupes[0]?.id || '';
+
   const [donateEventId, setDonateEventId] = useState<string | null>(null);
   const [donateAmount, setDonateAmount] = useState(10000);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -32,9 +40,13 @@ export const EventsView: React.FC<EventsViewProps> = ({
   const [newObjectif, setNewObjectif] = useState(0);
   const [newDate, setNewDate] = useState('');
   const [newPinned, setNewPinned] = useState(false);
+  const [newGroupeId, setNewGroupeId] = useState(defaultGroupeId);
   const { t } = useLanguage();
   const canCreate = canCreateEvenement(currentUser);
   const canDelete = isAdmin(currentUser);
+  const visibleEvenements = evenements.filter((ev) =>
+    canViewEvenement(currentUser, ev, allGroupes)
+  );
 
   const resetCreateForm = () => {
     setNewNom('');
@@ -42,6 +54,7 @@ export const EventsView: React.FC<EventsViewProps> = ({
     setNewObjectif(0);
     setNewDate('');
     setNewPinned(false);
+    setNewGroupeId(defaultGroupeId);
   };
 
   const handleCreateEvent = (e: React.FormEvent) => {
@@ -51,6 +64,7 @@ export const EventsView: React.FC<EventsViewProps> = ({
     StorageService.addEvenement({
       nom: newNom.trim(),
       notes: newNotes.trim() || undefined,
+      groupe_id: newGroupeId || undefined,
       objectif_financier: Math.max(0, Number(newObjectif) || 0),
       is_pinned: newPinned,
       date_evenement: newDate ? newDate.replace('T', ' ') : undefined
@@ -116,7 +130,7 @@ export const EventsView: React.FC<EventsViewProps> = ({
 
       {/* Events List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {evenements.map((ev) => {
+        {visibleEvenements.map((ev) => {
           const percent = ev.objectif_financier > 0
             ? Math.min(100, Math.round((ev.collecte_actuelle / ev.objectif_financier) * 100))
             : 0;
@@ -275,6 +289,25 @@ export const EventsView: React.FC<EventsViewProps> = ({
                   placeholder={t('events.notesPlaceholder')}
                 />
               </div>
+
+              {selectableGroupes.length > 0 && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '6px' }}>
+                    {t('events.groupLabel')}
+                  </label>
+                  <select
+                    value={newGroupeId}
+                    onChange={(e) => setNewGroupeId(e.target.value)}
+                    className="form-select"
+                    disabled={!canCreateGlobal && selectableGroupes.length === 1}
+                  >
+                    {canCreateGlobal && <option value="">{t('events.globalOption')}</option>}
+                    {selectableGroupes.map((g) => (
+                      <option key={g.id} value={g.id}>{g.nom_groupe}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                 <div>

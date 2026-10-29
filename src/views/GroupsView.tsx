@@ -38,10 +38,16 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
   const canManageAll = canManageAllGroups(currentUser);
   const canAssignChef = canManageChefs(currentUser);
   const managedGroupIds = getManagedGroupIds(currentUser, allGroupes);
+  const visibleGroupes = canManageAll
+    ? allGroupes
+    : allGroupes.filter((g) => managedGroupIds.includes(g.id) || g.id === currentUser.groupe_id);
+  const movableGroupes = canManageAll
+    ? allGroupes
+    : allGroupes.filter((g) => managedGroupIds.includes(g.id));
 
   // Selected group to view & manage (chef starts on his own group)
   const [selectedGroupe, setSelectedGroupe] = useState<Groupe>(
-    allGroupes.find((g) => managedGroupIds.includes(g.id)) || allGroupes[0] || null
+    visibleGroupes.find((g) => managedGroupIds.includes(g.id)) || visibleGroupes[0] || null
   );
   const canManageSelected = canManageGroup(currentUser, selectedGroupe);
   const canEditSelected = canManageSelected || canAssignChef;
@@ -234,7 +240,9 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
 
   // Candidate members to add (not currently in this group)
   const candidateMembers = selectedGroupe
-    ? allMembres.filter((m) => m.groupe_id !== selectedGroupe.id)
+    ? allMembres.filter(
+        (m) => m.groupe_id !== selectedGroupe.id && (canManageAll || !m.groupe_id)
+      )
     : [];
 
   const filteredCandidateMembers = candidateMembers.filter((m) => {
@@ -307,7 +315,7 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
         gap: '20px',
         marginBottom: '32px'
       }}>
-        {allGroupes.map((grp) => {
+        {visibleGroupes.map((grp) => {
           const chef = allMembres.find((m) => m.id === grp.chef_id);
           const isSelected = selectedGroupe?.id === grp.id;
           const memberCount = allMembres.filter((m) => m.groupe_id === grp.id).length;
@@ -580,7 +588,7 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
                             type="button"
                             onClick={() => {
                               setShowMoveMemberModal(m);
-                              setTargetMoveGroupId(allGroupes.find((g) => g.id !== selectedGroupe.id)?.id || '');
+                              setTargetMoveGroupId(movableGroupes.find((g) => g.id !== selectedGroupe.id)?.id || '');
                             }}
                             className="btn btn-ghost"
                             style={{ fontSize: '0.72rem', padding: '4px 8px', color: '#3b82f6' }}
@@ -886,7 +894,7 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
                   onChange={(e) => setTargetMoveGroupId(e.target.value)}
                   className="form-select"
                 >
-                  {allGroupes.map((g) => (
+                  {movableGroupes.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.nom_groupe}
                     </option>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Membre, Publication } from '../types';
+import { Groupe, Membre, Publication } from '../types';
 import {
   Heart,
   MessageCircle,
@@ -12,12 +12,13 @@ import {
 } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
-import { isAdmin } from '../utils/permissions';
+import { canViewPublication, getVisibleGroupIds, isAdmin } from '../utils/permissions';
 import { useLanguage } from '../i18n';
 
 interface PublicationsViewProps {
   currentUser: Membre;
   allMembres: Membre[];
+  allGroupes: Groupe[];
   publications: Publication[];
   onRefreshPublications: () => void;
 }
@@ -93,11 +94,17 @@ async function copyText(text: string): Promise<void> {
 export const PublicationsView: React.FC<PublicationsViewProps> = ({
   currentUser,
   allMembres,
+  allGroupes,
   publications,
   onRefreshPublications
 }) => {
   const { t, language } = useLanguage();
+  const composerGroupes = getVisibleGroupIds(currentUser, allGroupes)
+    .map((id) => allGroupes.find((g) => g.id === id))
+    .filter((g): g is Groupe => Boolean(g));
   const [newContent, setNewContent] = useState('');
+  const [audience, setAudience] = useState<'all' | 'group'>('all');
+  const [targetGroupeId, setTargetGroupeId] = useState(composerGroupes[0]?.id || '');
   const [stagedImage, setStagedImage] = useState<StagedImage | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -132,10 +139,10 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     t(`publications.stats.${base}.${count > 1 ? 'plural' : 'single'}`, { count });
 
   const sortedPublications = useMemo(
-    () => [...publications].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    ),
-    [publications]
+    () => publications
+      .filter((publication) => canViewPublication(currentUser, publication, allGroupes))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    [publications, currentUser, allGroupes]
   );
 
   const visiblePublications = sortedPublications.slice(0, visibleCount);
@@ -197,7 +204,14 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
 
     setIsPublishing(true);
     try {
-      StorageService.createPublication(currentUser.id, content, stagedImage?.dataUrl);
+      const publicationAudience = audience === 'group' && targetGroupeId ? 'group' : 'all';
+      StorageService.createPublication(
+        currentUser.id,
+        content,
+        stagedImage?.dataUrl,
+        publicationAudience,
+        targetGroupeId || undefined
+      );
       setNewContent('');
       setStagedImage(null);
       setVisibleCount((count) => Math.max(count, PAGE_SIZE));
@@ -347,6 +361,41 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
               </div>
             )}
 
+            {composerGroupes.length > 0 && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                flexWrap: 'wrap',
+                marginTop: '12px'
+              }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  {t('publications.audience.label')}
+                </span>
+                <select
+                  value={audience}
+                  onChange={(event) => setAudience(event.target.value as 'all' | 'group')}
+                  className="form-select"
+                  style={{ width: 'auto', fontSize: '0.8rem', padding: '7px 10px' }}
+                >
+                  <option value="all">{t('publications.audience.all')}</option>
+                  <option value="group">{t('publications.audience.group')}</option>
+                </select>
+                {audience === 'group' && composerGroupes.length > 1 && (
+                  <select
+                    value={targetGroupeId}
+                    onChange={(event) => setTargetGroupeId(event.target.value)}
+                    className="form-select"
+                    style={{ width: 'auto', fontSize: '0.8rem', padding: '7px 10px' }}
+                  >
+                    {composerGroupes.map((g) => (
+                      <option key={g.id} value={g.id}>{g.nom_groupe}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -424,7 +473,12 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                     )}
                   </div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)' }}>
-                    {formatRelativeDate(publication.created_at)} · {t('publications.publicPost')}
+                    {formatRelativeDate(publication.created_at)} ·{' '}
+                    {publication.audience === 'group' && publication.groupe_id
+                      ? t('publications.audience.groupPost', {
+                          group: allGroupes.find((g) => g.id === publication.groupe_id)?.nom_groupe || ''
+                        })
+                      : t('publications.publicPost')}
                   </div>
                 </div>
                 {publication.auteur_id === currentUser.id && (

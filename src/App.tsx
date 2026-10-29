@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StorageService } from './utils/storage';
 import { subscribeToSupabase } from './utils/supabaseSync';
 import { usePresence } from './utils/presence';
-import { canAccessView } from './utils/permissions';
+import { canAccessGroupData, canAccessView } from './utils/permissions';
 import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication } from './types';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
@@ -18,6 +18,7 @@ import { ChatView } from './views/ChatView';
 import { GroupsView } from './views/GroupsView';
 import { EventsView } from './views/EventsView';
 import { PublicationsView } from './views/PublicationsView';
+import { MembersView } from './views/MembersView';
 import { ProfileView } from './views/ProfileView';
 import { AdminView } from './views/AdminView';
 import { LoginView } from './views/LoginView';
@@ -57,7 +58,7 @@ export function App() {
   // Never keep a view that the current role is not allowed to open
   useEffect(() => {
     if (currentUser && !canAccessView(currentUser, activeView)) {
-      setActiveView('dashboard');
+      setActiveView(canAccessGroupData(currentUser) ? 'dashboard' : 'publications');
     }
   }, [currentUser, activeView]);
 
@@ -131,7 +132,6 @@ export function App() {
       });
     });
     return unsubscribe;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
 
   // If user is not logged in, render Login / Registration View
@@ -152,7 +152,8 @@ export function App() {
   ).length;
 
   // Final guard: even if a forbidden view is in state, render a safe view instead
-  const allowedView = canAccessView(currentUser, activeView) ? activeView : 'dashboard';
+  const defaultView = canAccessGroupData(currentUser) ? 'dashboard' : 'publications';
+  const allowedView = canAccessView(currentUser, activeView) ? activeView : defaultView;
 
   return (
     <div className="app-container">
@@ -177,6 +178,11 @@ export function App() {
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           activeView={allowedView}
           onSelectView={setActiveView}
+          allMembres={allMembres}
+          allGroupes={allGroupes}
+          allEvenements={allEvenements}
+          allPublications={allPublications}
+          allChansons={allChansons}
           onLogout={() => {
             StorageService.logout();
             setCurrentUser(null);
@@ -201,8 +207,18 @@ export function App() {
             <PublicationsView
               currentUser={currentUser}
               allMembres={allMembres}
+              allGroupes={allGroupes}
               publications={allPublications}
               onRefreshPublications={refreshPublications}
+            />
+          )}
+
+          {allowedView === 'members' && (
+            <MembersView
+              currentUser={currentUser}
+              allMembres={allMembres}
+              allGroupes={allGroupes}
+              presence={presenceMap}
             />
           )}
 
@@ -269,6 +285,7 @@ export function App() {
           {allowedView === 'events' && (
             <EventsView
               currentUser={currentUser}
+              allGroupes={allGroupes}
               evenements={allEvenements}
               onRefreshEvents={refreshEvenements}
             />
@@ -297,6 +314,7 @@ export function App() {
           activeView={allowedView}
           onSelectView={setActiveView}
           unreadCount={unreadCount}
+          currentUser={currentUser}
         />
       </div>
     </div>

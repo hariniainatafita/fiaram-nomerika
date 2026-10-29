@@ -619,7 +619,8 @@ export const StorageService = {
 
   // Chansons
   getChansons(): Chanson[] {
-    return getStoredItem<Chanson[]>(STORAGE_KEYS.CHANSONS, INITIAL_CHANSONS);
+    return getStoredItem<Chanson[]>(STORAGE_KEYS.CHANSONS, INITIAL_CHANSONS)
+      .sort((a, b) => a.titre.localeCompare(b.titre, 'fr', { sensitivity: 'base' }));
   },
   saveChansons(chansons: Chanson[]): void {
     setStoredItem(STORAGE_KEYS.CHANSONS, chansons);
@@ -761,13 +762,21 @@ export const StorageService = {
   savePublications(publications: Publication[]): void {
     setStoredItem(STORAGE_KEYS.PUBLICATIONS, publications);
   },
-  createPublication(auteur_id: string, contenu: string, image_url?: string): Publication {
+  createPublication(
+    auteur_id: string,
+    contenu: string,
+    image_url?: string,
+    audience: 'all' | 'group' = 'all',
+    groupe_id?: string
+  ): Publication {
     const list = this.getPublications();
     const newPublication: Publication = {
       id: 'pub_' + Date.now(),
       auteur_id,
       contenu: contenu.trim(),
       image_url,
+      audience: audience === 'group' ? 'group' : 'all',
+      groupe_id: audience === 'group' ? groupe_id : undefined,
       created_at: new Date().toISOString(),
       liked_by: [],
       commentaires: [],

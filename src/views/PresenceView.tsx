@@ -41,8 +41,9 @@ export const PresenceView: React.FC<PresenceViewProps> = ({
   const manageableMembres = canValidate
     ? allMembres.filter((m) => canValidatePresence(currentUser, m, allGroupes))
     : [currentUser];
+  const manageableMembreIds = new Set(manageableMembres.map((m) => m.id));
   const visiblePresences = canValidate
-    ? presences
+    ? presences.filter((p) => manageableMembreIds.has(p.membre_id))
     : presences.filter((p) => p.membre_id === currentUser.id);
 
   const statusLabel = (statut: StatutPresence) => {
@@ -745,7 +746,7 @@ export const PresenceView: React.FC<PresenceViewProps> = ({
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '420px', overflowY: 'auto' }}>
-              {allMembres.map((m) => (
+              {manageableMembres.map((m) => (
                 <div
                   key={m.id}
                   style={{

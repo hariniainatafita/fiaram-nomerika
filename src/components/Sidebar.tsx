@@ -15,10 +15,11 @@ import {
   Sparkles,
   Camera,
   X,
-  Settings
+  Settings,
+  UsersRound
 } from 'lucide-react';
 import { StorageService } from '../utils/storage';
-import { canAccessAdminPanel, canAccessFinance, isAdmin, canValidateAnyPresence } from '../utils/permissions';
+import { canAccessAdminPanel, canAccessFinance, canAccessGroupData, isAdmin, canValidateAnyPresence } from '../utils/permissions';
 import { useLanguage } from '../i18n';
 import { SettingsModal } from './SettingsModal';
 import QrScannerModal from './QrScannerModal';
@@ -47,20 +48,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const canAccessPanel = canAccessAdminPanel(currentUser);
   const canSeeFinance = canAccessFinance(currentUser);
   const canValidate = canValidateAnyPresence(currentUser);
+  const hasGroupAccess = canAccessGroupData(currentUser);
 
   const [showSettings, setShowSettings] = useState(false);
   const [showQrScanner, setShowQrScanner] = useState(false);
 
   const navItems = [
-    { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
+    { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, hidden: !hasGroupAccess },
     { id: 'publications', label: t('nav.publications'), icon: Camera },
-    { id: 'presence', label: t('nav.presence'), icon: QrCode },
-    { id: 'cotisations', label: t('nav.cotisations'), icon: Wallet },
+    { id: 'members', label: t('nav.members'), icon: UsersRound },
+    { id: 'presence', label: t('nav.presence'), icon: QrCode, hidden: !hasGroupAccess },
+    { id: 'cotisations', label: t('nav.cotisations'), icon: Wallet, hidden: !hasGroupAccess },
     { id: 'finance', label: t('nav.finance'), icon: CircleDollarSign, hidden: !canSeeFinance },
     { id: 'songs', label: t('nav.resources'), icon: Music },
     { id: 'chat', label: t('nav.chat'), icon: MessageSquare, badge: unreadCount },
-    { id: 'groups', label: t('nav.groups'), icon: Users },
-    { id: 'events', label: t('nav.events'), icon: CalendarDays },
+    { id: 'groups', label: t('nav.groups'), icon: Users, hidden: !hasGroupAccess },
+    { id: 'events', label: t('nav.events'), icon: CalendarDays, hidden: !hasGroupAccess },
     { id: 'profile', label: t('nav.profile'), icon: UserCheck },
     {
       id: 'admin',

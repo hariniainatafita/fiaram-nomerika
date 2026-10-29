@@ -210,6 +210,8 @@ export interface Publication {
   auteur_id: string;
   contenu: string;
   image_url?: string;
+  audience?: 'all' | 'group';
+  groupe_id?: string;
   created_at: string;
   liked_by: string[];
   commentaires: PublicationComment[];
@@ -221,6 +223,7 @@ export interface Evenement {
   id: string;
   nom: string;
   notes?: string;
+  groupe_id?: string;
   objectif_financier: number;
   collecte_actuelle: number;
   is_pinned: boolean;

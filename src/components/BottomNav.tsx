@@ -1,25 +1,34 @@
 import React from 'react';
-import { LayoutDashboard, QrCode, Wallet, Music, MessageSquare, Camera } from 'lucide-react';
+import { LayoutDashboard, QrCode, Wallet, Music, MessageSquare, Camera, UsersRound } from 'lucide-react';
+import { Membre } from '../types';
+import { canAccessGroupData } from '../utils/permissions';
 import { useLanguage } from '../i18n';
 
 interface BottomNavProps {
   activeView: string;
   onSelectView: (view: string) => void;
   unreadCount: number;
+  currentUser: Membre;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
   activeView,
   onSelectView,
-  unreadCount
+  unreadCount,
+  currentUser
 }) => {
   const { t } = useLanguage();
+  const hasGroupAccess = canAccessGroupData(currentUser);
   const items = [
-    { id: 'dashboard', label: t('nav.short.dashboard'), icon: LayoutDashboard },
+    ...(hasGroupAccess
+      ? [
+          { id: 'dashboard', label: t('nav.short.dashboard'), icon: LayoutDashboard },
+          { id: 'presence', label: t('nav.short.presence'), icon: QrCode },
+          { id: 'cotisations', label: t('nav.short.cotisations'), icon: Wallet }
+        ]
+      : [{ id: 'songs', label: t('nav.short.resources'), icon: Music }]),
     { id: 'publications', label: t('nav.short.publications'), icon: Camera },
-    { id: 'presence', label: t('nav.short.presence'), icon: QrCode },
-    { id: 'cotisations', label: t('nav.short.cotisations'), icon: Wallet },
-    { id: 'songs', label: t('nav.short.resources'), icon: Music },
+    { id: 'members', label: t('nav.short.members'), icon: UsersRound },
     { id: 'chat', label: t('nav.short.chat'), icon: MessageSquare, badge: unreadCount }
   ];
 

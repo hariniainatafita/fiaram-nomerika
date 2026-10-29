@@ -96,6 +96,11 @@ export const dashboard: TranslationDictionary = {
     fr: 'VOTRE GROUPE',
     en: 'YOUR GROUP'
   },
+  'dashboard.kpi.noGroup': {
+    mg: 'Tsy misy vondrona',
+    fr: 'Aucun groupe',
+    en: 'No group'
+  },
   'dashboard.kpi.groupBalance': {
     mg: 'Tahiry: {amount} Ar',
     fr: 'Solde : {amount} Ar',
