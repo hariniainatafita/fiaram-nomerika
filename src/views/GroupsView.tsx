@@ -241,7 +241,10 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
   // Candidate members to add (not currently in this group)
   const candidateMembers = selectedGroupe
     ? allMembres.filter(
-        (m) => m.groupe_id !== selectedGroupe.id && (canManageAll || !m.groupe_id)
+        (m) =>
+          m.groupe_id !== selectedGroupe.id &&
+          m.is_approved !== false &&
+          (canManageAll || !m.groupe_id)
       )
     : [];
 

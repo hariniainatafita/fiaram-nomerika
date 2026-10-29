@@ -332,6 +332,18 @@ export const StorageService = {
     this.saveMembres(list);
   },
 
+  // New registrations must stay group-less until a chef assigns them.
+  clearPendingMemberGroups(): void {
+    const list = this.getMembres();
+    let changed = false;
+    list.forEach((m) => {
+      if (m.is_approved === false && m.groupe_id) {
+        m.groupe_id = undefined;
+        changed = true;
+      }
+    });
+    if (changed) this.saveMembres(list);
+  },
   // Admin approval
   approveMembre(id: string): void {
     const list = this.getMembres();

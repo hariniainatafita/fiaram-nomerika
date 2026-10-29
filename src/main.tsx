@@ -11,6 +11,7 @@ async function bootstrap() {
   // starts from the same accounts / presences / settings.
   await hydrateFromSupabase()
   StorageService.removeLegacyAutoReplies()
+  StorageService.clearPendingMemberGroups()
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
