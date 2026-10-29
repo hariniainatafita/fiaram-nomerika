@@ -5,6 +5,7 @@ import {
   Image as ImageIcon, 
   Search, 
   Users, 
+  Check,
   CheckCheck, 
   X,
   Maximize2,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
+import { isMemberOnline, PresenceMap } from '../utils/presence';
 import { useLanguage } from '../i18n';
 
 interface ChatViewProps {
@@ -20,6 +22,7 @@ interface ChatViewProps {
   allMembres: Membre[];
   allGroupes: Groupe[];
   messages: Message[];
+  presence: PresenceMap;
   onRefreshMessages: () => void;
 }
 
@@ -28,6 +31,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   allMembres,
   allGroupes,
   messages,
+  presence,
   onRefreshMessages
 }) => {
   // Active conversation target: either a group id or a member id
@@ -36,7 +40,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   // New message input
   const [inputText, setInputText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [searchContact, setSearchContact] = useState('');
 
   // Staged image attachment state
@@ -75,6 +78,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const activePeer = activeChannelType === 'direct' 
     ? allMembres.find((m) => m.id === activeChannelId) 
     : null;
+  const isPeerOnline = isMemberOnline(presence, activePeer?.id);
 
   // Filter messages for current channel
   const channelMessages = messages.filter((m) => {
@@ -87,6 +91,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
       );
     }
   });
+
+  // Mark received messages as read while the private conversation is open
+  useEffect(() => {
+    if (activeChannelType !== 'direct' || !activeChannelId) return;
+    if (StorageService.markConversationAsRead(currentUser.id, activeChannelId)) {
+      onRefreshMessages();
+    }
+  }, [activeChannelType, activeChannelId, messages, currentUser.id, onRefreshMessages]);
 
   // Handle local image file selection with canvas compression
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,23 +164,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setInputText('');
     setStagedImage(null);
     onRefreshMessages();
-
-    // Trigger simulated reply if private chat
-    if (activeChannelType === 'direct') {
-      setIsTyping(true);
-      setTimeout(() => {
-        setIsTyping(false);
-        StorageService.sendMessage(
-          activeChannelId,
-          imageUrlToSend 
-            ? t('chat.autoReplyImage')
-            : t('chat.autoReplyText'),
-          currentUser.id,
-          undefined
-        );
-        onRefreshMessages();
-      }, 1500);
-    }
   };
 
   return (
@@ -278,6 +273,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
             {allMembres.filter((m) => m.id !== currentUser.id).map((m) => {
               const isSelected = activeChannelType === 'direct' && activeChannelId === m.id;
+              const online = isMemberOnline(presence, m.id);
               return (
                 <button
                   key={m.id}
@@ -315,9 +311,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       width: '9px',
                       height: '9px',
                       borderRadius: '50%',
-                      background: '#10b981',
+                      background: online ? '#10b981' : '#6b7280',
                       border: '2px solid var(--bg-secondary)'
-                    }} />
+                    }} title={online ? t('chat.onlineStatus') : t('chat.offlineStatus')} />
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -384,8 +380,28 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <div style={{ fontSize: '0.98rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {activeChannelType === 'group' ? activeGroup?.nom_groupe : `${activePeer?.prenom} ${activePeer?.nom}`}
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#10b981' }}>
-                  {activeChannelType === 'group' ? t('chat.groupSubtitle') : t('chat.onlineStatus')}
+                <div style={{
+                  fontSize: '0.72rem',
+                  color: activeChannelType === 'group' ? 'var(--text-muted)' : isPeerOnline ? '#10b981' : '#6b7280',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}>
+                  {activeChannelType === 'group' ? (
+                    t('chat.groupSubtitle')
+                  ) : (
+                    <>
+                      <span style={{
+                        width: '7px',
+                        height: '7px',
+                        borderRadius: '50%',
+                        background: isPeerOnline ? '#10b981' : '#6b7280',
+                        display: 'inline-block',
+                        flexShrink: 0
+                      }} />
+                      {isPeerOnline ? t('chat.onlineStatus') : t('chat.offlineStatus')}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -514,20 +530,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         marginTop: '4px'
                       }}>
                         <span>{msg.sent_at ? msg.sent_at.slice(-5) : ''}</span>
-                        {isMe && <CheckCheck size={12} />}
+                        {isMe && (
+                          <span
+                            title={msg.status === 'read' ? t('chat.readStatus') : t('chat.sentStatus')}
+                            style={{ display: 'inline-flex', alignItems: 'center' }}
+                          >
+                            {msg.status === 'read' ? <CheckCheck size={12} /> : <Check size={12} />}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
                 );
               })
-            )}
-
-            {/* Typing indicator */}
-            {isTyping && (
-              <div style={{ fontSize: '0.78rem', color: 'var(--accent-gold)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className="animate-pulse-glow">●</span>
-                <span>{t('chat.typing', { name: activePeer?.prenom ?? '' })}</span>
-              </div>
             )}
 
             <div ref={messagesEndRef} />

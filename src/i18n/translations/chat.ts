@@ -24,11 +24,10 @@ export const chat: TranslationDictionary = {
     fr: 'Messages partagés dans le groupe',
     en: 'Messages shared in the group'
   },
-  'chat.onlineStatus': {
-    mg: 'Mavitrika an-tserasera (En ligne)',
-    fr: 'Actif en ligne',
-    en: 'Active online'
-  },
+  'chat.onlineStatus': { mg: 'En ligne', fr: 'En ligne', en: 'Online' },
+  'chat.offlineStatus': { mg: 'Tsy mandeha (Hors ligne)', fr: 'Hors ligne', en: 'Offline' },
+  'chat.sentStatus': { mg: 'Nalefa', fr: 'Envoyé', en: 'Sent' },
+  'chat.readStatus': { mg: 'Vakiana', fr: 'Lu', en: 'Read' },
   'chat.groupBadge': { mg: 'CHAT GROUPE', fr: 'CHAT DE GROUPE', en: 'GROUP CHAT' },
   'chat.emptyTitle': {
     mg: 'Tsy mbola misy hafatra eto.',
@@ -47,11 +46,6 @@ export const chat: TranslationDictionary = {
     en: 'View full screen'
   },
   'chat.fullscreen': { mg: 'Plein écran', fr: 'Plein écran', en: 'Full screen' },
-  'chat.typing': {
-    mg: 'Manoratra hafatra i {name}...',
-    fr: '{name} est en train d’écrire...',
-    en: '{name} is typing...'
-  },
   'chat.stagedImageAlt': { mg: 'Sary handeha', fr: 'Image à envoyer', en: 'Image to send' },
   'chat.stagedImageLabel': {
     mg: 'Sary vonona halefa: {name}',
@@ -100,15 +94,5 @@ export const chat: TranslationDictionary = {
     mg: 'Tsy afaka nakatona na namboarina io sary io. Mba andramo sary hafa.',
     fr: 'Impossible de traiter cette image. Veuillez essayer une autre image.',
     en: 'This image could not be processed. Please try another image.'
-  },
-  'chat.autoReplyImage': {
-    mg: 'Mankasitraka! Voaray soa aman-tsara ny sary nalefanao teto.',
-    fr: 'Merci ! Votre image a bien été reçue ici.',
-    en: 'Thank you! Your image was received successfully here.'
-  },
-  'chat.autoReplyText': {
-    mg: 'Voaray soa aman-tsara ny hafatrao! Mankasitraka tompoko.',
-    fr: 'Votre message a bien été reçu ! Merci beaucoup.',
-    en: 'Your message was received successfully! Thank you.'
   }
 };

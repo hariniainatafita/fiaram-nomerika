@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from './utils/storage';
 import { subscribeToSupabase } from './utils/supabaseSync';
+import { usePresence } from './utils/presence';
 import { canAccessView } from './utils/permissions';
 import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication } from './types';
 import { Navbar } from './components/Navbar';
@@ -42,6 +43,9 @@ export function App() {
   const [allMessages, setAllMessages] = useState<Message[]>(() => StorageService.getMessages());
   const [allEvenements, setAllEvenements] = useState<Evenement[]>(() => StorageService.getEvenements());
   const [allPublications, setAllPublications] = useState<Publication[]>(() => StorageService.getPublications());
+
+  // Live presence: only members with a recent heartbeat are shown online
+  const presenceMap = usePresence(currentUser?.id);
 
   // Initialize theme on mount
   useEffect(() => {
@@ -244,6 +248,7 @@ export function App() {
               allMembres={allMembres}
               allGroupes={allGroupes}
               messages={allMessages}
+              presence={presenceMap}
               onRefreshMessages={refreshMessages}
             />
           )}
