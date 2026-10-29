@@ -3,12 +3,14 @@
   "name": "FIARAM NUMERIQUE - Gestion de groupe",
   "icons": [
     {
-      "src": "/logo.svg",
+      "src": "logo.svg",
       "type": "image/svg+xml",
-      "sizes": "192x192 512x512"
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": "/",
+  "start_url": "./",
+  "scope": "./",
   "background_color": "#070d1e",
   "theme_color": "#f59e0b",
   "display": "standalone",

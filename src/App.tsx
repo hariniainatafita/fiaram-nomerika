@@ -164,7 +164,7 @@ export function App() {
       />
 
       {/* Main Content Area */}
-      <div className="main-content" style={{ minHeight: '100vh' }}>
+      <div className="main-content" style={{ minHeight: '100dvh' }}>
         {/* Top Navbar */}
         <Navbar
           currentUser={currentUser}
@@ -180,7 +180,7 @@ export function App() {
         />
 
         {/* Dynamic Views */}
-        <main style={{ flex: 1, paddingTop: '72px' }}>
+        <main style={{ flex: 1 }}>
           {allowedView === 'dashboard' && (
             <DashboardView
               currentUser={currentUser}

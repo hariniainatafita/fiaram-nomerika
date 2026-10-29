@@ -50,7 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header style={{
+    <header className="app-navbar" style={{
       position: 'sticky',
       top: 0,
       zIndex: 40,
@@ -68,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button
           onClick={onToggleMobileSidebar}
-          className="btn btn-ghost"
+          className="btn btn-ghost nav-menu-btn"
           style={{ padding: '8px', display: 'flex', alignItems: 'center' }}
           title={t('nav.menu')}
         >
@@ -80,7 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
         >
           <img
-            src="/logo.png"
+            src={`${import.meta.env.BASE_URL}logo.png`}
             alt="FIARAM NUMERIQUE"
             style={{
               width: '40px',
@@ -90,7 +90,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               boxShadow: '0 4px 12px rgba(245, 158, 11, 0.35)'
             }}
           />
-          <div>
+          <div className="nav-brand-text">
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{
                 fontFamily: 'var(--font-title)',
@@ -116,7 +116,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       {currentUser.role === 'super_chef' && canAccessPanel && (
         <div
           onClick={() => onSelectView('admin')}
-          className="sceptre-card"
+          className="sceptre-card nav-sceptre"
           style={{
             padding: '6px 14px',
             borderRadius: 'var(--radius-full)',
@@ -137,7 +137,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Right controls: Role switcher, theme toggle, user card */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         {/* Offline/Online badge */}
-        <div style={{
+        <div className="nav-online" style={{
           display: 'flex',
           alignItems: 'center',
           gap: '5px',
@@ -166,7 +166,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Current Logged-in User Profile Pill (No switcher dropdown for security) */}
         <div
-          className="glass-card"
+          className="glass-card nav-user-card"
           style={{
             padding: '6px 14px',
             display: 'flex',
@@ -180,7 +180,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             alt={currentUser.prenom}
             style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }}
           />
-          <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <div className="nav-user-meta" style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '2px' }}>
             <span style={{ fontSize: '0.84rem', fontWeight: 700, lineHeight: 1.2 }}>
               {currentUser.prenom}
             </span>

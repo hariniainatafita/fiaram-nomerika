@@ -92,7 +92,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         top: 0,
         bottom: 0,
         left: 0,
-        width: '280px',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        width: 'min(280px, 84vw)',
         background: 'var(--bg-secondary)',
         borderRight: '1px solid var(--border-color)',
         zIndex: 50,
@@ -240,7 +241,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Footer with Reset mock data */}
         <div style={{
-          padding: '14px 18px',
+          padding: '14px 18px calc(14px + env(safe-area-inset-bottom, 0px))',
           borderTop: '1px solid var(--border-color)',
           display: 'flex',
           flexDirection: 'column',

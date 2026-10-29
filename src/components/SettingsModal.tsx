@@ -43,7 +43,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isAdminOnly) {
     return (
-      <div style={{
+      <div className="modal-overlay" style={{
         position: 'fixed',
         inset: 0,
         background: 'rgba(3, 7, 18, 0.88)',
@@ -55,7 +55,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         padding: '12px',
         overflowY: 'auto'
       }}>
-        <div className="glass-card" style={{ maxWidth: '420px', width: '100%', padding: '28px', textAlign: 'center', margin: 'auto' }}>
+        <div className="glass-card modal-panel" style={{ maxWidth: '420px', width: '100%', padding: '28px', textAlign: 'center', margin: 'auto' }}>
           <ShieldCheck size={38} style={{ color: '#ef4444', marginBottom: '12px' }} />
           <h3 style={{ margin: '0 0 8px' }}>{t('settings.accessDeniedTitle')}</h3>
           <p style={{ margin: '0 0 18px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -106,7 +106,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div style={{
+    <div className="modal-overlay" style={{
       position: 'fixed',
       inset: 0,
       background: 'rgba(3, 7, 18, 0.88)',
@@ -135,7 +135,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }}
       >
         {/* Top Header */}
-        <div style={{
+        <div className="settings-modal-header" style={{
           padding: '20px 24px',
           borderBottom: '1px solid var(--border-color)',
           display: 'flex',
@@ -161,7 +161,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#ffffff' }}>
                 {t('settings.title')}
               </h3>
-              <p style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              <p className="settings-modal-subtitle" style={{ margin: '2px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                 {t('settings.subtitle')}
               </p>
             </div>

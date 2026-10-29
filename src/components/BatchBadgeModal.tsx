@@ -151,7 +151,7 @@ export const BatchBadgeModal: React.FC<BatchBadgeModalProps> = ({
   };
 
   return (
-    <div style={{
+    <div className="modal-overlay" style={{
       position: 'fixed',
       inset: 0,
       background: 'rgba(3, 7, 18, 0.9)',
@@ -163,11 +163,11 @@ export const BatchBadgeModal: React.FC<BatchBadgeModalProps> = ({
       padding: '16px'
     }}>
       <div
-        className="glass-card"
+        className="glass-card modal-panel"
         style={{
           maxWidth: '980px',
           width: '100%',
-          maxHeight: '94vh',
+          maxHeight: 'calc(100dvh - 16px)',
           display: 'flex',
           flexDirection: 'column',
           background: 'linear-gradient(180deg, #0e1728 0%, #070d18 100%)',
@@ -396,6 +396,7 @@ export const BatchBadgeModal: React.FC<BatchBadgeModalProps> = ({
             <div style={{
               maxHeight: '280px',
               overflowY: 'auto',
+              overflowX: 'auto',
               borderRadius: '12px',
               border: '1px solid var(--border-color)',
               background: 'rgba(0,0,0,0.25)'

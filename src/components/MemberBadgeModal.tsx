@@ -202,7 +202,7 @@ export const MemberBadgeModal: React.FC<MemberBadgeModalProps> = ({
   };
 
   return (
-    <div style={{
+    <div className="modal-overlay" style={{
       position: 'fixed',
       inset: 0,
       background: 'rgba(3, 7, 16, 0.88)',
@@ -214,7 +214,7 @@ export const MemberBadgeModal: React.FC<MemberBadgeModalProps> = ({
       padding: '16px'
     }}>
       <div
-        className="glass-card"
+        className="glass-card modal-panel"
         style={{
           maxWidth: isEditing ? '850px' : '500px',
           width: '100%',
@@ -226,7 +226,7 @@ export const MemberBadgeModal: React.FC<MemberBadgeModalProps> = ({
           border: `1.5px solid ${styleConfig.accentColor}88`,
           boxShadow: `0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px ${styleConfig.accentColor}44`,
           borderRadius: '24px',
-          maxHeight: '94vh',
+          maxHeight: 'calc(100dvh - 16px)',
           overflowY: 'auto',
           transition: 'max-width 0.3s ease'
         }}
@@ -374,6 +374,7 @@ export const MemberBadgeModal: React.FC<MemberBadgeModalProps> = ({
         }}>
           <div
             id="printable-badge"
+            className="badge-preview"
             style={{
               width: '320px',
               height: '480px',
@@ -424,7 +425,7 @@ export const MemberBadgeModal: React.FC<MemberBadgeModalProps> = ({
           </div>
 
           {isEditing && (
-            <div style={{
+            <div className="badge-edit-panel" style={{
               flex: '1',
               minWidth: '280px',
               background: 'rgba(0, 0, 0, 0.4)',

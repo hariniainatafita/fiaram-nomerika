@@ -482,7 +482,7 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
               {t('groups.membersListTitle', { count: filteredGroupMembers.length })}
             </h3>
 
-            <div style={{ position: 'relative', width: '280px' }}>
+            <div className="groups-search" style={{ position: 'relative', width: '280px' }}>
               <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
               <input
                 type="text"

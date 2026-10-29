@@ -263,7 +263,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   };
 
   return (
-    <div style={{
+    <div className="modal-overlay" style={{
       position: 'fixed',
       inset: 0,
       background: 'rgba(5, 11, 22, 0.88)',
@@ -275,7 +275,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       padding: '16px'
     }}>
       <div 
-        className="glass-card"
+        className="glass-card modal-panel"
         style={{
           width: '100%',
           maxWidth: '480px',
@@ -335,7 +335,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
           <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '6px', fontWeight: 700, letterSpacing: '0.04em' }}>
             {t('scanner.statusSelectLabel')}
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="scanner-status-row" style={{ display: 'flex', gap: '8px' }}>
             <button
               type="button"
               onClick={() => setSelectedStatut('present')}

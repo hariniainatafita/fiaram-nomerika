@@ -29,7 +29,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       bottom: 0,
       left: 0,
       right: 0,
-      height: '64px',
+      height: 'calc(64px + env(safe-area-inset-bottom, 0px))',
       background: 'var(--bg-glass)',
       backdropFilter: 'blur(16px)',
       WebkitBackdropFilter: 'blur(16px)',
@@ -38,7 +38,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       alignItems: 'center',
       justifyContent: 'space-around',
       zIndex: 40,
-      padding: '0 8px'
+      padding: '0 8px env(safe-area-inset-bottom, 0px)'
     }}
     className="bottom-nav-bar"
     >
@@ -80,7 +80,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               ) : null}
             </div>
             <span style={{
-              fontSize: '0.68rem',
+              fontSize: 'clamp(0.58rem, 2.6vw, 0.68rem)',
               fontWeight: isActive ? 700 : 500,
               maxWidth: '100%',
               overflow: 'hidden',

@@ -8,7 +8,8 @@ import {
   CheckCheck, 
   X,
   Maximize2,
-  Download
+  Download,
+  ArrowLeft
 } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
@@ -49,6 +50,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   // Lightbox modal for viewing image full-screen
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
+
+  // On phones, show either the contact list or the active conversation
+  const [isMobileConversation, setIsMobileConversation] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -168,11 +172,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   return (
-    <div className="animate-fade-in chat-container-wrapper" style={{
+    <div className={`animate-fade-in chat-container-wrapper${isMobileConversation ? ' chat-mobile-conversation' : ''}`} style={{
       padding: '16px 20px',
       maxWidth: '1240px',
       margin: '0 auto',
-      height: 'calc(100vh - 130px)',
+      height: 'calc(100dvh - 130px)',
       minHeight: '480px',
       display: 'flex',
       flexDirection: 'column'
@@ -182,7 +186,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       <div className="glass-card" style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         
         {/* LEFT CONTACTS / CHANNELS COLUMN */}
-        <div style={{
+        <div className="chat-sidebar" style={{
           width: '310px',
           borderRight: '1px solid var(--border-color)',
           display: 'flex',
@@ -225,6 +229,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   onClick={() => {
                     setActiveChannelType('group');
                     setActiveChannelId(g.id);
+                    setIsMobileConversation(true);
                   }}
                   style={{
                     display: 'flex',
@@ -280,6 +285,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   onClick={() => {
                     setActiveChannelType('direct');
                     setActiveChannelId(m.id);
+                    setIsMobileConversation(true);
                   }}
                   style={{
                     display: 'flex',
@@ -330,7 +336,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
 
         {/* RIGHT ACTIVE CHAT CONVERSATION */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div className="chat-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           
           {/* Channel Header */}
           <div style={{
@@ -342,6 +348,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
             background: 'rgba(255, 255, 255, 0.02)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+              <button
+                type="button"
+                onClick={() => setIsMobileConversation(false)}
+                className="btn btn-ghost chat-back-btn"
+                style={{ padding: '6px', flexShrink: 0 }}
+                title={t('chat.title')}
+              >
+                <ArrowLeft size={18} />
+              </button>
+
               {activeChannelType === 'group' ? (
                 <div style={{
                   width: '38px',
@@ -729,10 +745,30 @@ export const ChatView: React.FC<ChatViewProps> = ({
       )}
 
       <style>{`
+        .chat-back-btn {
+          display: none !important;
+        }
         @media (max-width: 768px) {
           .chat-container-wrapper {
-            height: calc(100vh - 150px) !important;
+            height: calc(100dvh - 150px) !important;
+            min-height: 420px !important;
             padding: 10px 8px !important;
+          }
+          .chat-sidebar {
+            width: 100% !important;
+            border-right: none !important;
+          }
+          .chat-main {
+            display: none !important;
+          }
+          .chat-container-wrapper.chat-mobile-conversation .chat-sidebar {
+            display: none !important;
+          }
+          .chat-container-wrapper.chat-mobile-conversation .chat-main {
+            display: flex !important;
+          }
+          .chat-container-wrapper.chat-mobile-conversation .chat-back-btn {
+            display: inline-flex !important;
           }
         }
       `}</style>

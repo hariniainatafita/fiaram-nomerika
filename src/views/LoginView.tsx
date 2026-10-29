@@ -106,17 +106,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
   if (registrationSuccess) {
     return (
       <div style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '24px 16px',
+        padding: 'clamp(16px, 4vw, 24px)',
         background: 'var(--bg-primary)'
       }}>
         <div className="glass-card-gold" style={{
           maxWidth: '460px',
           width: '100%',
-          padding: '40px 32px',
+          padding: 'clamp(22px, 6vw, 40px) clamp(16px, 5vw, 32px)',
           textAlign: 'center',
           position: 'relative',
           boxShadow: 'var(--shadow-lg)'
@@ -194,20 +194,20 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
   return (
     <div style={{
-      minHeight: '100vh',
+      minHeight: '100dvh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '24px 16px',
+      padding: 'clamp(16px, 4vw, 24px)',
       background: 'var(--bg-primary)'
     }}>
       <div className="glass-card-gold" style={{
         maxWidth: '480px',
         width: '100%',
-        padding: '32px 28px',
+        padding: 'clamp(20px, 5vw, 32px) clamp(16px, 4vw, 28px)',
         position: 'relative',
         boxShadow: 'var(--shadow-lg)',
-        maxHeight: '90vh',
+        maxHeight: 'calc(100dvh - 32px)',
         overflowY: 'auto'
       }}>
         <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 2 }}>
