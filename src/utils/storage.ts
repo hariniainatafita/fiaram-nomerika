@@ -1,0 +1,893 @@
+import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, AdminSettings, RegistrationQuestion, BadgeStyle, BadgeColors, Publication, PublicationComment, CategorieChanson } from '../types';
+import {
+  INITIAL_MEMBRES,
+  INITIAL_GROUPES,
+  INITIAL_PRESENCES,
+  INITIAL_FINANCES,
+  INITIAL_COTISATIONS,
+  INITIAL_CHANSONS,
+  INITIAL_MESSAGES,
+  INITIAL_EVENEMENTS,
+  INITIAL_PUBLICATIONS
+} from '../data/mockData';
+
+const STORAGE_KEYS = {
+  DATA_VERSION: 'fiaram_v2_clean',
+  CURRENT_USER_ID: 'fiaram_current_user_id',
+  THEME: 'fiaram_theme',
+  MEMBRES: 'fiaram_membres_v2',
+  GROUPES: 'fiaram_groupes_v2',
+  PRESENCES: 'fiaram_presences_v2',
+  FINANCES: 'fiaram_finances_v2',
+  COTISATIONS: 'fiaram_cotisations_v2',
+  CHANSONS: 'fiaram_chansons_v2',
+  MESSAGES: 'fiaram_messages_v2',
+  EVENEMENTS: 'fiaram_evenements_v2',
+  PUBLICATIONS: 'fiaram_publications_v1',
+  CATEGORIES_RESSOURCES: 'fiaram_ressource_categories_v1',
+  ADMIN_SETTINGS: 'fiaram_admin_settings_v2'
+};
+
+const DEFAULT_RESSOURCE_CATEGORIES: CategorieChanson[] = [
+  { id: 'cat_doc', nom: 'Documents' },
+  { id: 'cat_formation', nom: 'Formation' },
+  { id: 'cat_media', nom: 'Médias' },
+  { id: 'cat_annonce', nom: 'Annonces' },
+  { id: 'cat_autre', nom: 'Autres' }
+];
+
+const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
+  chorale_nom: 'Groupe',
+  chorale_sigle: 'GROUPE',
+  cotisation_mensuelle_defaut: 5000,
+  cotisation_journaliere_defaut: 1000,
+  devise: 'Ar',
+  allow_self_registration: true,
+  theme_default: 'dark',
+  notifications_sonores: true,
+  super_chef_permissions: {
+    view_all_members: true,
+    manage_groups: true,
+    manage_chefs: true,
+    validate_presences: true,
+    view_global_finance: true,
+    manage_cotisations: true
+  },
+  titre_badge_defaut: 'MEMBRE OFFICIEL 2026',
+  registration_questions: [
+    { id: 'q1', question: 'Pourquoi souhaitez-vous rejoindre le groupe ?', required: true },
+    { id: 'q2', question: 'Quelle expérience ou compétence pouvez-vous apporter ?', required: false },
+    { id: 'q3', question: 'Comment avez-vous connu le groupe ?', required: false }
+  ]
+};
+
+function getStoredItem<T>(key: string, defaultValue: T): T {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (e) {
+    console.error(`Error loading key ${key}:`, e);
+    return defaultValue;
+  }
+}
+
+function setStoredItem<T>(key: string, value: T): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.error(`Error saving key ${key}:`, e);
+  }
+}
+
+function migrateLegacyDemoData(): void {
+  if (typeof localStorage === 'undefined') return;
+  const migrationKey = 'fiaram_generic_brand_v1';
+  if (localStorage.getItem(migrationKey)) return;
+
+  try {
+    const savedSettings = getStoredItem<Partial<AdminSettings>>(STORAGE_KEYS.ADMIN_SETTINGS, {});
+    if (savedSettings.chorale_nom === 'Asafa' && savedSettings.chorale_sigle === 'FIARAM') {
+      setStoredItem(STORAGE_KEYS.ADMIN_SETTINGS, {
+        ...DEFAULT_ADMIN_SETTINGS,
+        ...savedSettings,
+        chorale_nom: DEFAULT_ADMIN_SETTINGS.chorale_nom,
+        chorale_sigle: DEFAULT_ADMIN_SETTINGS.chorale_sigle,
+        titre_badge_defaut: DEFAULT_ADMIN_SETTINGS.titre_badge_defaut,
+        registration_questions: DEFAULT_ADMIN_SETTINGS.registration_questions
+      });
+    }
+
+    const membres = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
+    if (
+      membres.length === 2 &&
+      membres.some(m => m.code_unique === 'FET-ADM-001') &&
+      membres.some(m => m.code_unique === 'FET-MBR-007')
+    ) {
+      setStoredItem(STORAGE_KEYS.MEMBRES, INITIAL_MEMBRES);
+    }
+
+    const groupes = getStoredItem<Groupe[]>(STORAGE_KEYS.GROUPES, []);
+    if (groupes.length === 5 && groupes.some(g => g.nom_groupe.includes('Feo 1'))) {
+      setStoredItem(STORAGE_KEYS.GROUPES, INITIAL_GROUPES);
+    }
+
+    const chansons = getStoredItem<Chanson[]>(STORAGE_KEYS.CHANSONS, []);
+    if (chansons.length === 2 && chansons.some(s => s.titre.includes('Fiadanan'))) {
+      setStoredItem(STORAGE_KEYS.CHANSONS, INITIAL_CHANSONS);
+    }
+
+    const evenements = getStoredItem<Evenement[]>(STORAGE_KEYS.EVENEMENTS, []);
+    if (evenements.length === 1 && evenements[0].id === 'ev1' && evenements[0].nom.includes('Fiadanan')) {
+      setStoredItem(STORAGE_KEYS.EVENEMENTS, INITIAL_EVENEMENTS);
+    }
+
+    localStorage.setItem(migrationKey, 'done');
+  } catch (error) {
+    console.error('Legacy data migration failed:', error);
+  }
+}
+
+migrateLegacyDemoData();
+
+export const StorageService = {
+  // Theme
+  getTheme(): 'dark' | 'light' {
+    return (localStorage.getItem(STORAGE_KEYS.THEME) as 'dark' | 'light') || 'dark';
+  },
+  setTheme(theme: 'dark' | 'light'): void {
+    localStorage.setItem(STORAGE_KEYS.THEME, theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  },
+
+  // ==================== ADMIN SETTINGS ====================
+  getAdminSettings(): AdminSettings {
+    const saved = getStoredItem<Partial<AdminSettings>>(STORAGE_KEYS.ADMIN_SETTINGS, DEFAULT_ADMIN_SETTINGS);
+    return {
+      ...DEFAULT_ADMIN_SETTINGS,
+      ...saved,
+      super_chef_permissions: {
+        ...DEFAULT_ADMIN_SETTINGS.super_chef_permissions,
+        ...(saved.super_chef_permissions || {})
+      }
+    };
+  },
+  saveAdminSettings(settings: AdminSettings): void {
+    setStoredItem(STORAGE_KEYS.ADMIN_SETTINGS, settings);
+  },
+  addRegistrationQuestion(question: string, required: boolean): RegistrationQuestion {
+    const settings = this.getAdminSettings();
+    const newQ: RegistrationQuestion = {
+      id: 'q_' + Date.now(),
+      question,
+      required
+    };
+    settings.registration_questions.push(newQ);
+    this.saveAdminSettings(settings);
+    return newQ;
+  },
+  removeRegistrationQuestion(id: string): void {
+    const settings = this.getAdminSettings();
+    settings.registration_questions = settings.registration_questions.filter(q => q.id !== id);
+    this.saveAdminSettings(settings);
+  },
+
+  // Auth / Current User
+  getCurrentUser(): Membre | null {
+    const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+    if (!currentId) return null;
+    const membres = this.getMembres();
+    const found = membres.find((m) => m.id === currentId);
+    return found || null;
+  },
+
+  login(usernameOrEmail: string, password: string): { success: boolean; message: string; user?: Membre } {
+    const membres = this.getMembres();
+    const term = usernameOrEmail.trim().toLowerCase();
+
+    const user = membres.find(
+      (m) => (m.email.toLowerCase() === term || (m.username && m.username.toLowerCase() === term) || m.code_unique.toLowerCase() === term)
+    );
+
+    if (!user) {
+      return { success: false, message: "Tsy misy mpikambana manana io solonanarana / mailaka io." };
+    }
+
+    // Check if account is blocked
+    if (user.is_blocked) {
+      return { success: false, message: "Voasakana (bloqué) ity kaonty ity. Mifandraisa amin'ny Mpandrindra." };
+    }
+
+    // Check if approved by admin (for non-admin accounts)
+    if (user.role !== 'admin' && user.is_approved === false) {
+      return { success: false, message: "Mbola tsy noeken'ny Mpandrindra ny kaonty nao. Andraso azafady." };
+    }
+
+    if (!user.is_active) {
+      return { success: false, message: "Matoantoka (désactivé) ity kaonty ity. Mifandraisa amin'ny Mpandrindra." };
+    }
+
+    // Check password (default fallback to 'admin' for master or exact match)
+    const expectedPassword = user.password || 'admin';
+    if (password !== expectedPassword) {
+      return { success: false, message: "Diso ny tenimiafina nampidirinao." };
+    }
+
+    // Set logged in session
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.id);
+    return { success: true, message: `Tongasoa, ${user.prenom}!`, user };
+  },
+
+  register(data: {
+    nom: string;
+    prenom: string;
+    username: string;
+    email: string;
+    password: string;
+    telephone?: string;
+    groupe_id?: string;
+    registration_answers?: { question: string; answer: string }[];
+  }): { success: boolean; message: string; user?: Membre } {
+    const list = this.getMembres();
+
+    // Check duplicate username or email
+    const exists = list.some(
+      (m) => m.email.toLowerCase() === data.email.trim().toLowerCase() ||
+             (m.username && m.username.toLowerCase() === data.username.trim().toLowerCase())
+    );
+
+    if (exists) {
+      return { success: false, message: "Efa misy mampiasa io solonanarana na adiresy mailaka io." };
+    }
+
+    const count = list.length + 1;
+    const newCode = `GRP-2026-${count.toString().padStart(3, '0')}`;
+
+    const newMembre: Membre = {
+      id: 'm_' + Date.now(),
+      nom: data.nom.toUpperCase().trim(),
+      prenom: data.prenom.trim(),
+      username: data.username.toLowerCase().trim(),
+      email: data.email.toLowerCase().trim(),
+      password: data.password,
+      telephone: data.telephone,
+      groupe_id: data.groupe_id || 'g1',
+      role: 'membre',
+      is_active: true,
+      is_approved: false, // Needs admin approval
+      is_blocked: false,
+      code_unique: newCode,
+      photo_url: `https://images.unsplash.com/photo-${1534528741775 + (count * 100)}?w=150`,
+      solde: 0,
+      theme: 'dark',
+      fingerprint_registered: false,
+      created_at: new Date().toISOString().split('T')[0],
+      registration_answers: data.registration_answers || []
+    };
+
+    list.push(newMembre);
+    this.saveMembres(list);
+
+    // Do NOT auto-login — must wait for admin approval
+    return { 
+      success: true, 
+      message: `Voasoratra soa aman-tsara ianao! Kaody: ${newCode}. Andraso ny fankatoavan'ny Mpandrindra alohan'ny hidirana.`, 
+      user: newMembre 
+    };
+  },
+
+  logout(): void {
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+  },
+
+  setCurrentUser(id: string): Membre | null {
+    const membres = this.getMembres();
+    const user = membres.find((m) => m.id === id);
+    if (user) {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, id);
+      return user;
+    }
+    return null;
+  },
+
+  // ==================== MEMBRES ====================
+  getMembres(): Membre[] {
+    const list = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, INITIAL_MEMBRES);
+    return list.map((m, index) => ({
+      ...m,
+      is_approved: m.is_approved !== undefined ? m.is_approved : true, // Existing members are approved
+      is_blocked: m.is_blocked || false,
+      numero_badge: m.numero_badge || (m.code_unique ? m.code_unique.replace(/\D/g, '').slice(-3).padStart(3, '0') : (index + 1).toString().padStart(3, '0')),
+      cin: m.cin || (m.code_unique === 'GRP-MBR-007' ? '117 431 010 933' : `117 431 ${(index + 10).toString().padStart(3, '0')} 933`),
+      profession: m.profession || (m.role === 'admin' ? 'ADMINISTRATEUR' : m.role === 'super_chef' ? 'SUPERVISEUR' : m.role === 'chef' ? 'RESPONSABLE GROUPE' : 'MEMBRE')
+    }));
+  },
+  saveMembres(membres: Membre[]): void {
+    setStoredItem(STORAGE_KEYS.MEMBRES, membres);
+  },
+  updateMembre(updated: Membre): void {
+    const list = this.getMembres();
+    const index = list.findIndex((m) => m.id === updated.id);
+    if (index !== -1) {
+      list[index] = updated;
+      this.saveMembres(list);
+    }
+  },
+  addMembre(nouveau: Omit<Membre, 'id' | 'created_at'>): Membre {
+    const list = this.getMembres();
+    const newMembre: Membre = {
+      ...nouveau,
+      id: 'm_' + Date.now(),
+      created_at: new Date().toISOString().split('T')[0]
+    };
+    list.push(newMembre);
+    this.saveMembres(list);
+    return newMembre;
+  },
+  deleteMembre(id: string): void {
+    const list = this.getMembres().filter((m) => m.id !== id);
+    this.saveMembres(list);
+  },
+
+  // Admin approval
+  approveMembre(id: string): void {
+    const list = this.getMembres();
+    const index = list.findIndex((m) => m.id === id);
+    if (index !== -1) {
+      list[index].is_approved = true;
+      this.saveMembres(list);
+    }
+  },
+  rejectMembre(id: string): void {
+    // Simply delete the pending member
+    this.deleteMembre(id);
+  },
+
+  // Blocking
+  blockMembre(id: string): void {
+    const list = this.getMembres();
+    const index = list.findIndex((m) => m.id === id);
+    if (index !== -1) {
+      list[index].is_blocked = true;
+      list[index].is_active = false;
+      this.saveMembres(list);
+    }
+  },
+  unblockMembre(id: string): void {
+    const list = this.getMembres();
+    const index = list.findIndex((m) => m.id === id);
+    if (index !== -1) {
+      list[index].is_blocked = false;
+      list[index].is_active = true;
+      this.saveMembres(list);
+    }
+  },
+
+  // Mark Badge as Generated / Printed
+  markBadgeGenerated(id: string, style?: BadgeStyle, colors?: BadgeColors): void {
+    const list = this.getMembres();
+    const index = list.findIndex((m) => m.id === id);
+    if (index !== -1) {
+      list[index].badge_generated = true;
+      if (style) {
+        list[index].badge_style = style;
+      }
+      if (colors) {
+        list[index].badge_colors = colors;
+      }
+      this.saveMembres(list);
+    }
+  },
+  resetBadgeGenerated(id: string): void {
+    const list = this.getMembres();
+    const index = list.findIndex((m) => m.id === id);
+    if (index !== -1) {
+      list[index].badge_generated = false;
+      this.saveMembres(list);
+    }
+  },
+
+  // Groupes
+  getGroupes(): Groupe[] {
+    return getStoredItem<Groupe[]>(STORAGE_KEYS.GROUPES, INITIAL_GROUPES);
+  },
+  saveGroupes(groupes: Groupe[]): void {
+    setStoredItem(STORAGE_KEYS.GROUPES, groupes);
+  },
+  addGroupe(nom: string, description: string, chef_id: string): Groupe {
+    const list = this.getGroupes();
+    const newG: Groupe = {
+      id: 'g_' + Date.now(),
+      nom_groupe: nom,
+      description,
+      chef_id,
+      solde: 0,
+      created_at: new Date().toISOString().split('T')[0]
+    };
+    list.push(newG);
+    this.saveGroupes(list);
+    return newG;
+  },
+  updateGroupe(updated: Groupe): void {
+    const list = this.getGroupes();
+    const index = list.findIndex((g) => g.id === updated.id);
+    if (index !== -1) {
+      list[index] = { ...list[index], ...updated };
+      this.saveGroupes(list);
+    }
+  },
+  deleteGroupe(id: string): void {
+    const list = this.getGroupes().filter((g) => g.id !== id);
+    this.saveGroupes(list);
+    // Unassign members that belonged to this group
+    const membres = this.getMembres().map((m) => {
+      if (m.groupe_id === id) {
+        return { ...m, groupe_id: undefined };
+      }
+      return m;
+    });
+    this.saveMembres(membres);
+  },
+  setMembreGroupe(membreId: string, groupeId?: string): void {
+    const membres = this.getMembres();
+    const index = membres.findIndex((m) => m.id === membreId);
+    if (index !== -1) {
+      membres[index].groupe_id = groupeId;
+      this.saveMembres(membres);
+    }
+  },
+
+  // Presences
+  getPresences(): Presence[] {
+    return getStoredItem<Presence[]>(STORAGE_KEYS.PRESENCES, INITIAL_PRESENCES);
+  },
+  savePresences(presences: Presence[]): void {
+    setStoredItem(STORAGE_KEYS.PRESENCES, presences);
+  },
+  pointPresence(membre_id: string, statut: 'present' | 'retard' | 'absent', methode: 'qr_code' | 'empreinte' | 'manuel'): Presence {
+    const list = this.getPresences();
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    
+    const newP: Presence = {
+      id: 'p_' + Date.now(),
+      membre_id,
+      date_pointage: dateStr,
+      statut,
+      methode
+    };
+    list.unshift(newP);
+    this.savePresences(list);
+    return newP;
+  },
+
+  // Finances
+  getFinances(): FinanceGroupe[] {
+    return getStoredItem<FinanceGroupe[]>(STORAGE_KEYS.FINANCES, INITIAL_FINANCES);
+  },
+  saveFinances(finances: FinanceGroupe[]): void {
+    setStoredItem(STORAGE_KEYS.FINANCES, finances);
+  },
+  addFinanceTransaction(groupe_id: string, membre_action_id: string, motif: string, entree: number, sortie: number): FinanceGroupe {
+    const list = this.getFinances();
+    const groupes = this.getGroupes();
+    const grp = groupes.find((g) => g.id === groupe_id);
+    const oldSolde = grp ? (grp.solde || 0) : 0;
+    const newSolde = oldSolde + entree - sortie;
+
+    if (grp) {
+      grp.solde = newSolde;
+      this.saveGroupes(groupes);
+    }
+
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+
+    const newTx: FinanceGroupe = {
+      id: 'f_' + Date.now(),
+      groupe_id,
+      membre_action_id,
+      date_operation: dateStr,
+      motif,
+      argent_entree: entree,
+      argent_sortie: sortie,
+      reste: newSolde
+    };
+    list.unshift(newTx);
+    this.saveFinances(list);
+    return newTx;
+  },
+
+  // Cotisations
+  getCotisations(): Cotisation[] {
+    return getStoredItem<Cotisation[]>(STORAGE_KEYS.COTISATIONS, INITIAL_COTISATIONS);
+  },
+  saveCotisations(cotisations: Cotisation[]): void {
+    setStoredItem(STORAGE_KEYS.COTISATIONS, cotisations);
+  },
+  addCotisation(
+    membre_id: string,
+    montant: number,
+    mois: string,
+    annee: string,
+    methode: string,
+    reference?: string,
+    type_cotisation: 'mensuel' | 'journalier' | 'special' = 'mensuel',
+    date_jour?: string,
+    motif?: string
+  ): { success: boolean; message: string; cotisation?: Cotisation } {
+    const list = this.getCotisations();
+    
+    // Check duplicate payment
+    if (type_cotisation === 'mensuel') {
+      const existing = list.find((c) => c.membre_id === membre_id && (c.type_cotisation === 'mensuel' || !c.type_cotisation) && c.mois === mois && c.annee === annee);
+      if (existing) {
+        return {
+          success: false,
+          message: `Efa voaloa ny latsakemboka isam-bolana ho an'ny ${mois}/${annee}!`
+        };
+      }
+    } else if (type_cotisation === 'journalier' && date_jour) {
+      const existingDay = list.find((c) => c.membre_id === membre_id && c.type_cotisation === 'journalier' && c.date_jour === date_jour);
+      if (existingDay) {
+        return {
+          success: false,
+          message: `Efa voaloa ny latsakemboka isan'andro ho an'ny daty ${date_jour}!`
+        };
+      }
+    }
+
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    const newC: Cotisation = {
+      id: 'c_' + Date.now(),
+      membre_id,
+      montant,
+      type_cotisation,
+      mois: type_cotisation === 'mensuel' ? mois : undefined,
+      annee: type_cotisation === 'mensuel' ? annee : undefined,
+      date_jour: type_cotisation === 'journalier' ? (date_jour || new Date().toISOString().split('T')[0]) : undefined,
+      motif: motif || (type_cotisation === 'journalier' ? `Latsakemboka Isan'andro (${date_jour})` : `Latsakemboka Isam-bolana (${mois}/${annee})`),
+      methode,
+      reference: reference || `REF-${Date.now().toString().slice(-6)}`,
+      date_paiement: dateStr,
+      statut: 'valide'
+    };
+    list.unshift(newC);
+    this.saveCotisations(list);
+
+    // Update member's solde
+    const membres = this.getMembres();
+    const m = membres.find((user) => user.id === membre_id);
+    if (m) {
+      m.solde = (m.solde || 0) + montant;
+      this.saveMembres(membres);
+    }
+
+    const typeLabel = type_cotisation === 'journalier' ? `isan'andro (${date_jour})` : `isam-bolana (${mois}/${annee})`;
+    return {
+      success: true,
+      message: `Tafiditra soa aman-tsara ny latsakemboka ${typeLabel} mitentina ${montant.toLocaleString()} Ar!`,
+      cotisation: newC
+    };
+  },
+
+  // Categories de ressources
+  getCategoriesRessources(): CategorieChanson[] {
+    return getStoredItem<CategorieChanson[]>(
+      STORAGE_KEYS.CATEGORIES_RESSOURCES,
+      DEFAULT_RESSOURCE_CATEGORIES
+    );
+  },
+  saveCategoriesRessources(categories: CategorieChanson[]): void {
+    setStoredItem(STORAGE_KEYS.CATEGORIES_RESSOURCES, categories);
+  },
+  addCategorieRessource(nom: string): CategorieChanson {
+    const categories = this.getCategoriesRessources();
+    const category: CategorieChanson = {
+      id: 'cat_custom_' + Date.now(),
+      nom: nom.trim()
+    };
+    this.saveCategoriesRessources([...categories, category]);
+    return category;
+  },
+  updateCategorieRessource(id: string, nom: string): void {
+    const categories = this.getCategoriesRessources().map((category) =>
+      category.id === id ? { ...category, nom: nom.trim() } : category
+    );
+    this.saveCategoriesRessources(categories);
+  },
+  deleteCategorieRessource(id: string): void {
+    const categories = this.getCategoriesRessources().filter((category) => category.id !== id);
+    this.saveCategoriesRessources(categories);
+
+    const fallbackCategory = categories.find((category) => category.id === 'cat_autre')
+      || categories[0];
+    const chansons = this.getChansons().map((chanson) =>
+      chanson.categorie_id === id
+        ? { ...chanson, categorie_id: fallbackCategory?.id }
+        : chanson
+    );
+    this.saveChansons(chansons);
+  },
+
+  // Chansons
+  getChansons(): Chanson[] {
+    return getStoredItem<Chanson[]>(STORAGE_KEYS.CHANSONS, INITIAL_CHANSONS);
+  },
+  saveChansons(chansons: Chanson[]): void {
+    setStoredItem(STORAGE_KEYS.CHANSONS, chansons);
+  },
+  toggleFavoriChanson(id: string): void {
+    const list = this.getChansons();
+    const song = list.find((s) => s.id === id);
+    if (song) {
+      song.is_favori = !song.is_favori;
+      this.saveChansons(list);
+    }
+  },
+  incrementChansonViews(id: string): void {
+    const list = this.getChansons();
+    const song = list.find((s) => s.id === id);
+    if (song) {
+      song.vues = (song.vues || 0) + 1;
+      this.saveChansons(list);
+    }
+  },
+  addChanson(nouvelle: Omit<Chanson, 'id' | 'vues' | 'created_at'>): Chanson {
+    const list = this.getChansons();
+    const newS: Chanson = {
+      ...nouvelle,
+      id: 's_' + Date.now(),
+      vues: 1,
+      created_at: new Date().toISOString().split('T')[0]
+    };
+    list.unshift(newS);
+    this.saveChansons(list);
+    return newS;
+  },
+  deleteChanson(id: string): void {
+    const list = this.getChansons().filter((s) => s.id !== id);
+    this.saveChansons(list);
+  },
+
+  // Messages
+  getMessages(): Message[] {
+    return getStoredItem<Message[]>(STORAGE_KEYS.MESSAGES, INITIAL_MESSAGES);
+  },
+  saveMessages(messages: Message[]): void {
+    setStoredItem(STORAGE_KEYS.MESSAGES, messages);
+  },
+  sendMessage(
+    sender_id: string, 
+    text: string, 
+    receiver_id?: string, 
+    group_id?: string, 
+    image_url?: string,
+    attachment?: { audio_url?: string; file_url?: string; file_name?: string; file_type?: 'image' | 'audio' | 'document' }
+  ): Message {
+    const list = this.getMessages();
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const timeStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    const newMsg: Message = {
+      id: 'msg_' + Date.now(),
+      sender_id,
+      receiver_id,
+      group_id,
+      message: text,
+      image_url: image_url || (attachment?.file_type === 'image' ? attachment.file_url : undefined),
+      audio_url: attachment?.audio_url || (attachment?.file_type === 'audio' ? attachment.file_url : undefined),
+      file_url: attachment?.file_url,
+      file_name: attachment?.file_name,
+      file_type: attachment?.file_type,
+      status: 'sent',
+      is_deleted: false,
+      is_edited: false,
+      sent_at: timeStr
+    };
+    list.push(newMsg);
+    this.saveMessages(list);
+    return newMsg;
+  },
+
+  // Evenements
+  getEvenements(): Evenement[] {
+    return getStoredItem<Evenement[]>(STORAGE_KEYS.EVENEMENTS, INITIAL_EVENEMENTS);
+  },
+  saveEvenements(events: Evenement[]): void {
+    setStoredItem(STORAGE_KEYS.EVENEMENTS, events);
+  },
+  deleteEvenement(id: string): void {
+    const list = this.getEvenements().filter((evenement) => evenement.id !== id);
+    this.saveEvenements(list);
+  },
+  addEvenement(data: Omit<Evenement, 'id' | 'collecte_actuelle' | 'vues'>): Evenement {
+    const list = this.getEvenements();
+    const newEvent: Evenement = {
+      ...data,
+      id: 'ev_' + Date.now(),
+      collecte_actuelle: 0,
+      vues: 0
+    };
+    list.push(newEvent);
+    this.saveEvenements(list);
+    return newEvent;
+  },
+  contributeToEvenement(id: string, montant: number): void {
+    const list = this.getEvenements();
+    const ev = list.find((e) => e.id === id);
+    if (ev) {
+      ev.collecte_actuelle += montant;
+      this.saveEvenements(list);
+    }
+  },
+
+  // Publications
+  getPublications(): Publication[] {
+    return getStoredItem<Publication[]>(STORAGE_KEYS.PUBLICATIONS, INITIAL_PUBLICATIONS);
+  },
+  savePublications(publications: Publication[]): void {
+    setStoredItem(STORAGE_KEYS.PUBLICATIONS, publications);
+  },
+  createPublication(auteur_id: string, contenu: string, image_url?: string): Publication {
+    const list = this.getPublications();
+    const newPublication: Publication = {
+      id: 'pub_' + Date.now(),
+      auteur_id,
+      contenu: contenu.trim(),
+      image_url,
+      created_at: new Date().toISOString(),
+      liked_by: [],
+      commentaires: [],
+      partages: 0
+    };
+    list.unshift(newPublication);
+    this.savePublications(list);
+    return newPublication;
+  },
+  togglePublicationLike(publicationId: string, membreId: string): void {
+    const list = this.getPublications();
+    const publication = list.find((p) => p.id === publicationId);
+    if (publication) {
+      publication.liked_by = publication.liked_by.includes(membreId)
+        ? publication.liked_by.filter((id) => id !== membreId)
+        : [...publication.liked_by, membreId];
+      this.savePublications(list);
+    }
+  },
+  addPublicationComment(publicationId: string, auteur_id: string, contenu: string): PublicationComment | null {
+    const list = this.getPublications();
+    const publication = list.find((p) => p.id === publicationId);
+    if (!publication) return null;
+
+    const comment: PublicationComment = {
+      id: 'pc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      publication_id: publicationId,
+      auteur_id,
+      contenu: contenu.trim(),
+      created_at: new Date().toISOString()
+    };
+    publication.commentaires.push(comment);
+    this.savePublications(list);
+    return comment;
+  },
+  incrementPublicationShares(publicationId: string): void {
+    const list = this.getPublications();
+    const publication = list.find((p) => p.id === publicationId);
+    if (publication) {
+      publication.partages += 1;
+      this.savePublications(list);
+    }
+  },
+  deletePublication(publicationId: string): void {
+    const list = this.getPublications().filter((publication) => publication.id !== publicationId);
+    this.savePublications(list);
+  },
+
+  // ==================== PDF RECEIPT GENERATION ====================
+  generateReceiptPDF(cotisation: Cotisation, membre: Membre): void {
+    const moisNames: Record<string, string> = {
+      '01': 'Janoary', '02': 'Febroary', '03': 'Martsa', '04': 'Aprily',
+      '05': 'Mey', '06': 'Jona', '07': 'Jolay', '08': 'Aogositra',
+      '09': 'Septambra', '10': 'Oktobra', '11': 'Novambra', '12': 'Desambra'
+    };
+    const moisNom = cotisation.mois ? (moisNames[cotisation.mois] || cotisation.mois) : '';
+    const settings = this.getAdminSettings();
+
+    const content = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Reçu - ${cotisation.reference}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #f8f9fa; padding: 40px; color: #1a1a2e; }
+  .receipt { max-width: 500px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); overflow: hidden; }
+  .header { background: linear-gradient(135deg, #f59e0b, #8b5cf6); padding: 28px 24px; text-align: center; color: white; }
+  .header h1 { font-size: 1.3rem; font-weight: 900; letter-spacing: 1px; }
+  .header p { font-size: 0.85rem; opacity: 0.9; margin-top: 4px; }
+  .header .badge { display: inline-block; margin-top: 10px; padding: 4px 16px; background: rgba(255,255,255,0.2); border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
+  .body { padding: 24px; }
+  .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #e5e7eb; font-size: 0.9rem; }
+  .row .label { color: #6b7280; }
+  .row .value { font-weight: 700; color: #1a1a2e; }
+  .total { margin: 20px 0; padding: 16px; background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.05)); border: 1px solid rgba(16,185,129,0.3); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .total .label { font-weight: 700; color: #10b981; }
+  .total .amount { font-size: 1.4rem; font-weight: 900; color: #10b981; }
+  .footer { text-align: center; padding: 16px 24px 24px; font-size: 0.75rem; color: #9ca3af; }
+  .footer .stamp { display: inline-block; padding: 6px 18px; border: 2px solid #10b981; border-radius: 8px; color: #10b981; font-weight: 700; font-size: 0.85rem; margin-bottom: 8px; }
+  @media print { body { padding: 0; background: white; } .receipt { box-shadow: none; } }
+</style>
+</head>
+<body>
+<div class="receipt">
+  <div class="header">
+    <h1>FIARAM NUMERIQUE</h1>
+    <p>${settings.chorale_sigle} — ${settings.chorale_nom}</p>
+    <div class="badge">TARATASY FANDRAISAM-BOLA (REÇU)</div>
+  </div>
+  <div class="body">
+    <div class="row"><span class="label">Laharana Reçu:</span><span class="value" style="color:#f59e0b">${cotisation.reference}</span></div>
+    <div class="row"><span class="label">Mpikambana:</span><span class="value">${membre.prenom} ${membre.nom}</span></div>
+    <div class="row"><span class="label">Kaody:</span><span class="value">${membre.code_unique}</span></div>
+    <div class="row"><span class="label">Karazany:</span><span class="value">${cotisation.type_cotisation === 'journalier' ? 'Isan\'andro (Journalier)' : 'Isam-bolana (Mensuel)'}</span></div>
+    <div class="row"><span class="label">${cotisation.type_cotisation === 'journalier' ? 'Daty Voaloa:' : 'Volana Voaloa:'}</span><span class="value" style="color:#2563eb">${cotisation.type_cotisation === 'journalier' ? (cotisation.date_jour || cotisation.date_paiement) : `${moisNom} ${cotisation.annee}`}</span></div>
+    ${cotisation.motif ? `<div class="row"><span class="label">Antony:</span><span class="value">${cotisation.motif}</span></div>` : ''}
+    <div class="row"><span class="label">Fomba Fandoavana:</span><span class="value">${cotisation.methode}</span></div>
+    <div class="row"><span class="label">Daty Fandoavana:</span><span class="value">${cotisation.date_paiement}</span></div>
+    <div class="total">
+      <span class="label">TOTALY VOALOA:</span>
+      <span class="amount">${cotisation.montant.toLocaleString()} Ar</span>
+    </div>
+  </div>
+  <div class="footer">
+    <div class="stamp">✓ VOAMARINA</div>
+    <p>Reçu numérique — ${settings.chorale_sigle} © ${new Date().getFullYear()}</p>
+    <p>Natonta tamin'ny: ${new Date().toLocaleString('fr-FR')}</p>
+  </div>
+</div>
+<script>window.onload = function() { window.print(); }</script>
+</body>
+</html>`;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(content);
+      printWindow.document.close();
+    }
+  },
+  printReceiptCotisation(cotisation: Cotisation, membre: Membre): void {
+    this.generateReceiptPDF(cotisation, membre);
+  },
+
+  // Full Reset to Clean Manual State
+  resetToCleanState(): void {
+    localStorage.removeItem(STORAGE_KEYS.MEMBRES);
+    localStorage.removeItem(STORAGE_KEYS.GROUPES);
+    localStorage.removeItem(STORAGE_KEYS.PRESENCES);
+    localStorage.removeItem(STORAGE_KEYS.FINANCES);
+    localStorage.removeItem(STORAGE_KEYS.COTISATIONS);
+    localStorage.removeItem(STORAGE_KEYS.CHANSONS);
+    localStorage.removeItem(STORAGE_KEYS.MESSAGES);
+    localStorage.removeItem(STORAGE_KEYS.EVENEMENTS);
+    localStorage.removeItem(STORAGE_KEYS.PUBLICATIONS);
+    localStorage.removeItem(STORAGE_KEYS.CATEGORIES_RESSOURCES);
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    localStorage.removeItem(STORAGE_KEYS.ADMIN_SETTINGS);
+    window.location.reload();
+  },
+  resetAllData(): void {
+    this.resetToCleanState();
+  }
+};
+

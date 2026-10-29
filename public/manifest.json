@@ -1,0 +1,16 @@
+{
+  "short_name": "FIARAM",
+  "name": "FIARAM NUMERIQUE - Gestion de groupe",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#070d1e",
+  "theme_color": "#f59e0b",
+  "display": "standalone",
+  "orientation": "portrait"
+}
