@@ -1,6 +1,7 @@
 import QRCode from 'qrcode';
 import { Membre, Groupe, BadgeStyle, BadgeColors } from '../types';
 import { StorageService } from './storage';
+import { DEFAULT_AVATAR_IMAGE } from './defaultAvatar';
 
 export interface BadgeStyleConfig {
   id: BadgeStyle;
@@ -407,7 +408,7 @@ export async function renderBadgeOnCanvas(
   const photoY = 38 * sy;
   const photoRadius = 14 * Math.min(sx, sy);
 
-  const photoUrl = membre.photo_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400';
+  const photoUrl = membre.photo_url || DEFAULT_AVATAR_IMAGE;
   try {
     const photoImg = await loadImage(photoUrl);
     ctx.save();

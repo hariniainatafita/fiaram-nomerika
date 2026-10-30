@@ -14,6 +14,7 @@ import {
   Search,
   X
 } from 'lucide-react';
+import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import {
   canAccessAdminPanel,
   canAccessView,
@@ -395,7 +396,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           }}
         >
           <img
-            src={currentUser.photo_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
+            src={currentUser.photo_url || DEFAULT_AVATAR_IMAGE}
             alt={currentUser.prenom}
             style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }}
           />

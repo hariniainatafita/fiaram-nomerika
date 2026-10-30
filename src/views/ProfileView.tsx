@@ -10,6 +10,7 @@ import {
   Sparkles,
   X
 } from 'lucide-react';
+import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import QRCode from 'qrcode';
 import { StorageService } from '../utils/storage';
 import { canManageBadges } from '../utils/permissions';
@@ -62,11 +63,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [prenom, setPrenom] = useState(currentUser.prenom);
   const [telephone, setTelephone] = useState(currentUser.telephone || '');
   const [fingerprint, setFingerprint] = useState(currentUser.fingerprint_registered);
-  const [photoUrl, setPhotoUrl] = useState(currentUser.photo_url || PRESET_AVATARS[0]);
+  const [photoUrl, setPhotoUrl] = useState(currentUser.photo_url || '');
   const [infoSavedMsg, setInfoSavedMsg] = useState(false);
 
   // Photo modal temp state
-  const [tempPhotoUrl, setTempPhotoUrl] = useState(currentUser.photo_url || PRESET_AVATARS[0]);
+  const [tempPhotoUrl, setTempPhotoUrl] = useState(currentUser.photo_url || '');
   const [isCompressing, setIsCompressing] = useState(false);
   const [photoSavedMsg, setPhotoSavedMsg] = useState(false);
 
@@ -210,7 +211,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           {/* Avatar with Camera Overlay */}
           <div style={{ position: 'relative', marginBottom: '14px' }}>
             <img
-              src={photoUrl}
+              src={photoUrl || DEFAULT_AVATAR_IMAGE}
               alt={currentUser.prenom}
               style={{
                 width: '100px',

@@ -18,6 +18,7 @@ import {
   UserCheck,
   Clock
 } from 'lucide-react';
+import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 
 const STATUS_LABEL_KEYS: Record<StatutPresence, string> = {
   present: 'common.status.present',
@@ -444,7 +445,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             {/* Member Card preview */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', margin: '14px 0', background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px' }}>
               <img
-                src={scannedResult.membre.photo_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
+                src={scannedResult.membre.photo_url || DEFAULT_AVATAR_IMAGE}
                 alt={scannedResult.membre.prenom}
                 style={{
                   width: '56px',

@@ -15,6 +15,7 @@ import {
   Upload,
   UserCheck
 } from 'lucide-react';
+import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import confetti from 'canvas-confetti';
 import { StorageService } from '../utils/storage';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -631,7 +632,7 @@ export const PresenceView: React.FC<PresenceViewProps> = ({
                 animation: 'fadeIn 0.25s ease-out'
               }}>
                 <img
-                  src={lastScannedResult.membre.photo_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
+                  src={lastScannedResult.membre.photo_url || DEFAULT_AVATAR_IMAGE}
                   alt={lastScannedResult.membre.prenom}
                   style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #10b981' }}
                 />
@@ -762,7 +763,7 @@ export const PresenceView: React.FC<PresenceViewProps> = ({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <img
-                      src={m.photo_url}
+                      src={m.photo_url || DEFAULT_AVATAR_IMAGE}
                       alt={m.prenom}
                       style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
                     />
@@ -994,7 +995,7 @@ export const PresenceView: React.FC<PresenceViewProps> = ({
                         <td style={{ padding: '12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <img
-                              src={m?.photo_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=60'}
+                              src={m?.photo_url || DEFAULT_AVATAR_IMAGE}
                               alt=""
                               style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
                             />

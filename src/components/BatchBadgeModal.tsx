@@ -20,6 +20,7 @@ import {
   Palette,
   RotateCcw
 } from 'lucide-react';
+import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 
 interface BatchBadgeModalProps {
   allMembres: Membre[];
@@ -445,7 +446,7 @@ export const BatchBadgeModal: React.FC<BatchBadgeModalProps> = ({
                           <td style={{ padding: '10px 12px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <img
-                                src={membre.photo_url}
+                                src={membre.photo_url || DEFAULT_AVATAR_IMAGE}
                                 alt={membre.prenom}
                                 style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }}
                               />

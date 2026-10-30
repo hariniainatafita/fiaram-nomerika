@@ -18,6 +18,7 @@ import {
   Settings,
   UsersRound
 } from 'lucide-react';
+import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
 import { canAccessAdminPanel, canAccessFinance, canAccessGroupData, isAdmin, canValidateAnyPresence } from '../utils/permissions';
 import { useLanguage } from '../i18n';
@@ -160,7 +161,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           gap: '12px'
         }}>
           <img 
-            src={currentUser.photo_url} 
+            src={currentUser.photo_url || DEFAULT_AVATAR_IMAGE} 
             alt={currentUser.prenom} 
             style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)' }}
           />

@@ -13,6 +13,7 @@ import {
   Smartphone,
   CalendarDays
 } from 'lucide-react';
+import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import confetti from 'canvas-confetti';
 import { StorageService } from '../utils/storage';
 import { canManageAnyCotisation, canManageCotisation } from '../utils/permissions';
@@ -263,7 +264,7 @@ export const CotisationView: React.FC<CotisationViewProps> = ({
       <div className="glass-card-gold" style={{ padding: '20px 24px', marginBottom: '24px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <img
-            src={targetMembre.photo_url}
+            src={targetMembre.photo_url || DEFAULT_AVATAR_IMAGE}
             alt={targetMembre.prenom}
             style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)' }}
           />

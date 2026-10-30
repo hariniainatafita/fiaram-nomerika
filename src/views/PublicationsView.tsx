@@ -8,7 +8,8 @@ import {
   Image as ImageIcon,
   X,
   Loader2,
-  Trash2
+  Trash2,
+  User
 } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
@@ -70,7 +71,7 @@ function MemberAvatar({ membre, size }: { membre?: Membre; size: number }) {
       fontSize: `${Math.max(12, size * 0.38)}px`,
       flexShrink: 0
     }}>
-      {membre?.prenom?.charAt(0).toUpperCase() || 'M'}
+      <User size={Math.max(13, Math.round(size * 0.44))} strokeWidth={2.4} />
     </div>
   );
 }

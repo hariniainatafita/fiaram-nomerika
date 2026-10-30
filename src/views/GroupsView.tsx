@@ -15,6 +15,7 @@ import {
   Search, 
   X
 } from 'lucide-react';
+import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
 import { canManageAllGroups, canManageChefs, canManageGroup, getManagedGroupIds } from '../utils/permissions';
 import { useLanguage } from '../i18n';
@@ -392,7 +393,7 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <img
-                    src={chef?.photo_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=60'}
+                    src={chef?.photo_url || DEFAULT_AVATAR_IMAGE}
                     alt=""
                     style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }}
                   />
@@ -536,7 +537,7 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <img
-                        src={m.photo_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=60'}
+                        src={m.photo_url || DEFAULT_AVATAR_IMAGE}
                         alt={m.prenom}
                         style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover' }}
                       />
@@ -812,7 +813,7 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                         <img
-                          src={cand.photo_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=60'}
+                          src={cand.photo_url || DEFAULT_AVATAR_IMAGE}
                           alt={cand.prenom}
                           style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover' }}
                         />
