@@ -203,12 +203,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
     };
   }, [messages]);
 
-  // Last incoming message of a channel (used to tell who is talking)
-  const lastIncomingMessage = (channelType: 'group' | 'direct', channelId: string): Message | undefined => {
+  // Dernier message réel d'une conversation (dans les deux sens) : la liste
+  // doit toujours afficher le contenu le plus récent, pas la fonction du
+  // correspondant (« membre », « administrateur »…).
+  const lastChannelMessage = (channelType: 'group' | 'direct', channelId: string): Message | undefined => {
     const list = messages
       .filter((m) => {
-        if (channelType === 'group') return m.group_id === channelId && !m.is_deleted;
-        return m.sender_id === channelId && m.receiver_id === currentUser.id && !m.is_deleted;
+        if (m.is_deleted || !m.sent_at) return false;
+        if (channelType === 'group') return m.group_id === channelId;
+        return (
+          (m.sender_id === channelId && m.receiver_id === currentUser.id) ||
+          (m.sender_id === currentUser.id && m.receiver_id === channelId)
+        );
       })
       .sort((a, b) => (a.sent_at < b.sent_at ? -1 : 1));
     return list[list.length - 1];
@@ -393,7 +399,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               const isSelected = activeChannelType === 'group' && activeChannelId === g.id;
               const chef = allMembres.find((m) => m.id === g.chef_id);
               const unread = unreadGroupCount(g.id);
-              const lastMsg = lastIncomingMessage('group', g.id);
+              const lastMsg = lastChannelMessage('group', g.id);
               const lastSender = lastMsg ? allMembres.find((m) => m.id === lastMsg.sender_id) : undefined;
 
               return (
@@ -444,8 +450,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap'
                     }}>
-                      {unread > 0 && lastMsg
-                        ? `${lastSender ? lastSender.prenom + ' : ' : ''}${previewText(lastMsg)}`
+                      {lastMsg
+                        ? `${lastSender?.id === currentUser.id ? t('chat.youPrefix') + ' : ' : lastSender ? lastSender.prenom + ' : ' : ''}${previewText(lastMsg)}`
                         : t('chat.chefLabel', { name: chef ? chef.prenom : t('chat.designated') })}
                     </div>
                   </div>
@@ -479,7 +485,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             {orderedDirects.map((m) => {
               const isSelected = activeChannelType === 'direct' && activeChannelId === m.id;
               const unread = unreadDirectCount(m.id);
-              const lastMsg = lastIncomingMessage('direct', m.id);
+              const lastMsg = lastChannelMessage('direct', m.id);
               const online = isMemberOnline(presence, m.id);
               return (
                 <button
@@ -534,7 +540,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap'
                     }}>
-                      {unread > 0 && lastMsg ? previewText(lastMsg) : (m.role === 'chef' ? t('common.role.chef') : m.role === 'super_chef' ? t('common.role.superChef') : m.role === 'admin' ? t('common.role.admin') : t('common.role.member'))}
+                      {lastMsg
+                        ? `${lastMsg.sender_id === currentUser.id ? t('chat.youPrefix') + ' : ' : ''}${previewText(lastMsg)}`
+                        : (m.role === 'chef' ? t('common.role.chef') : m.role === 'super_chef' ? t('common.role.superChef') : m.role === 'admin' ? t('common.role.admin') : t('common.role.member'))}
                     </div>
                   </div>
 

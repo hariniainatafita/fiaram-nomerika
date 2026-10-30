@@ -33,6 +33,7 @@ export const chat: TranslationDictionary = {
     fr: 'A envoyé une image',
     en: 'Sent an image'
   },
+  'chat.youPrefix': { mg: 'Nalefanao', fr: 'Vous', en: 'You' },
   'chat.groupBadge': { mg: 'CHAT GROUPE', fr: 'CHAT DE GROUPE', en: 'GROUP CHAT' },
   'chat.emptyTitle': {
     mg: 'Tsy mbola misy hafatra eto.',

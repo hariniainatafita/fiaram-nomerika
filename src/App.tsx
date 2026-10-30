@@ -178,9 +178,18 @@ export function App() {
 
   // Unread counter for nav badges: unread private messages + group messages
   // that arrived after the user's per-group read cursor.
+  // Messages from accounts that no longer exist (deleted members) are not
+  // counted, otherwise a badge keeps pointing to a conversation that cannot
+  // be opened anywhere.
   const unreadCount = React.useMemo(() => {
+    const knownMemberIds = new Set(allMembres.map((m) => m.id));
     const direct = allMessages.filter(
-      (m) => m.receiver_id === currentUser?.id && m.status === 'sent' && !m.is_deleted
+      (m) =>
+        m.receiver_id === currentUser?.id &&
+        m.sender_id &&
+        knownMemberIds.has(m.sender_id) &&
+        m.status === 'sent' &&
+        !m.is_deleted
     ).length;
     const reads = currentUser ? StorageService.getGroupReads() : {};
     const groups = currentUser
@@ -191,7 +200,7 @@ export function App() {
         }).length
       : 0;
     return direct + groups;
-  }, [allMessages, currentUser]);
+  }, [allMessages, allMembres, currentUser]);
 
   // If user is not logged in, render Login / Registration View
   if (!currentUser) {
