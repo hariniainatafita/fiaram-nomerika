@@ -1,7 +1,11 @@
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 
+export type NotificationKind = 'message' | 'group' | 'publication' | 'event' | 'member';
+
 export interface MessageToastData {
   id: string;
+  kind: NotificationKind;
+  label?: string;
   senderName: string;
   senderPhoto?: string;
   text: string;
@@ -15,8 +19,9 @@ interface MessageToastListProps {
   onClose: (id: string) => void;
 }
 
-// Bulles de nouveaux messages : visibles quel que soit l'écran en cours,
-// empilées en bas à droite, se ferment seules, et renvoient dans le chat.
+// Bulles de notification (messages, publications, événements, validations…) :
+// visibles quel que soit l'écran en cours, empilées en bas à droite, se
+// ferment seules, et renvoient vers la vue concernée.
 export function MessageToastList({ toasts, onOpen, onClose }: MessageToastListProps) {
   if (!toasts.length) return null;
   return (
@@ -55,6 +60,24 @@ export function MessageToastList({ toasts, onOpen, onClose }: MessageToastListPr
           />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '0.8rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {toast.label && (
+                <span
+                  style={{
+                    display: 'inline-block',
+                    padding: '1px 6px',
+                    marginRight: '6px',
+                    borderRadius: '6px',
+                    background: 'rgba(245, 158, 11, 0.18)',
+                    color: '#f59e0b',
+                    fontSize: '0.64rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    verticalAlign: '1px'
+                  }}
+                >
+                  {toast.label}
+                </span>
+              )}
               {toast.groupName ? `👥 ${toast.groupName} — ${toast.senderName}` : toast.senderName}
             </div>
             <div style={{

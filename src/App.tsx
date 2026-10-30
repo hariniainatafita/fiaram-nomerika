@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { StorageService } from './utils/storage';
 import { subscribeToSupabase, hydrateFromSupabase } from './utils/supabaseSync';
@@ -11,6 +11,13 @@ import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
 import { MessageToastList, MessageToastData } from './components/MessageToast';
 import { playMessageNotification } from './utils/notificationSound';
+import {
+  getBrowserNotificationPermission,
+  requestBrowserNotificationPermission,
+  showBrowserNotification,
+  NotificationPermissionState
+} from './utils/notificationPermission';
+import { updateFaviconBadge } from './utils/faviconBadge';
 
 // Views
 import { DashboardView } from './views/DashboardView';
@@ -219,47 +226,79 @@ export function App() {
     return direct + groups;
   }, [allMessages, allMembres, currentUser]);
 
-  // Bulles de nouveaux messages : comparaison entre deux rendus consécutifs ;
-  // tout message qui n'est ni de moi, ni déjà lu, déclenche une bulle en bas à
-  // droite + un son de notification, quel que soit l'écran actuellement ouvert
-  // et quel que soit l'appareil où la conversation est réellement ouverte.
+  // ==================== CENTRE DE NOTIFICATIONS (style Facebook) ====================
+  // Différencie les rendus consécutifs de CHAQUE collection : tout ce qui est
+  // nouveau et ne vient pas de moi déclenche (1) une bulle en bas à droite,
+  // (2) un son, (3) une notification système par-dessus les autres sites/
+  // onglets, (4) le compteur qui clignote dans le titre de l'onglet + favicon.
+  // Sources surveillées : messages privés, messages de groupe, publications,
+  // événements, et nouvelles demandes d'adhésion pour le compte admin.
   const seenMessageIdsRef = React.useRef<Set<string> | null>(null);
+  const seenPublicationIdsRef = React.useRef<Set<string> | null>(null);
+  const seenEventIdsRef = React.useRef<Set<string> | null>(null);
+  const pendingMembersRef = React.useRef<number>(-1);
+  const unviewedByKindRef = React.useRef<Record<MessageToastData['kind'], number>>({
+    message: 0, group: 0, publication: 0, event: 0, member: 0
+  });
   const [messageToasts, setMessageToasts] = useState<MessageToastData[]>([]);
+  const [unviewedNotifications, setUnviewedNotifications] = useState(0);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermissionState>(
+    () => getBrowserNotificationPermission()
+  );
+  const [permissionBannerDismissed, setPermissionBannerDismissed] = useState<boolean>(
+    () => window.localStorage.getItem('fn_notif_banner') === 'done'
+  );
 
-  const pushMessageToasts = (items: MessageToastData[]) => {
+  const pushMessageToasts = useCallback((items: MessageToastData[]) => {
     setMessageToasts((prev) => [...prev.filter((existing) => !items.some((item) => item.id === existing.id)), ...items]);
     items.forEach((toast) => {
       window.setTimeout(() => {
         setMessageToasts((prev) => prev.filter((t) => t.id !== toast.id));
       }, 6000);
     });
-  };
+  }, []);
+
+  const countUnviewed = useCallback(() => {
+    const kinds = unviewedByKindRef.current;
+    setUnviewedNotifications(kinds.message + kinds.group + kinds.publication + kinds.event + kinds.member);
+  }, []);
+
+  const bumpUnviewed = useCallback((kind: MessageToastData['kind'], amount = 1) => {
+    unviewedByKindRef.current[kind] += amount;
+    countUnviewed();
+  }, [countUnviewed]);
 
   useEffect(() => {
     if (!currentUser) {
       seenMessageIdsRef.current = null;
+      seenPublicationIdsRef.current = null;
+      seenEventIdsRef.current = null;
+      pendingMembersRef.current = -1;
+      unviewedByKindRef.current = { message: 0, group: 0, publication: 0, event: 0, member: 0 };
+      setUnviewedNotifications(0);
       return;
     }
-    // Premiere passe : on marque deja tout comme vu, sinon toutes les
-    // conversations historiques declencheraient des bulles a l'ouverture.
-    const seen = seenMessageIdsRef.current ?? new Set<string>(StorageService.getMessages().map((m) => m.id));
-    seenMessageIdsRef.current = seen;
-    const fresh = allMessages.filter(
+
+    const items: MessageToastData[] = [];
+
+    // ---- Messages privés et de groupe ----
+    const seenMsg = seenMessageIdsRef.current ?? new Set<string>(StorageService.getMessages().map((m) => m.id));
+    seenMessageIdsRef.current = seenMsg;
+    const freshMsg = allMessages.filter(
       (m) =>
         !m.is_deleted &&
         !!m.sent_at &&
-        !seen.has(m.id) &&
+        !seenMsg.has(m.id) &&
         m.sender_id !== currentUser.id &&
         m.status !== 'read' &&
         (m.receiver_id === currentUser.id || !!m.group_id)
     );
-    allMessages.forEach((m) => seen.add(m.id));
-    if (!fresh.length) return;
-    const items: MessageToastData[] = [];
-    fresh.forEach((msg) => {
+    allMessages.forEach((m) => seenMsg.add(m.id));
+    freshMsg.forEach((msg) => {
       const sender = allMembres.find((m) => m.id === msg.sender_id);
       if (!sender) return; // expéditeur supprimé : rien à montrer
       const group = msg.group_id ? allGroupes.find((g) => g.id === msg.group_id) : undefined;
+      const kind: MessageToastData['kind'] = group ? 'group' : 'message';
       const preview = msg.image_url || msg.image_ref || msg.file_type === 'image'
         ? `📷 ${msg.message ?? ''}`.trim()
         : msg.file_url || msg.file_type === 'audio'
@@ -269,6 +308,7 @@ export function App() {
             : (msg.message ?? '');
       items.push({
         id: msg.id,
+        kind,
         senderName: `${sender.prenom} ${sender.nom}`.trim(),
         senderPhoto: sender.photo_url,
         text: preview,
@@ -276,10 +316,118 @@ export function App() {
         peerId: msg.group_id ? undefined : msg.sender_id
       });
     });
+
+    // ---- Publications ----
+    const seenPub = seenPublicationIdsRef.current ?? new Set<string>(StorageService.getPublications().map((p) => p.id));
+    seenPublicationIdsRef.current = seenPub;
+    const canSeeEveryPublication = currentUser.role === 'admin' || currentUser.role === 'super_chef';
+    const freshPub = allPublications.filter(
+      (p) => !seenPub.has(p.id) && p.auteur_id !== currentUser.id &&
+        (canSeeEveryPublication || !p.groupe_id || p.audience === 'all' || p.groupe_id === currentUser.groupe_id)
+    );
+    allPublications.forEach((p) => seenPub.add(p.id));
+    freshPub.forEach((pub) => {
+      const author = allMembres.find((m) => m.id === pub.auteur_id);
+      if (!author) return;
+      items.push({
+        id: `pub:${pub.id}`,
+        kind: 'publication',
+        label: 'Nouvelle publication',
+        senderName: `${author.prenom} ${author.nom}`.trim(),
+        senderPhoto: author.photo_url,
+        text: (pub.contenu ?? '').slice(0, 90)
+      });
+    });
+
+    // ---- Événements ----
+    const seenEv = seenEventIdsRef.current ?? new Set<string>(StorageService.getEvenements().map((e) => e.id));
+    seenEventIdsRef.current = seenEv;
+    const freshEv = allEvenements.filter((e) => !seenEv.has(e.id));
+    allEvenements.forEach((e) => seenEv.add(e.id));
+    freshEv.forEach((event) => {
+      items.push({
+        id: `ev:${event.id}`,
+        kind: 'event',
+        label: 'Nouvel événement',
+        senderName: event.nom,
+        text: event.date_evenement ? event.date_evenement : ''
+      });
+    });
+
+    // ---- Nouvelles adhésions en attente (admins uniquement) ----
+    if (currentUser.role === 'admin') {
+      const pendingCount = allMembres.filter((m) => m.is_approved === false).length;
+      const previous = pendingMembersRef.current;
+      pendingMembersRef.current = pendingCount;
+      if (previous >= 0 && pendingCount > previous) {
+        items.push({
+          id: `member:${Date.now()}`,
+          kind: 'member',
+          label: 'Nouveau membre',
+          senderName: `${pendingCount - previous} demande${pendingCount - previous > 1 ? 's' : ''} de compte`,
+          senderPhoto: undefined,
+          text: 'En attente de validation de dossier'
+        });
+      }
+    }
+
     if (!items.length) return;
     pushMessageToasts(items);
+    items.forEach((item) => {
+      bumpUnviewed(item.kind);
+      showBrowserNotification(
+        item.groupName ? `${item.groupName} — ${item.senderName}` : (item.label ?? item.senderName),
+        { body: item.text || '…', tag: item.id, icon: item.senderPhoto }
+      );
+    });
     if (StorageService.getAdminSettings().notifications_sonores) playMessageNotification();
-  }, [allMessages, allMembres, allGroupes, currentUser]);
+  }, [allMessages, allMembres, allGroupes, allPublications, allEvenements, currentUser, pushMessageToasts, bumpUnviewed]);
+
+  // Vue effectivement affichée (identique à allowedView, calculé avant le
+  // premier rendu protégé — nécessaire pour les hooks).
+  const allowedViewValue = currentUser && canAccessView(currentUser, activeView) ? activeView : '';
+
+  // Quand l'utilisateur ouvre la vue correspondante, les compteurs qui
+  // clignotent dans le titre / favicon retombent à zéro (comportement Facebook).
+  useEffect(() => {
+    const kindsByView: Record<string, Array<MessageToastData['kind']>> = {
+      chat: ['message', 'group'],
+      publications: ['publication'],
+      events: ['event'],
+      admin: ['member']
+    };
+    const kinds = kindsByView[allowedViewValue];
+    if (!kinds) return;
+    let touched = false;
+    kinds.forEach((kind) => {
+      if (unviewedByKindRef.current[kind] > 0) {
+        unviewedByKindRef.current[kind] = 0;
+        touched = true;
+      }
+    });
+    if (touched) countUnviewed();
+  }, [allowedViewValue, countUnviewed]);
+
+  // Titre de l'onglet qui clignote + favicon avec compteur rouge, tant que des
+  // nouveautés n'ont pas été consultées.
+  useEffect(() => {
+    const baseTitle = 'FIARAM NUMERIQUE - Gestion de groupe';
+    if (!currentUser || unviewedNotifications <= 0) {
+      document.title = baseTitle;
+      updateFaviconBadge(0);
+      return;
+    }
+    document.title = `(${unviewedNotifications}) FIARAM NUMERIQUE - Gestion de groupe`;
+    updateFaviconBadge(unviewedNotifications);
+    let flip = false;
+    const blink = window.setInterval(() => {
+      flip = !flip;
+      document.title = flip
+        ? `(${unviewedNotifications}) FIARAM NUMERIQUE - NOUVEAUX ÉLÉMENTS !`
+        : baseTitle;
+    }, 1200);
+    return () => window.clearInterval(blink);
+  }, [unviewedNotifications, currentUser]);
 
   // If user is not logged in, render Login / Registration View
   if (!currentUser) {
@@ -464,6 +612,60 @@ export function App() {
 
         {/* Bulles de notification des nouveaux messages */}
         <MessageToastList toasts={messageToasts} onOpen={openToastChat} onClose={closeToast} />
+
+        {/* Demande d'autorisation des notifications système (une seule fois) */}
+        {notifPermission !== 'granted' && notifPermission !== 'unsupported' && !permissionBannerDismissed && (
+          <div
+            className="animate-fade-in"
+            style={{
+              position: 'fixed',
+              left: '14px',
+              bottom: '84px',
+              zIndex: 3200,
+              maxWidth: 'min(320px, calc(100vw - 28px))',
+              padding: '12px 14px',
+              borderRadius: '14px',
+              background: 'var(--bg-secondary, #101828)',
+              border: '1px solid var(--border-gold, rgba(245,158,11,.45))',
+              boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
+              color: 'var(--text-main, #f8fafc)'
+            }}
+          >
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '4px' }}>
+              🔔 Recevoir les alertes en continu
+            </div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #9ca3af)', lineHeight: 1.5, marginBottom: '10px' }}>
+              Autorisez les notifications système : vous verrez chaque nouveau message, publication, événement ou demande d'adhésion
+              même en naviguant sur d'autres sites.
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ flex: 1, fontSize: '0.78rem', padding: '8px 10px' }}
+                onClick={async () => {
+                  const result = await requestBrowserNotificationPermission();
+                  setNotifPermission(result);
+                  window.localStorage.setItem('fn_notif_banner', 'done');
+                  setPermissionBannerDismissed(true);
+                }}
+              >
+                Autoriser
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ fontSize: '0.78rem', padding: '8px 10px' }}
+                onClick={() => {
+                  window.localStorage.setItem('fn_notif_banner', 'done');
+                  setPermissionBannerDismissed(true);
+                }}
+              >
+                Plus tard
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* LOGOUT CONFIRMATION WARNING */}

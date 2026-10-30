@@ -4,7 +4,12 @@ import { STORAGE_KEYS } from './storageKeys';
 
 export type PresenceMap = Record<string, number>;
 
-const ONLINE_WINDOW_MS = 75_000;
+// Facebook-style presence: an open browser keeps the user online, even when
+// the tab is in the background (another site, another tab). Background tabs
+// have their timers throttled to about once per minute, so the online window
+// is wide enough to absorb that throttling. Only a real page close
+// (pagehide / browser quit) removes the flag immediately.
+const ONLINE_WINDOW_MS = 240_000;
 const HEARTBEAT_MS = 30_000;
 const REFRESH_MS = 15_000;
 
@@ -47,8 +52,9 @@ export function isMemberOnline(map: PresenceMap, memberId?: string, now = Date.n
 }
 
 /**
- * Keeps the current member flagged as online while the app is visible.
- * Other members become offline automatically once their heartbeat expires.
+ * Keeps the current member flagged as online while the browser is open —
+ * visible tab OR background tab. The flag is only removed on a real page
+ * close, or naturally once the heartbeat has been silent for long enough.
  */
 export function usePresence(currentUserId?: string): PresenceMap {
   const [presence, setPresence] = useState<PresenceMap>(getPresenceMap);
@@ -57,9 +63,7 @@ export function usePresence(currentUserId?: string): PresenceMap {
     if (!currentUserId) return;
 
     const beat = () => {
-      if (document.visibilityState === 'visible') {
-        setPresence(markOnline(currentUserId));
-      }
+      setPresence(markOnline(currentUserId));
     };
 
     beat();
@@ -68,11 +72,17 @@ export function usePresence(currentUserId?: string): PresenceMap {
     const refresh = window.setInterval(() => setPresence(getPresenceMap()), REFRESH_MS);
 
     const handleVisibility = () => {
+      // Coming back to the foreground: refresh immediately so nobody has to
+      // wait up to a minute. Going to the background does NOT log out — the
+      // interval keeps beating (throttled) and the wide online window covers
+      // the gap.
       if (document.visibilityState === 'visible') {
         beat();
-      } else {
-        setPresence(markOffline(currentUserId));
       }
+    };
+
+    const handleOnline = () => {
+      beat();
     };
 
     const handlePageHide = () => {
@@ -86,6 +96,7 @@ export function usePresence(currentUserId?: string): PresenceMap {
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('online', handleOnline);
     window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('storage', handleStorage);
 
@@ -93,6 +104,7 @@ export function usePresence(currentUserId?: string): PresenceMap {
       window.clearInterval(heartbeat);
       window.clearInterval(refresh);
       document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', handleOnline);
       window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('storage', handleStorage);
       markOffline(currentUserId);
