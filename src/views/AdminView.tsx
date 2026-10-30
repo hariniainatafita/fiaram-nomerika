@@ -185,6 +185,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     const { type, membre } = confirmAction;
     if (type === 'reject') {
       StorageService.rejectDossier(membre.id);
+      setDossierMembre(null);
     } else if (type === 'block') {
       StorageService.blockMembre(membre.id);
     } else if (type === 'delete') {
@@ -936,19 +937,29 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </div>
             )}
 
-            {/* Verify dossier footer */}
+            {/* Verify / Reject dossier footer */}
             {dossierMembre.dossier_verified === false && (
-              <button
-                onClick={() => {
-                  handleVerifyDossier(dossierMembre);
-                  setDossierMembre(null);
-                }}
-                className="btn btn-success"
-                style={{ width: '100%', marginTop: '18px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-              >
-                <UserCheck size={16} />
-                <span>{t('admin.verify')}</span>
-              </button>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '18px' }}>
+                <button
+                  onClick={() => handleRejectDossier(dossierMembre)}
+                  className="btn btn-danger"
+                  style={{ flex: 1, padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  <UserX size={16} />
+                  <span>{t('admin.reject')}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleVerifyDossier(dossierMembre);
+                    setDossierMembre(null);
+                  }}
+                  className="btn btn-success"
+                  style={{ flex: 1, padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  <UserCheck size={16} />
+                  <span>{t('admin.verify')}</span>
+                </button>
+              </div>
             )}
           </div>
         </div>

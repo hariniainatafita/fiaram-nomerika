@@ -244,8 +244,13 @@ export const StorageService = {
       return { success: false, message: "Efa misy mampiasa io solonanarana na adiresy mailaka io." };
     }
 
-    const count = list.length + 1;
-    const newCode = `GRP-2026-${count.toString().padStart(3, '0')}`;
+    let count = list.length + 1;
+    // Deleted accounts free their number: make sure the code stays unique.
+    let newCode = `GRP-2026-${count.toString().padStart(3, '0')}`;
+    while (list.some((m) => m.code_unique === newCode)) {
+      count += 1;
+      newCode = `GRP-2026-${count.toString().padStart(3, '0')}`;
+    }
 
     const newMembre: Membre = {
       id: 'm_' + Date.now(),

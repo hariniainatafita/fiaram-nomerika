@@ -100,6 +100,12 @@ export function App() {
     if (currentUser) {
       const updatedCurrent = m.find((user) => user.id === currentUser.id);
       if (updatedCurrent) setCurrentUser(updatedCurrent);
+      else {
+        // The current account does not exist anymore (deleted or dossier
+        // rejected by the admin): end the session right away.
+        StorageService.logout();
+        setCurrentUser(null);
+      }
     }
   };
 

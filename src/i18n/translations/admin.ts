@@ -127,9 +127,9 @@ export const admin: TranslationDictionary = {
     en: 'Files to verify ({count})'
   },
   'admin.dossiersDesc': {
-    mg: 'Afaka miditra avy hatrany ireo mpisoratra anarana ireo; jereo ny valinteniny dia amario hoe voamarina.',
-    fr: 'Ces inscrits peuvent déjà se connecter ; vérifiez leurs réponses d’inscription, puis marquez-les vérifiés.',
-    en: 'These registrants can already sign in; check their registration answers, then mark them verified.'
+    mg: 'Afaka miditra avy hatrany ireo mpisoratra anarana ireo na tsy misy fanamarinana. Raha mety ny dosy dia amario hoe voamarina; raha tsy tokony ho ao amin’ny fihavanana amin’ny Fikambanana izy, lavina — fafo ny kaontiny ary tsy afaka miditra intsony izy.',
+    fr: 'Ces inscrits peuvent se connecter sans approbation. Marquez « vérifié » si le dossier est bon ; « rejeter » supprime définitivement le compte : la personne ne pourra plus se connecter.',
+    en: 'These registrants can sign in without admin approval. Mark as verified when the file is correct; rejecting permanently deletes the account: that person will no longer be able to log in.'
   },
   'admin.noDossiers': {
     mg: 'Tsy misy dosie hamarina ankehitriny.',
@@ -391,9 +391,9 @@ export const admin: TranslationDictionary = {
   },
 
   'admin.confirmReject': {
-    mg: "Tena hanala ny fisoratana anaran'i {name} tokoa ve ianao?",
-    fr: 'Voulez-vous vraiment supprimer l’inscription de {name} ?',
-    en: 'Do you really want to delete the registration of {name}?'
+    mg: "Tena hanala tanteraka ny fisoratana anaran'i {name} tokoa ve ianao? Fafo ny kaontiny ary tsy afaka miditra intsony izy.",
+    fr: 'Supprimer définitivement l’inscription de {name} ? Le compte sera supprimé et la personne ne pourra plus se connecter.',
+    en: 'Permanently delete the registration of {name}? The account will be deleted and that person will no longer be able to log in.'
   },
   'admin.confirmBlock': {
     mg: "Tena hanasakana ny kaontin'i {name} tokoa ve ianao?",
