@@ -9,6 +9,8 @@ import {useLanguage} from './i18n';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
+import { MessageToastList, MessageToastData } from './components/MessageToast';
+import { playMessageNotification } from './utils/notificationSound';
 
 // Views
 import { DashboardView } from './views/DashboardView';
@@ -88,6 +90,21 @@ export function App() {
   const openChatWithMember = (membreId: string) => {
     setChatFocus({ peerId: membreId, nonce: Date.now() });
     setActiveView('chat');
+  };
+
+  // Clic sur une bulle : va directement dans la conversation concernée.
+  const openToastChat = (toast: MessageToastData) => {
+    setMessageToasts((prev) => prev.filter((t) => t.id !== toast.id));
+    if (toast.peerId) {
+      openChatWithMember(toast.peerId);
+      return;
+    }
+    // Message de groupe : la vue chat s'ouvre, l'utilisateur choisit le groupe.
+    setActiveView('chat');
+  };
+
+  const closeToast = (toastId: string) => {
+    setMessageToasts((prev) => prev.filter((t) => t.id !== toastId));
   };
 
   const openOwnProfile = () => {
@@ -201,6 +218,68 @@ export function App() {
       : 0;
     return direct + groups;
   }, [allMessages, allMembres, currentUser]);
+
+  // Bulles de nouveaux messages : comparaison entre deux rendus consécutifs ;
+  // tout message qui n'est ni de moi, ni déjà lu, déclenche une bulle en bas à
+  // droite + un son de notification, quel que soit l'écran actuellement ouvert
+  // et quel que soit l'appareil où la conversation est réellement ouverte.
+  const seenMessageIdsRef = React.useRef<Set<string> | null>(null);
+  const [messageToasts, setMessageToasts] = useState<MessageToastData[]>([]);
+
+  const pushMessageToasts = (items: MessageToastData[]) => {
+    setMessageToasts((prev) => [...prev.filter((existing) => !items.some((item) => item.id === existing.id)), ...items]);
+    items.forEach((toast) => {
+      window.setTimeout(() => {
+        setMessageToasts((prev) => prev.filter((t) => t.id !== toast.id));
+      }, 6000);
+    });
+  };
+
+  useEffect(() => {
+    if (!currentUser) {
+      seenMessageIdsRef.current = null;
+      return;
+    }
+    // Premiere passe : on marque deja tout comme vu, sinon toutes les
+    // conversations historiques declencheraient des bulles a l'ouverture.
+    const seen = seenMessageIdsRef.current ?? new Set<string>(StorageService.getMessages().map((m) => m.id));
+    seenMessageIdsRef.current = seen;
+    const fresh = allMessages.filter(
+      (m) =>
+        !m.is_deleted &&
+        !!m.sent_at &&
+        !seen.has(m.id) &&
+        m.sender_id !== currentUser.id &&
+        m.status !== 'read' &&
+        (m.receiver_id === currentUser.id || !!m.group_id)
+    );
+    allMessages.forEach((m) => seen.add(m.id));
+    if (!fresh.length) return;
+    const items: MessageToastData[] = [];
+    fresh.forEach((msg) => {
+      const sender = allMembres.find((m) => m.id === msg.sender_id);
+      if (!sender) return; // expéditeur supprimé : rien à montrer
+      const group = msg.group_id ? allGroupes.find((g) => g.id === msg.group_id) : undefined;
+      const preview = msg.image_url || msg.image_ref || msg.file_type === 'image'
+        ? `📷 ${msg.message ?? ''}`.trim()
+        : msg.file_url || msg.file_type === 'audio'
+          ? `🎤 ${msg.file_name ?? msg.message ?? ''}`.trim()
+          : msg.file_type === 'document'
+            ? `📄 ${msg.file_name ?? msg.message ?? ''}`.trim()
+            : (msg.message ?? '');
+      items.push({
+        id: msg.id,
+        senderName: `${sender.prenom} ${sender.nom}`.trim(),
+        senderPhoto: sender.photo_url,
+        text: preview,
+        groupName: group?.nom_groupe,
+        peerId: msg.group_id ? undefined : msg.sender_id
+      });
+    });
+    if (!items.length) return;
+    pushMessageToasts(items);
+    if (StorageService.getAdminSettings().notifications_sonores) playMessageNotification();
+  }, [allMessages, allMembres, allGroupes, currentUser]);
 
   // If user is not logged in, render Login / Registration View
   if (!currentUser) {
@@ -382,6 +461,9 @@ export function App() {
           unreadCount={unreadCount}
           currentUser={currentUser}
         />
+
+        {/* Bulles de notification des nouveaux messages */}
+        <MessageToastList toasts={messageToasts} onOpen={openToastChat} onClose={closeToast} />
       </div>
 
       {/* LOGOUT CONFIRMATION WARNING */}
