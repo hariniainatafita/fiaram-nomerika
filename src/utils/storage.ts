@@ -129,6 +129,12 @@ function migrateLegacyDemoData(): void {
 
 migrateLegacyDemoData();
 
+function sanitizePhotoUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  if (/images\.unsplash\.com\/photo-\d+[?/]/.test(url)) return undefined;
+  return url;
+}
+
 export const StorageService = {
   // Theme
   getTheme(): 'dark' | 'light' {
@@ -201,11 +207,6 @@ export const StorageService = {
       return { success: false, message: "Voasakana (bloqué) ity kaonty ity. Mifandraisa amin'ny Mpandrindra." };
     }
 
-    // Check if approved by admin (for non-admin accounts)
-    if (user.role !== 'admin' && user.is_approved === false) {
-      return { success: false, message: "Mbola tsy noeken'ny Mpandrindra ny kaonty nao. Andraso azafady." };
-    }
-
     if (!user.is_active) {
       return { success: false, message: "Matoantoka (désactivé) ity kaonty ity. Mifandraisa amin'ny Mpandrindra." };
     }
@@ -257,10 +258,10 @@ export const StorageService = {
       groupe_id: data.groupe_id,
       role: 'membre',
       is_active: true,
-      is_approved: false, // Needs admin approval
+      is_approved: true, // No admin approval needed — users can sign in right away
+      dossier_verified: false, // The admin reviews the registration file afterwards
       is_blocked: false,
       code_unique: newCode,
-      photo_url: `https://images.unsplash.com/photo-${1534528741775 + (count * 100)}?w=150`,
       solde: 0,
       theme: 'dark',
       fingerprint_registered: false,
@@ -271,10 +272,11 @@ export const StorageService = {
     list.push(newMembre);
     this.saveMembres(list);
 
-    // Do NOT auto-login — must wait for admin approval
+    // No approval probation: the account is usable immediately.
+
     return { 
       success: true, 
-      message: `Voasoratra soa aman-tsara ianao! Kaody: ${newCode}. Andraso ny fankatoavan'ny Mpandrindra alohan'ny hidirana.`, 
+      message: `Voasoratra soa aman-tsara ianao! Kaody: ${newCode}.`, 
       user: newMembre 
     };
   },
@@ -295,9 +297,13 @@ export const StorageService = {
 
   // ==================== MEMBRES ====================
   getMembres(): Membre[] {
+    const deleted = this.getDeletedMemberIds();
     const list = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, INITIAL_MEMBRES);
-    return list.map((m, index) => ({
+    return list
+      .filter((m) => !(m.id in deleted))
+      .map((m, index) => ({
       ...m,
+      photo_url: sanitizePhotoUrl(m.photo_url),
       is_approved: m.is_approved !== undefined ? m.is_approved : true, // Existing members are approved
       is_blocked: m.is_blocked || false,
       numero_badge: m.numero_badge || (m.code_unique ? m.code_unique.replace(/\D/g, '').slice(-3).padStart(3, '0') : (index + 1).toString().padStart(3, '0')),
@@ -330,31 +336,58 @@ export const StorageService = {
   deleteMembre(id: string): void {
     const list = this.getMembres().filter((m) => m.id !== id);
     this.saveMembres(list);
+    // Remember the deletion so that the union-merge sync never resurrects it.
+    this.markMemberDeleted(id);
   },
 
-  // New registrations must stay group-less until a chef assigns them.
-  clearPendingMemberGroups(): void {
-    const list = this.getMembres();
-    let changed = false;
-    list.forEach((m) => {
-      if (m.is_approved === false && m.groupe_id) {
-        m.groupe_id = undefined;
-        changed = true;
-      }
-    });
-    if (changed) this.saveMembres(list);
+  // Deleted members registry (prevents deleted accounts coming back through sync).
+  getDeletedMemberIds(): Record<string, string> {
+    return getStoredItem<Record<string, string>>(STORAGE_KEYS.MEMBRES_DELETED, {});
   },
-  // Admin approval
-  approveMembre(id: string): void {
+  markMemberDeleted(id: string): void {
+    const map = this.getDeletedMemberIds();
+    map[id] = new Date().toISOString();
+    setStoredItem(STORAGE_KEYS.MEMBRES_DELETED, map);
+  },
+
+  // Old registrations used to wait for admin approval before they could sign in.
+  // Accounts are now usable immediately; those members are simply marked as
+  // "dossier to verify" so the admin can review them after they connect.
+  upgradePendingMembers(): void {
+    const list = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
+    let changed = false;
+    const migrated = list.map((m) => {
+      if (m.is_approved === false) {
+        changed = true;
+        return { ...m, is_approved: true, dossier_verified: false };
+      }
+      return m;
+    });
+    if (changed) setStoredItem(STORAGE_KEYS.MEMBRES, migrated);
+  },
+
+  // Dossier verification (after registration, once the member has connected)
+  verifyDossier(id: string): void {
     const list = this.getMembres();
     const index = list.findIndex((m) => m.id === id);
     if (index !== -1) {
-      list[index].is_approved = true;
+      list[index].dossier_verified = true;
       this.saveMembres(list);
     }
   },
-  rejectMembre(id: string): void {
-    // Simply delete the pending member
+  unverifyDossier(id: string): void {
+    const list = this.getMembres();
+    const index = list.findIndex((m) => m.id === id);
+    if (index !== -1) {
+      list[index].dossier_verified = false;
+      this.saveMembres(list);
+    }
+  },
+  getDossiersToVerify(): Membre[] {
+    return this.getMembres().filter((m) => m.dossier_verified === false && !m.is_blocked);
+  },
+  rejectDossier(id: string): void {
+    // Deleting the registration removes the member account entirely
     this.deleteMembre(id);
   },
 
@@ -735,6 +768,30 @@ export const StorageService = {
     return changed;
   },
 
+  // Group read cursors: { "userId:groupId": "YYYY-MM-DD HH:MM:SS" }
+  // Cursors share the sent_at format so both strings are comparable.
+  getGroupReads(): Record<string, string> {
+    return getStoredItem<Record<string, string>>(STORAGE_KEYS.GROUP_READS, {});
+  },
+  markGroupAsRead(userId: string, groupId: string): void {
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const cursor = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const map = this.getGroupReads();
+    map[`${userId}:${groupId}`] = cursor;
+    setStoredItem(STORAGE_KEYS.GROUP_READS, map);
+  },
+  getGroupUnreadCount(userId: string, groupId: string, messages: Message[]): number {
+    const cursor = this.getGroupReads()[`${userId}:${groupId}`] || '';
+    return messages.filter(
+      (msg) =>
+        msg.group_id === groupId &&
+        msg.sender_id !== userId &&
+        !msg.is_deleted &&
+        (!cursor || msg.sent_at > cursor)
+    ).length;
+  },
+
   // Evenements
   getEvenements(): Evenement[] {
     return getStoredItem<Evenement[]>(STORAGE_KEYS.EVENEMENTS, INITIAL_EVENEMENTS);
@@ -918,6 +975,7 @@ export const StorageService = {
   // Full Reset to Clean Manual State
   resetToCleanState(): void {
     const sharedKeys = [
+      STORAGE_KEYS.MEMBRES_DELETED,
       STORAGE_KEYS.MEMBRES,
       STORAGE_KEYS.GROUPES,
       STORAGE_KEYS.PRESENCES,
@@ -928,7 +986,8 @@ export const StorageService = {
       STORAGE_KEYS.EVENEMENTS,
       STORAGE_KEYS.PUBLICATIONS,
       STORAGE_KEYS.CATEGORIES_RESSOURCES,
-      STORAGE_KEYS.ADMIN_SETTINGS
+      STORAGE_KEYS.ADMIN_SETTINGS,
+      STORAGE_KEYS.GROUP_READS
     ];
     sharedKeys.forEach((key) => {
       localStorage.removeItem(key);

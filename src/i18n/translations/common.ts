@@ -133,5 +133,20 @@ export const common: TranslationDictionary = {
   'common.role.member': { mg: 'Mpikambana', fr: 'Membre', en: 'Member' },
   'common.role.chef': { mg: 'Chef Sokajy', fr: 'Chef de groupe', en: 'Group leader' },
   'common.role.superChef': { mg: 'Super Chef', fr: 'Super Chef', en: 'Super Chef' },
-  'common.role.admin': { mg: 'Admin', fr: 'Administrateur', en: 'Administrator' }
+  'common.role.admin': { mg: 'Admin', fr: 'Administrateur', en: 'Administrator' },
+  'common.logoutWarningTitle': {
+    mg: 'Hivoaka amin\u2019ny kaonty tokoa ve ianao?',
+    fr: 'Voulez-vous vraiment vous déconnecter ?',
+    en: 'Do you really want to log out?'
+  },
+  'common.logoutWarningMessage': {
+    mg: "Ho voatahiry ao amin'ny kaonty ny angonao, fa mila miditra indray ianao rehefa hiverina.",
+    fr: 'Vos données restent enregistrées sur votre compte, mais votre session sera fermée : vous devrez vous reconnecter.',
+    en: 'Your data stays saved on your account, but your session will close: you will have to sign in again.'
+  },
+  'common.logoutConfirm': {
+    mg: 'Eny, hivoaka',
+    fr: 'Oui, me déconnecter',
+    en: 'Yes, log out'
+  }
 };

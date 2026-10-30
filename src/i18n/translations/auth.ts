@@ -72,9 +72,9 @@ export const auth: TranslationDictionary = {
     en: 'Group'
   },
   'auth.groupAssignedByChef': {
-    mg: 'Ny mpitarika vondrona no hampiditra anao ao amin’ny vondrona iray rehefa voamarina ny fisoratana anaranao. Tsy mila misafidy vondrona ianao.',
-    fr: 'Votre groupe sera attribué par un chef après validation de votre inscription. Vous n’avez pas à choisir de groupe.',
-    en: 'A group leader will assign your group once your registration is approved. You do not need to choose a group.'
+    mg: 'Ny mpitarika vondrona no hampiditra anao ao amin\u2019ny vondrona iray rehefa avy nahavoa ny fisoratana anaranao. Tsy mila misafidy vondrona ianao.',
+    fr: 'Votre groupe vous sera attribué par un chef après votre inscription. Vous n\u2019avez pas à choisir de groupe.',
+    en: 'A group leader will assign your group after your registration. You do not need to choose a group.'
   },
   'auth.groupPendingAssignment': {
     mg: 'Hampidirin’ny mpitarika vondrona',
@@ -86,6 +86,31 @@ export const auth: TranslationDictionary = {
     fr: 'Créez un mot de passe...',
     en: 'Create a password...'
   },
+  'auth.confirmPasswordLabel': {
+    mg: 'Hamarino ny tenimiafina',
+    fr: 'Confirmer le mot de passe',
+    en: 'Confirm password'
+  },
+  'auth.confirmPasswordPlaceholder': {
+    mg: 'Avereno ny tenimiafina...',
+    fr: 'Ressaisissez le mot de passe...',
+    en: 'Re-enter the password...'
+  },
+  'auth.togglePasswordTitle': {
+    mg: 'Asehoy na zehio ny tenimiafina',
+    fr: 'Afficher ou masquer le mot de passe',
+    en: 'Show or hide the password'
+  },
+  'auth.passwordMismatchError': {
+    mg: "Tsy mitovy ny tenimiafina roa. Hamarino azafady.",
+    fr: 'Les mots de passe ne correspondent pas. Vérifiez et réessayez.',
+    en: 'The passwords do not match. Please check and try again.'
+  },
+  'auth.passwordsMatch': {
+    mg: 'Mitovy ny tenimiafina',
+    fr: 'Les mots de passe correspondent',
+    en: 'Passwords match'
+  },
   'auth.registrationQuestionsTitle': {
     mg: "Fanontaniana ho an'ny Fisoratana Anarana",
     fr: "Questions pour l'inscription",
@@ -96,10 +121,10 @@ export const auth: TranslationDictionary = {
     fr: 'Répondez ici...',
     en: 'Answer here...'
   },
-  'auth.pendingApprovalNotice': {
-    mg: "Ny kaonty vaovao dia mila fankatoavan'ny Mpandrindra (Admin) alohan'ny hidirana.",
-    fr: "Les nouveaux comptes doivent être approuvés par l'Administrateur (Admin) avant la connexion.",
-    en: 'New accounts must be approved by the Administrator (Admin) before signing in.'
+  'auth.dossierVerificationNotice': {
+    mg: "Afaka miditra mivantana ianao rehefa avy nanoratra anarana. Hamarina ny dosienao (valinteny) ny Mpandrindra na ny mpitarika taty aoriana.",
+    fr: "Votre compte est actif dès la fin de l'inscription : vous pouvez vous connecter tout de suite. L'Admin ou un chef vérifiera votre dossier (vos réponses) après votre première connexion.",
+    en: "Your account is active as soon as you register: you can sign in right away. The Admin or a leader will review your file (your answers) after your first sign-in."
   },
   'auth.registerButton': {
     mg: 'Hamorona Kaonty & Karatra Mpikambana',
@@ -121,25 +146,20 @@ export const auth: TranslationDictionary = {
     fr: 'Inscription réussie !',
     en: 'Registration successful!'
   },
-  'auth.successMessagePrefix': {
-    mg: 'Ny kaonty nao dia',
-    fr: 'Votre compte est',
-    en: 'Your account is'
-  },
-  'auth.successMessagePending': {
-    mg: 'miandry fankatoavana',
-    fr: "en attente d'approbation",
-    en: 'pending approval'
-  },
-  'auth.successMessageSuffix': {
-    mg: "avy amin'ny Mpandrindra (Admin). Rehefa neken'ny Admin, dia afaka miditra amin'ny kaonty nao ianao.",
-    fr: "par l'Administrateur (Admin). Une fois approuvé par l'Admin, vous pourrez vous connecter à votre compte.",
-    en: 'from the Administrator (Admin). Once approved by the Admin, you can sign in to your account.'
+  'auth.successActiveMessage': {
+    mg: "Miasa avy hatrany ny kaonty nao: ampidiro ny solonanarana sy ny tenimiafina nao hiditra. Ny Mpandrindra no hamarina ny dosienao taty aoriana.",
+    fr: "Votre compte est déjà actif : connectez-vous immédiatement avec votre nom d'utilisateur et votre mot de passe. L'Admin vérifiera votre dossier après votre première connexion.",
+    en: "Your account is already active: connect immediately with your username and password. The Admin will review your file after your first sign-in."
   },
   'auth.memberCodeLabel': {
     mg: 'Kaody maha-mpikambana anao',
     fr: 'Votre code de membre',
     en: 'Your member code'
+  },
+  'auth.enterAccount': {
+    mg: 'Miditra amin\u2019ny kaonty izao',
+    fr: 'Accéder à mon compte',
+    en: 'Go to my account'
   },
   'auth.backToLogin': {
     mg: "Hiverina any amin'ny Fidirana",

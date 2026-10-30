@@ -11,7 +11,8 @@ export interface Membre {
   password?: string;
   role: Role;
   is_active: boolean;
-  is_approved?: boolean;      // Admin must approve before login
+  is_approved?: boolean;      // True: account is registered and usable
+  dossier_verified?: boolean; // Admin reviewed the registration file
   is_blocked?: boolean;       // Admin can block an account
   photo_url?: string;
   code_unique: string;

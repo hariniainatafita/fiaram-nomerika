@@ -28,9 +28,9 @@ export const admin: TranslationDictionary = {
     en: 'Super Chef Panel'
   },
   'admin.subtitleAdmin': {
-    mg: 'Fitantanana ny mpikambana, fankatoavana, fanakanana, ary fanontaniana fisoratana anarana.',
-    fr: 'Gestion des membres, approbations, blocages et questions d’inscription.',
-    en: 'Manage members, approvals, blocking, and registration questions.'
+    mg: 'Fitantanana ny mpikambana, fanamarinana dosie, fanakanana, ary fanontaniana fisoratana anarana.',
+    fr: 'Gestion des membres, vérification des dossiers, blocages et questions d’inscription.',
+    en: 'Manage members, file verification, blocking, and registration questions.'
   },
   'admin.subtitleSuperChef': {
     mg: 'Lisitry ny mpikambana rehetra sy ny fanaraha-maso. Ny fanovana kaonty sy ny fikirana dia Admin ihany.',
@@ -74,15 +74,15 @@ export const admin: TranslationDictionary = {
     fr: '{count} actif(s)',
     en: '{count} active'
   },
-  'admin.pendingApprovals': {
-    mg: 'MIANDRY FANKATOAVANA',
-    fr: 'EN ATTENTE D’APPROBATION',
-    en: 'PENDING APPROVAL'
+  'admin.dossiersKpi': {
+    mg: 'DOSIE TSY VOAMARINA',
+    fr: 'DOSSIERS À VÉRIFIER',
+    en: 'FILES TO VERIFY'
   },
-  'admin.pendingAccounts': {
-    mg: 'Kaonty vaovao miandry',
-    fr: 'Nouveaux comptes en attente',
-    en: 'New accounts pending'
+  'admin.dossiersKpiSub': {
+    mg: 'Mpisoratra anarana vaovao',
+    fr: 'Nouvelles inscriptions',
+    en: 'New registrations'
   },
   'admin.blocked': {
     mg: 'VOASAKANA',
@@ -110,10 +110,10 @@ export const admin: TranslationDictionary = {
     fr: 'Tous les membres',
     en: 'All Members'
   },
-  'admin.tabPending': {
-    mg: 'Miandry Fankatoavana',
-    fr: 'En attente d’approbation',
-    en: 'Pending Approval'
+  'admin.tabDossiers': {
+    mg: 'Dosie Hamarina',
+    fr: 'Dossiers à vérifier',
+    en: 'Files to verify'
   },
   'admin.tabSettings': {
     mg: 'Fanontaniana & Fikirana',
@@ -121,15 +121,20 @@ export const admin: TranslationDictionary = {
     en: 'Questions & Settings'
   },
 
-  'admin.pendingTitle': {
-    mg: 'Mpikambana miandry fankatoavana ({count})',
-    fr: 'Membres en attente d’approbation ({count})',
-    en: 'Members pending approval ({count})'
+  'admin.dossiersTitle': {
+    mg: 'Dosie mbola tsy voamarina ({count})',
+    fr: 'Dossiers à vérifier ({count})',
+    en: 'Files to verify ({count})'
   },
-  'admin.noPending': {
-    mg: 'Tsy misy kaonty miandry fankatoavana ankehitriny.',
-    fr: 'Aucun compte en attente d’approbation pour le moment.',
-    en: 'No accounts pending approval at the moment.'
+  'admin.dossiersDesc': {
+    mg: 'Afaka miditra avy hatrany ireo mpisoratra anarana ireo; jereo ny valinteniny dia amario hoe voamarina.',
+    fr: 'Ces inscrits peuvent déjà se connecter ; vérifiez leurs réponses d’inscription, puis marquez-les vérifiés.',
+    en: 'These registrants can already sign in; check their registration answers, then mark them verified.'
+  },
+  'admin.noDossiers': {
+    mg: 'Tsy misy dosie hamarina ankehitriny.',
+    fr: 'Aucun dossier à vérifier pour le moment.',
+    en: 'No files to verify at the moment.'
   },
   'admin.noPhone': {
     mg: 'Tsy misy finday',
@@ -146,15 +151,25 @@ export const admin: TranslationDictionary = {
     fr: 'Réponses aux questions :',
     en: 'Answers to questions:'
   },
-  'admin.approve': {
-    mg: 'Ekena',
-    fr: 'Approuver',
-    en: 'Approve'
+  'admin.verify': {
+    mg: 'Voamarina',
+    fr: 'Marquer vérifié',
+    en: 'Mark verified'
   },
   'admin.reject': {
     mg: 'Lavina',
     fr: 'Rejeter',
     en: 'Reject'
+  },
+  'admin.dossierToVerifyBadge': {
+    mg: 'Dosie hamarina',
+    fr: 'Dossier à vérifier',
+    en: 'File to verify'
+  },
+  'admin.dossierVerifiedBadge': {
+    mg: 'Dosie voamarina',
+    fr: 'Dossier vérifié',
+    en: 'File verified'
   },
 
   'admin.registrationQuestionsTitle': {

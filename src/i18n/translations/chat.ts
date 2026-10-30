@@ -28,6 +28,11 @@ export const chat: TranslationDictionary = {
   'chat.offlineStatus': { mg: 'Tsy mandeha (Hors ligne)', fr: 'Hors ligne', en: 'Offline' },
   'chat.sentStatus': { mg: 'Nalefa', fr: 'Envoyé', en: 'Sent' },
   'chat.readStatus': { mg: 'Vakiana', fr: 'Lu', en: 'Read' },
+  'chat.unreadPreviewImage': {
+    mg: 'Nanefa sary',
+    fr: 'A envoyé une image',
+    en: 'Sent an image'
+  },
   'chat.groupBadge': { mg: 'CHAT GROUPE', fr: 'CHAT DE GROUPE', en: 'GROUP CHAT' },
   'chat.emptyTitle': {
     mg: 'Tsy mbola misy hafatra eto.',

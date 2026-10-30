@@ -12,6 +12,7 @@ import {
   Download,
   ArrowLeft
 } from 'lucide-react';
+import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
 import { isMemberOnline, PresenceMap } from '../utils/presence';
@@ -25,6 +26,8 @@ interface ChatViewProps {
   messages: Message[];
   presence: PresenceMap;
   onRefreshMessages: () => void;
+  openPeerId?: string;
+  focusKey?: number;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -33,7 +36,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
   allGroupes,
   messages,
   presence,
-  onRefreshMessages
+  onRefreshMessages,
+  openPeerId,
+  focusKey
 }) => {
   const visibleGroupIds = getVisibleGroupIds(currentUser, allGroupes);
   const visibleGroupes = allGroupes.filter((g) => visibleGroupIds.includes(g.id));
@@ -108,6 +113,72 @@ export const ChatView: React.FC<ChatViewProps> = ({
       onRefreshMessages();
     }
   }, [activeChannelType, activeChannelId, messages, currentUser.id, onRefreshMessages]);
+
+  // Mark the group channel as read while it is open (per-user read cursor)
+  const [readTick, setReadTick] = useState(0);
+
+  // Group read cursors are re-read whenever they may have changed
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const groupReads = React.useMemo(() => StorageService.getGroupReads(), [readTick, messages]);
+
+  // Deep link: open a direct conversation when triggered from another view
+  useEffect(() => {
+    if (!openPeerId) return;
+    setActiveChannelType('direct');
+    setActiveChannelId(openPeerId);
+    setIsMobileConversation(true);
+  }, [openPeerId, focusKey]);
+
+  // Per-conversation unread helpers
+  const unreadDirectCount = (peerId: string): number =>
+    messages.filter(
+      (msg) =>
+        msg.sender_id === peerId &&
+        msg.receiver_id === currentUser.id &&
+        msg.status !== 'read' &&
+        !msg.is_deleted
+    ).length;
+
+  const unreadGroupCount = (groupId: string): number => {
+    const cursor = groupReads[`${currentUser.id}:${groupId}`] || '';
+    return messages.filter(
+      (msg) =>
+        msg.group_id === groupId &&
+        msg.sender_id !== currentUser.id &&
+        !msg.is_deleted &&
+        (!cursor || msg.sent_at > cursor)
+    ).length;
+  };
+
+  // While a group channel is open, clear its unread badge automatically
+  const activeGroupUnread = activeChannelType === 'group' && activeChannelId
+    ? unreadGroupCount(activeChannelId)
+    : 0;
+
+  useEffect(() => {
+    if (activeChannelType !== 'group' || !activeChannelId) return;
+    if (activeGroupUnread > 0) {
+      StorageService.markGroupAsRead(currentUser.id, activeChannelId);
+      setReadTick((n) => n + 1);
+    }
+  }, [activeChannelType, activeChannelId, currentUser.id, activeGroupUnread]);
+
+  const previewText = (msg?: Message): string => {
+    if (!msg) return '';
+    if (msg.image_url || msg.file_url) return '📷 ' + (msg.message || t('chat.unreadPreviewImage'));
+    return msg.message || '';
+  };
+
+  // Last incoming message of a channel (used to tell who is talking)
+  const lastIncomingMessage = (channelType: 'group' | 'direct', channelId: string): Message | undefined => {
+    const list = messages
+      .filter((m) => {
+        if (channelType === 'group') return m.group_id === channelId && !m.is_deleted;
+        return m.sender_id === channelId && m.receiver_id === currentUser.id && !m.is_deleted;
+      })
+      .sort((a, b) => (a.sent_at < b.sent_at ? -1 : 1));
+    return list[list.length - 1];
+  };
 
   // Handle local image file selection with canvas compression
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -225,6 +296,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
             {visibleGroupes.map((g) => {
               const isSelected = activeChannelType === 'group' && activeChannelId === g.id;
               const chef = allMembres.find((m) => m.id === g.chef_id);
+              const unread = unreadGroupCount(g.id);
+              const lastMsg = lastIncomingMessage('group', g.id);
+              const lastSender = lastMsg ? allMembres.find((m) => m.id === lastMsg.sender_id) : undefined;
 
               return (
                 <button
@@ -264,13 +338,39 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     <Users size={18} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.86rem', fontWeight: isSelected ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '0.86rem', fontWeight: isSelected || unread > 0 ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {g.nom_groupe}
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      {t('chat.chefLabel', { name: chef ? chef.prenom : t('chat.designated') })}
+                    <div style={{
+                      fontSize: '0.7rem',
+                      color: unread > 0 ? 'var(--accent-gold)' : 'var(--text-muted)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {unread > 0 && lastMsg
+                        ? `${lastSender ? lastSender.prenom + ' : ' : ''}${previewText(lastMsg)}`
+                        : t('chat.chefLabel', { name: chef ? chef.prenom : t('chat.designated') })}
                     </div>
                   </div>
+                  {unread > 0 && (
+                    <span style={{
+                      flexShrink: 0,
+                      minWidth: '20px',
+                      height: '20px',
+                      padding: '0 6px',
+                      borderRadius: '999px',
+                      background: '#ef4444',
+                      color: '#ffffff',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {unread > 9 ? '9+' : unread}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -282,6 +382,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
             {allMembres.filter((m) => m.id !== currentUser.id).map((m) => {
               const isSelected = activeChannelType === 'direct' && activeChannelId === m.id;
+              const unread = unreadDirectCount(m.id);
+              const lastMsg = lastIncomingMessage('direct', m.id);
               const online = isMemberOnline(presence, m.id);
               return (
                 <button
@@ -309,7 +411,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 >
                   <div style={{ position: 'relative', flexShrink: 0 }}>
                     <img
-                      src={m.photo_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=60'}
+                      src={m.photo_url || DEFAULT_AVATAR_IMAGE}
                       alt={m.prenom}
                       style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover' }}
                     />
@@ -326,13 +428,38 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.84rem', fontWeight: isSelected ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '0.84rem', fontWeight: isSelected || unread > 0 ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {m.prenom} {m.nom}
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      {m.role === 'chef' ? t('common.role.chef') : m.role === 'super_chef' ? t('common.role.superChef') : m.role === 'admin' ? t('common.role.admin') : t('common.role.member')}
+                    <div style={{
+                      fontSize: '0.7rem',
+                      color: unread > 0 ? 'var(--accent-gold)' : 'var(--text-muted)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {unread > 0 && lastMsg ? previewText(lastMsg) : (m.role === 'chef' ? t('common.role.chef') : m.role === 'super_chef' ? t('common.role.superChef') : m.role === 'admin' ? t('common.role.admin') : t('common.role.member'))}
                     </div>
                   </div>
+
+                  {unread > 0 && (
+                    <span style={{
+                      flexShrink: 0,
+                      minWidth: '20px',
+                      height: '20px',
+                      padding: '0 6px',
+                      borderRadius: '999px',
+                      background: '#ef4444',
+                      color: '#ffffff',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {unread > 9 ? '9+' : unread}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -379,7 +506,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </div>
               ) : (
                 <img
-                  src={activePeer?.photo_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=60'}
+                  src={activePeer?.photo_url || DEFAULT_AVATAR_IMAGE}
                   alt=""
                   style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
                 />
@@ -449,7 +576,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   >
                     {!isMe && (
                       <img
-                        src={sender?.photo_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=60'}
+                        src={sender?.photo_url || DEFAULT_AVATAR_IMAGE}
                         alt=""
                         style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', marginBottom: '4px', flexShrink: 0 }}
                       />

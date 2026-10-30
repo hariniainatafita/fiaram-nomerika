@@ -74,5 +74,30 @@ export const navigation: TranslationDictionary = {
     fr: 'Aucun membre ne correspond à votre recherche.',
     en: 'No member matches your search.'
   },
+  'members.sendMessage': {
+    mg: 'Handefa hafatra',
+    fr: 'Envoyer un message',
+    en: 'Send a message'
+  },
+  'members.profileTitle': {
+    mg: 'Mombamomba an’io mpikambana io',
+    fr: 'Fiche du membre',
+    en: 'Member profile'
+  },
+  'members.memberSince': {
+    mg: 'Tonga tamin’ny',
+    fr: 'Membre depuis',
+    en: 'Member since'
+  },
+  'members.ownProfile': {
+    mg: 'Midina ny mombamomba ahy',
+    fr: 'Voir mon profil',
+    en: 'Open my profile'
+  },
+  'members.contactHint': {
+    mg: 'Tsindrio ny mombamomba iray mba hiresaka amin’ilay mpikambana.',
+    fr: 'Cliquez sur une fiche pour discuter avec ce membre.',
+    en: 'Click a card to chat with that member.'
+  },
   'nav.footer': { mg: 'Fitantanana vondrona 2026', fr: 'Gestion de groupe 2026', en: 'Group management 2026' }
 };

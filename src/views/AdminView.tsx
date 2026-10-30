@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Layers
 } from 'lucide-react';
+import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
 import {
   canAccessAdminPanel,
@@ -64,7 +65,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'members' | 'pending' | 'settings'>('members');
+  const [activeTab, setActiveTab] = useState<'members' | 'dossiers' | 'settings'>('members');
 
   // Badge Modal State
   const [selectedBadgeMembre, setSelectedBadgeMembre] = useState<Membre | null>(null);
@@ -100,9 +101,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     if (!isAdminUser && activeTab !== 'members') {
       setActiveTab('members');
     }
-  }, [isAdminUser, activeTab]);
-
-  if (!canViewPanel) {
+  }, [isAdminUser, activeTab]);  if (!canViewPanel) {
     return (
       <div className="animate-fade-in" style={{ padding: '24px 20px', maxWidth: '600px', margin: '40px auto' }}>
         <div className="glass-card" style={{ padding: '32px', textAlign: 'center' }}>
@@ -135,15 +134,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
     onRefreshMembres();
   };
 
-  // Approve member (admin only)
-  const handleApproveMembre = (membre: Membre) => {
+  // Verify dossier (admin only)
+  const handleVerifyDossier = (membre: Membre) => {
     if (!isAdminUser) return;
-    StorageService.approveMembre(membre.id);
+    StorageService.verifyDossier(membre.id);
     onRefreshMembres();
   };
 
-  // Reject (delete) pending member (admin only)
-  const handleRejectMembre = (membre: Membre) => {
+  // Reject (delete) unverified registration (admin only)
+  const handleRejectDossier = (membre: Membre) => {
     if (!isAdminUser) return;
     setConfirmAction({
       type: 'reject',
@@ -185,7 +184,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     if (!confirmAction) return;
     const { type, membre } = confirmAction;
     if (type === 'reject') {
-      StorageService.rejectMembre(membre.id);
+      StorageService.rejectDossier(membre.id);
     } else if (type === 'block') {
       StorageService.blockMembre(membre.id);
     } else if (type === 'delete') {
@@ -244,9 +243,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
       groupe_id: newGroupeId,
       is_active: true,
       is_approved: true, // Admin-added members are auto-approved
+      dossier_verified: true, // Created by the admin = file already checked
       is_blocked: false,
       code_unique: code,
-      photo_url: `https://images.unsplash.com/photo-${1534528741775 + (count * 100)}?w=150`,
       solde: 0,
       theme: 'dark',
       fingerprint_registered: false
@@ -268,7 +267,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   // Stats
   const totalMembres = allMembres.filter(m => m.is_approved !== false).length;
   const activeMembres = allMembres.filter((m) => m.is_active && m.is_approved !== false).length;
-  const pendingMembres = allMembres.filter(m => m.is_approved === false);
+  const dossiersToVerify = allMembres.filter(m => m.dossier_verified === false && !m.is_blocked);
   const blockedMembres = allMembres.filter(m => m.is_blocked);
   const totalSoldeGroupes = allGroupes.reduce((acc, g) => acc + (g.solde || 0), 0);
 
@@ -397,14 +396,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
         <div
           className="glass-card"
           style={{ padding: '20px', cursor: isAdminUser ? 'pointer' : 'default' }}
-          onClick={() => isAdminUser && setActiveTab('pending')}
+          onClick={() => isAdminUser && setActiveTab('dossiers')}
         >
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontWeight: 600 }}>{t('admin.pendingApprovals')}</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontWeight: 600 }}>{t('admin.dossiersKpi')}</div>
           <div style={{ fontSize: '2rem', fontWeight: 900, color: '#f59e0b', margin: '4px 0' }}>
-            {pendingMembres.length}
+            {dossiersToVerify.length}
           </div>
           <div style={{ fontSize: '0.75rem', color: '#f59e0b' }}>
-            {t('admin.pendingAccounts')}
+            {t('admin.dossiersKpiSub')}
           </div>
         </div>
 
@@ -435,7 +434,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           { id: 'members' as const, label: t('admin.tabMembers'), count: filteredMembres.length },
           ...(isAdminUser
             ? [
-                { id: 'pending' as const, label: t('admin.tabPending'), count: pendingMembres.length },
+                { id: 'dossiers' as const, label: t('admin.tabDossiers'), count: dossiersToVerify.length },
                 { id: 'settings' as const, label: t('admin.tabSettings'), count: 0 }
               ]
             : [])
@@ -447,7 +446,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             style={{ fontSize: '0.85rem', padding: '8px 16px', position: 'relative' }}
           >
             <span>{tab.label}</span>
-            {tab.count > 0 && tab.id === 'pending' && (
+            {tab.count > 0 && tab.id === 'dossiers' && (
               <span style={{
                 position: 'absolute',
                 top: '-4px',
@@ -470,26 +469,29 @@ export const AdminView: React.FC<AdminViewProps> = ({
         ))}
       </div>
 
-      {/* ==================== PENDING APPROVALS TAB ==================== */}
-      {activeTab === 'pending' && isAdminUser && (
+      {/* ==================== DOSSIER VERIFICATION TAB ==================== */}
+      {activeTab === 'dossiers' && isAdminUser && (
         <div className="glass-card" style={{ padding: '20px' }}>
-          <h3 style={{ fontSize: '1.15rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ fontSize: '1.15rem', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <UserCheck size={20} style={{ color: '#f59e0b' }} />
-            {t('admin.pendingTitle', { count: pendingMembres.length })}
+            {t('admin.dossiersTitle', { count: dossiersToVerify.length })}
           </h3>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+            {t('admin.dossiersDesc')}
+          </p>
 
-          {pendingMembres.length === 0 ? (
+          {dossiersToVerify.length === 0 ? (
             <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
               <CheckCircle2 size={48} style={{ color: '#10b981', margin: '0 auto 12px', display: 'block' }} />
-              {t('admin.noPending')}
+              {t('admin.noDossiers')}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {pendingMembres.map(m => (
+              {dossiersToVerify.map(m => (
                 <div key={m.id} className="glass-card" style={{ padding: '16px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
                     <img
-                      src={m.photo_url}
+                      src={m.photo_url || DEFAULT_AVATAR_IMAGE}
                       alt={m.prenom}
                       style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover' }}
                     />
@@ -521,15 +523,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button
-                      onClick={() => handleApproveMembre(m)}
+                      onClick={() => handleVerifyDossier(m)}
                       className="btn btn-success"
                       style={{ padding: '6px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' }}
                     >
                       <UserCheck size={14} />
-                      <span>{t('admin.approve')}</span>
+                      <span>{t('admin.verify')}</span>
                     </button>
                     <button
-                      onClick={() => handleRejectMembre(m)}
+                      onClick={() => handleRejectDossier(m)}
                       className="btn btn-danger"
                       style={{ padding: '6px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' }}
                     >
@@ -720,7 +722,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     <td style={{ padding: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <img
-                          src={m.photo_url}
+                          src={m.photo_url || DEFAULT_AVATAR_IMAGE}
                           alt={m.prenom}
                           style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
                         />
@@ -759,13 +761,18 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     </td>
 
                     <td style={{ padding: '12px' }}>
-                      {m.is_blocked ? (
-                        <span className="badge badge-red">{t('common.status.blocked')}</span>
-                      ) : m.is_active ? (
-                        <span className="badge badge-green">{t('common.status.active')}</span>
-                      ) : (
-                        <span className="badge badge-red">{t('common.status.inactive')}</span>
-                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                        {m.is_blocked ? (
+                          <span className="badge badge-red">{t('common.status.blocked')}</span>
+                        ) : m.is_active ? (
+                          <span className="badge badge-green">{t('common.status.active')}</span>
+                        ) : (
+                          <span className="badge badge-red">{t('common.status.inactive')}</span>
+                        )}
+                        {m.dossier_verified === false && (
+                          <span className="badge badge-gold" style={{ fontSize: '0.62rem' }}>{t('admin.dossierToVerifyBadge')}</span>
+                        )}
+                      </div>
                     </td>
 
                     <td style={{ padding: '12px' }}>
@@ -871,13 +878,20 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
             {/* Photo & name */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
-              <img src={dossierMembre.photo_url} alt={dossierMembre.prenom} style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)' }} />
+              <img src={dossierMembre.photo_url || DEFAULT_AVATAR_IMAGE} alt={dossierMembre.prenom} style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)' }} />
               <div>
                 <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{dossierMembre.prenom} {dossierMembre.nom}</div>
                 <div style={{ fontSize: '0.82rem', color: 'var(--accent-gold)' }}>{dossierMembre.code_unique}</div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                   {t(ROLE_KEYS[dossierMembre.role]).toUpperCase()} • {dossierMembre.is_active ? t('common.status.active') : t('common.status.inactive')}
                   {dossierMembre.is_blocked && ` • ${t('admin.blockedUpper')}`}
+                </div>
+                <div style={{ marginTop: '6px' }}>
+                  {dossierMembre.dossier_verified === false ? (
+                    <span className="badge badge-gold" style={{ fontSize: '0.66rem' }}>{t('admin.dossierToVerifyBadge')}</span>
+                  ) : (
+                    <span className="badge badge-green" style={{ fontSize: '0.66rem' }}>{t('admin.dossierVerifiedBadge')}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -920,6 +934,21 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   </div>
                 ))}
               </div>
+            )}
+
+            {/* Verify dossier footer */}
+            {dossierMembre.dossier_verified === false && (
+              <button
+                onClick={() => {
+                  handleVerifyDossier(dossierMembre);
+                  setDossierMembre(null);
+                }}
+                className="btn btn-success"
+                style={{ width: '100%', marginTop: '18px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                <UserCheck size={16} />
+                <span>{t('admin.verify')}</span>
+              </button>
             )}
           </div>
         </div>

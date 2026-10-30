@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { StorageService } from './utils/storage';
 import { subscribeToSupabase } from './utils/supabaseSync';
 import { usePresence } from './utils/presence';
 import { canAccessGroupData, canAccessView } from './utils/permissions';
 import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication } from './types';
+import {useLanguage} from './i18n';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
@@ -24,6 +26,8 @@ import { AdminView } from './views/AdminView';
 import { LoginView } from './views/LoginView';
 
 export function App() {
+  const { t } = useLanguage();
+
   // Theme state
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
@@ -32,6 +36,12 @@ export function App() {
 
   // Mobile sidebar state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+
+  // Deep link into a direct chat conversation (from the members directory)
+  const [chatFocus, setChatFocus] = useState<{ peerId: string; nonce: number } | null>(null);
+
+  // Confirmation before logging out
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   // App Data States
   const [currentUser, setCurrentUser] = useState<Membre | null>(() => StorageService.getCurrentUser());
@@ -75,6 +85,15 @@ export function App() {
   };
 
   // Refresh functions
+  const openChatWithMember = (membreId: string) => {
+    setChatFocus({ peerId: membreId, nonce: Date.now() });
+    setActiveView('chat');
+  };
+
+  const openOwnProfile = () => {
+    setActiveView('profile');
+  };
+
   const refreshMembres = () => {
     const m = StorageService.getMembres();
     setAllMembres(m);
@@ -139,6 +158,7 @@ export function App() {
     return (
       <LoginView
         onLoginSuccess={(user) => {
+          StorageService.setCurrentUser(user.id);
           setCurrentUser(user);
           refreshMembres();
         }}
@@ -183,8 +203,7 @@ export function App() {
           allPublications={allPublications}
           allChansons={allChansons}
           onLogout={() => {
-            StorageService.logout();
-            setCurrentUser(null);
+            setConfirmLogout(true);
           }}
         />
 
@@ -218,6 +237,8 @@ export function App() {
               allMembres={allMembres}
               allGroupes={allGroupes}
               presence={presenceMap}
+              onOpenChat={openChatWithMember}
+              onOpenOwnProfile={openOwnProfile}
             />
           )}
 
@@ -265,6 +286,8 @@ export function App() {
               messages={allMessages}
               presence={presenceMap}
               onRefreshMessages={refreshMessages}
+              openPeerId={chatFocus?.peerId}
+              focusKey={chatFocus?.nonce}
             />
           )}
 
@@ -316,6 +339,63 @@ export function App() {
           currentUser={currentUser}
         />
       </div>
+
+      {/* LOGOUT CONFIRMATION WARNING */}
+      {confirmLogout && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.78)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 90,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div className="glass-card" style={{ maxWidth: '420px', width: '100%', padding: '28px', textAlign: 'center' }}>
+            <div style={{
+              width: '54px',
+              height: '54px',
+              borderRadius: '50%',
+              background: 'rgba(245, 158, 11, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 14px',
+              color: '#f59e0b'
+            }}>
+              <AlertTriangle size={26} />
+            </div>
+            <h3 style={{ fontSize: '1.08rem', marginBottom: '8px' }}>{t('common.logoutWarningTitle')}</h3>
+            <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginBottom: '22px', lineHeight: 1.6 }}>
+              {t('common.logoutWarningMessage')}
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => {
+                  StorageService.logout();
+                  setConfirmLogout(false);
+                  setCurrentUser(null);
+                }}
+                className="btn btn-danger"
+                style={{ flex: 1 }}
+              >
+                {t('common.logoutConfirm')}
+              </button>
+              <button
+                onClick={() => setConfirmLogout(false)}
+                className="btn btn-ghost"
+                style={{ flex: 1 }}
+              >
+                {t('common.cancel')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

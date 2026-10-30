@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Membre, RegistrationQuestion } from '../types';
-import { Music, Lock, User, ArrowRight, Sparkles, HelpCircle, Clock, ArrowLeft } from 'lucide-react';
+import { Music, Lock, User, ArrowRight, Sparkles, HelpCircle, ArrowLeft, Eye, EyeOff, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import confetti from 'canvas-confetti';
 import { useLanguage, LanguageSwitcher } from '../i18n';
@@ -16,10 +16,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [registeredCode, setRegisteredCode] = useState('');
+  const [registeredUser, setRegisteredUser] = useState<Membre | null>(null);
 
   // Login form state
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Register form state
   const [regNom, setRegNom] = useState('');
@@ -27,7 +29,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [regPhone, setRegPhone] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirm, setShowRegConfirm] = useState(false);
 
   // Registration wizard step
   const [regStep, setRegStep] = useState(1);
@@ -56,8 +61,13 @@ export const LoginView: React.FC<LoginViewProps> = ({
     e.preventDefault();
     setErrorMsg(null);
 
-    if (!regNom.trim() || !regPrenom.trim() || !regUsername.trim() || !regPassword.trim()) {
+    if (!regNom.trim() || !regPrenom.trim() || !regUsername.trim() || !regPassword.trim() || !regConfirmPassword.trim()) {
       setErrorMsg(t('auth.requiredFieldsError'));
+      return;
+    }
+
+    if (regPassword !== regConfirmPassword) {
+      setErrorMsg(t('auth.passwordMismatchError'));
       return;
     }
 
@@ -92,10 +102,33 @@ export const LoginView: React.FC<LoginViewProps> = ({
         spread: 80,
         origin: { y: 0.6 }
       });
-      // Show success message instead of auto-login
       setRegistrationSuccess(true);
       setRegisteredCode(res.user?.code_unique || '');
+      setRegisteredUser(res.user || null);
     }
+  };
+
+  const handleEnterAccount = () => {
+    if (!registeredUser) return;
+    StorageService.setCurrentUser(registeredUser.id);
+    onLoginSuccess(registeredUser);
+  };
+
+  const resetRegistrationForm = () => {
+    setRegistrationSuccess(false);
+    setIsRegisterMode(false);
+    setRegNom('');
+    setRegPrenom('');
+    setRegUsername('');
+    setRegEmail('');
+    setRegPassword('');
+    setRegConfirmPassword('');
+    setShowRegPassword(false);
+    setShowRegConfirm(false);
+    setRegPhone('');
+    setRegAnswers({});
+    setRegStep(1);
+    setRegisteredUser(null);
   };
 
   // Registration success screen
@@ -132,16 +165,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
             margin: '0 auto 20px',
             color: '#10b981'
           }}>
-            <Clock size={36} />
+            <CheckCircle2 size={36} />
           </div>
 
           <h2 style={{ fontSize: '1.3rem', marginBottom: '8px', color: '#10b981' }}>
             {t('auth.successTitle')}
           </h2>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '12px', lineHeight: 1.6 }}>
-            {t('auth.successMessagePrefix')}{' '}
-            <strong style={{ color: 'var(--accent-gold)' }}>{t('auth.successMessagePending')}</strong>{' '}
-            {t('auth.successMessageSuffix')}
+            {t('auth.successActiveMessage')}
           </p>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '20px', lineHeight: 1.5 }}>
             {t('auth.groupAssignedByChef')}
@@ -161,22 +192,19 @@ export const LoginView: React.FC<LoginViewProps> = ({
           </div>
 
           <button
-            onClick={() => {
-              setRegistrationSuccess(false);
-              setIsRegisterMode(false);
-              setRegNom('');
-              setRegPrenom('');
-              setRegUsername('');
-              setRegEmail('');
-              setRegPassword('');
-              setRegPhone('');
-              setRegAnswers({});
-              setRegStep(1);
-            }}
+            onClick={handleEnterAccount}
             className="btn btn-primary"
             style={{ width: '100%', padding: '12px' }}
           >
             <ArrowRight size={16} />
+            <span>{t('auth.enterAccount')}</span>
+          </button>
+          <button
+            onClick={resetRegistrationForm}
+            className="btn btn-ghost"
+            style={{ width: '100%', padding: '10px', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          >
+            <ShieldCheck size={15} />
             <span>{t('auth.backToLogin')}</span>
           </button>
         </div>
@@ -334,14 +362,34 @@ export const LoginView: React.FC<LoginViewProps> = ({
               <div style={{ position: 'relative' }}>
                 <Lock size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-dim)' }} />
                 <input
-                  type="password"
+                  type={showLoginPassword ? 'text' : 'password'}
                   required
                   placeholder={t('auth.passwordPlaceholder')}
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   className="form-input"
-                  style={{ paddingLeft: '38px' }}
+                  style={{ paddingLeft: '38px', paddingRight: '40px' }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword((v) => !v)}
+                  aria-label={t('auth.togglePasswordTitle')}
+                  title={t('auth.togglePasswordTitle')}
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    top: '8px',
+                    padding: '6px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-dim)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
@@ -497,14 +545,105 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '4px' }}>
                       {t('common.password')}:
                     </label>
-                    <input
-                      type="password"
-                      required
-                      placeholder={t('auth.createPasswordPlaceholder')}
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      className="form-input"
-                    />
+                    <div style={{ position: 'relative' }}>
+                      <Lock size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-dim)' }} />
+                      <input
+                        type={showRegPassword ? 'text' : 'password'}
+                        required
+                        placeholder={t('auth.createPasswordPlaceholder')}
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        className="form-input"
+                        style={{ paddingLeft: '38px', paddingRight: '40px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegPassword((v) => !v)}
+                        aria-label={t('auth.togglePasswordTitle')}
+                        title={t('auth.togglePasswordTitle')}
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '8px',
+                          padding: '6px',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-dim)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        {showRegPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '4px' }}>
+                      {t('auth.confirmPasswordLabel')}:
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Lock size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-dim)' }} />
+                      <input
+                        type={showRegConfirm ? 'text' : 'password'}
+                        required
+                        placeholder={t('auth.confirmPasswordPlaceholder')}
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        className="form-input"
+                        style={{
+                          paddingLeft: '38px',
+                          paddingRight: '40px',
+                          borderColor:
+                            regConfirmPassword.trim() && regConfirmPassword !== regPassword
+                              ? '#ef4444'
+                              : undefined
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegConfirm((v) => !v)}
+                        aria-label={t('auth.togglePasswordTitle')}
+                        title={t('auth.togglePasswordTitle')}
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '8px',
+                          padding: '6px',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-dim)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        {showRegConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {regConfirmPassword.length > 0 && (
+                      <div style={{
+                        marginTop: '5px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        color: regConfirmPassword === regPassword ? '#10b981' : '#ef4444'
+                      }}>
+                        {regConfirmPassword === regPassword ? (
+                          <>
+                            <CheckCircle2 size={13} />
+                            <span>{t('auth.passwordsMatch')}</span>
+                          </>
+                        ) : (
+                          <>
+                            <EyeOff size={13} />
+                            <span>{t('auth.passwordMismatchError')}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -612,8 +751,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     gap: '8px',
                     marginTop: '10px'
                   }}>
-                    <Clock size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                    <span>{t('auth.pendingApprovalNotice')}</span>
+                    <ShieldCheck size={14} style={{ color: '#10b981', flexShrink: 0 }} />
+                    <span>{t('auth.dossierVerificationNotice')}</span>
                   </div>
                 </>
               )}
