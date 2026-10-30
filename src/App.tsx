@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { StorageService } from './utils/storage';
-import { subscribeToSupabase } from './utils/supabaseSync';
+import { subscribeToSupabase, hydrateFromSupabase } from './utils/supabaseSync';
 import { usePresence } from './utils/presence';
 import { canAccessGroupData, canAccessView } from './utils/permissions';
 import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication } from './types';
@@ -141,7 +141,7 @@ export function App() {
 
   // Live sync: when another device updates shared data, refresh every store.
   useEffect(() => {
-    const unsubscribe = subscribeToSupabase(() => {
+    const refreshAll = () => {
       setAllMembres(StorageService.getMembres());
       setAllGroupes(StorageService.getGroupes());
       setAllPresences(StorageService.getPresences());
@@ -155,8 +155,25 @@ export function App() {
         if (!prev) return prev;
         return StorageService.getMembres().find((m) => m.id === prev.id) ?? null;
       });
-    });
-    return unsubscribe;
+    };
+    const unsubscribe = subscribeToSupabase(refreshAll);
+
+    // Smartphones: realtime socket drops while the app sleeps in background
+    // and missed (non-queued) events never replay. On resume / focus / network
+    // up, re-hydrate from Supabase so new messages and unread badges appear.
+    const onResume = () => {
+      if (document.visibilityState !== 'visible') return;
+      void hydrateFromSupabase().then(refreshAll);
+    };
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('focus', onResume);
+    window.addEventListener('online', onResume);
+    return () => {
+      unsubscribe();
+      document.removeEventListener('visibilitychange', onResume);
+      window.removeEventListener('focus', onResume);
+      window.removeEventListener('online', onResume);
+    };
   }, [currentUser?.id]);
 
   // Unread counter for nav badges: unread private messages + group messages

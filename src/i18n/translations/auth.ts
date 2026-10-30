@@ -22,9 +22,9 @@ export const auth: TranslationDictionary = {
     en: 'Username or email'
   },
   'auth.identifierPlaceholder': {
-    mg: 'oh: admin na hasina...',
-    fr: 'ex : admin ou hasina...',
-    en: 'e.g. admin or hasina...'
+    mg: 'Solonanarana na mailaka...',
+    fr: "Nom d'utilisateur ou email...",
+    en: 'Username or email...'
   },
   'auth.passwordPlaceholder': {
     mg: 'Ampidiro ny tenimiafina...',
@@ -47,9 +47,9 @@ export const auth: TranslationDictionary = {
     en: 'First name'
   },
   'auth.firstNamePlaceholder': {
-    mg: 'oh: Hasina',
-    fr: 'ex : Hasina',
-    en: 'e.g. Hasina'
+    mg: 'oh: Rakoto',
+    fr: 'ex : Rakoto',
+    en: 'e.g. Rakoto'
   },
   'auth.lastNamePlaceholder': {
     mg: 'oh: RAZAFY',
@@ -57,9 +57,9 @@ export const auth: TranslationDictionary = {
     en: 'e.g. RAZAFY'
   },
   'auth.usernamePlaceholder': {
-    mg: 'oh: hasina',
-    fr: 'ex : hasina',
-    en: 'e.g. hasina'
+    mg: 'oh: rakoto',
+    fr: 'ex : rakoto',
+    en: 'e.g. rakoto'
   },
   'auth.emailPlaceholder': {
     mg: 'oh: hasina@fiaram.mg',
