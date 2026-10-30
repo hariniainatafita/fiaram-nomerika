@@ -4,6 +4,7 @@ import { Music, Lock, Phone, ArrowRight, Sparkles, HelpCircle, ArrowLeft, Eye, E
 import { StorageService } from '../utils/storage';
 import confetti from 'canvas-confetti';
 import { useLanguage, LanguageSwitcher } from '../i18n';
+import devAvatar from '../profiles-developpeur-mini.jpeg';
 
 interface LoginViewProps {
   onLoginSuccess: (user: Membre) => void;
@@ -802,6 +803,45 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
       </div>
 
+      {/* Developer credit — visible to every user before sign-in */}
+      <div className="glass-card" style={{
+        marginTop: '14px',
+        padding: '12px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
+      }}>
+        <img
+          src={devAvatar}
+          alt="RANDRIAMANANTSOA Tafita Hariniaina"
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            objectFit: 'cover',
+            border: '2px solid var(--accent-gold)',
+            flexShrink: 0
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.3 }}>
+            RANDRIAMANANTSOA Tafita Hariniaina
+          </div>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--accent-gold)', marginTop: '2px' }}>
+            {t('auth.devCredit.role')}
+          </div>
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+            Batisa faha-12 FIARAM Ampangabe Tsinjony
+          </div>
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>
+            {t('auth.devCredit.studies')}
+          </div>
+        </div>
+        <span className="badge badge-gold" style={{ flexShrink: 0, fontSize: '0.6rem' }}>
+          {t('auth.devCreditBadge')}
+        </span>
+      </div>
+
       {/* Version marker: helps confirm a device runs the latest deployment */}
       <div style={{
         marginTop: '12px',
@@ -810,7 +850,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         opacity: 0.7,
         textAlign: 'center'
       }}>
-        FIARAM NUMERIQUE • ver 2026-10-30.2
+        FIARAM NUMERIQUE • ver 2026-10-31
       </div>
       </div>
     </div>

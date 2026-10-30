@@ -76,6 +76,21 @@ export const auth: TranslationDictionary = {
     fr: "Votre numéro de téléphone (ou votre email) servira à vous connecter, avec votre mot de passe.",
     en: "Your phone number (or your email) will be what you use to sign in, along with your password."
   },
+  'auth.devCreditBadge': {
+    mg: 'Mpamorona',
+    fr: 'Développeur',
+    en: 'Developer'
+  },
+  'auth.devCredit.role': {
+    mg: 'Namorona feno ity sehatra ity',
+    fr: 'Développeur complet de cette application',
+    en: 'Full developer of this application'
+  },
+  'auth.devCredit.studies': {
+    mg: 'Ho injeniera momba ny Telekommunikasiona, Rafitra sy Tambajotra',
+    fr: 'Futur ingénieur en Télécommunication, Système et Réseau',
+    en: 'Future engineer in Telecommunications, Systems & Networks'
+  },
   'auth.groupAssignmentLabel': {
     mg: 'Vondrona',
     fr: 'Groupe',

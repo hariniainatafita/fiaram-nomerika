@@ -18,6 +18,7 @@ import {
   IdCard
 } from 'lucide-react';
 import { LanguageSwitcher, useLanguage } from '../i18n';
+import devAvatar from '../profiles-developpeur-mini.jpeg';
 
 interface SettingsModalProps {
   currentUser: Membre;
@@ -531,8 +532,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           justifyContent: 'flex-end',
           gap: '12px',
           alignItems: 'center',
+          flexWrap: 'wrap',
           flexShrink: 0
         }}>
+          {/* Developer credit — shown to every user */}
+          <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left' }}>
+            <img
+              src={devAvatar}
+              alt="RANDRIAMANANTSOA Tafita Hariniaina"
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '1.5px solid var(--accent-gold)',
+                flexShrink: 0
+              }}
+            />
+            <div>
+              <div style={{ fontSize: '0.76rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                RANDRIAMANANTSOA Tafita Hariniaina
+              </div>
+              <div style={{ fontSize: '0.66rem', color: 'var(--accent-gold)', fontWeight: 700 }}>
+                {t('auth.devCredit.role')}
+              </div>
+            </div>
+          </div>
+
           <button
             onClick={onClose}
             className="btn btn-ghost"
