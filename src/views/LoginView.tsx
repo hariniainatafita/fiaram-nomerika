@@ -351,16 +351,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 <input
                   type="text"
                   required
-                  autoComplete="username"
+                  autoComplete="tel"
+                  inputMode="tel"
                   placeholder={t('auth.identifierPlaceholder')}
                   value={loginIdentifier}
                   onChange={(e) => setLoginIdentifier(e.target.value)}
                   className="form-input"
                   style={{ paddingLeft: '38px' }}
                 />
-              </div>
-              <div style={{ marginTop: '5px', fontSize: '0.7rem', color: 'var(--text-dim)' }}>
-                {t('auth.legacyUsernameHint')}
               </div>
             </div>
 
@@ -812,7 +810,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         opacity: 0.7,
         textAlign: 'center'
       }}>
-        FIARAM NUMERIQUE • ver 2026-10-30
+        FIARAM NUMERIQUE • ver 2026-10-30.2
       </div>
       </div>
     </div>

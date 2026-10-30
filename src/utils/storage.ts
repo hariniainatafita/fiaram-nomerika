@@ -60,16 +60,24 @@ function isLegacyAutoReply(msg: Message): boolean {
   return Boolean(msg.message && LEGACY_AUTO_REPLY_TEXTS.has(msg.message.trim()));
 }
 
-// Phone numbers are ignored spaces/dashes/dots and the +261/261 prefix so a
-// member typing "034 12 345 67" or "+2613412345677" matches the stored value.
+// Phone numbers are ignored spaces/dashes/dots, the +261/261 prefix and the
+// leading 0, so "034 11 222 33", "+261 34 11 222 33" and "341122233"
+// are all the same number at sign-in.
 function normalizePhone(value?: string): string {
   if (!value) return '';
   return value.replace(/\D/g, '');
 }
 
+function phoneMainDigits(value?: string): string {
+  let digits = normalizePhone(value);
+  if (digits.length >= 10 && digits.startsWith('261')) digits = digits.slice(3);
+  if (digits.startsWith('0') && digits.length >= 9) digits = digits.slice(1);
+  return digits;
+}
+
 function phonesMatch(stored?: string, typed?: string): boolean {
-  const a = normalizePhone(stored);
-  const b = normalizePhone(typed);
+  const a = phoneMainDigits(stored);
+  const b = phoneMainDigits(typed);
   if (!a || !b) return false;
   if (a === b) return true;
   if (b.length < 7) return false;

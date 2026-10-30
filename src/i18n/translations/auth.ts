@@ -17,14 +17,14 @@ export const auth: TranslationDictionary = {
     en: 'Register'
   },
   'auth.identifierLabel': {
-    mg: 'Mailaka na Laharana Findraman-telefaona',
-    fr: 'Email ou téléphone',
-    en: 'Email or phone'
+    mg: 'Laharana Findraman-telefaona na Mailaka',
+    fr: 'Téléphone ou email',
+    en: 'Phone or email'
   },
   'auth.identifierPlaceholder': {
-    mg: 'Mailaka na laharana findraman-telefaona...',
-    fr: 'email ou téléphone...',
-    en: 'email or phone...'
+    mg: 'oh: 034 12 345 67 na mailaka...',
+    fr: 'ex : 034 12 345 67 ou email...',
+    en: 'e.g. 034 12 345 67 or email...'
   },
   'auth.legacyUsernameHint': {
     mg: 'Ny mpikambana taloha dia afaka miditra amin\u2019ny solonanarany koa.',
