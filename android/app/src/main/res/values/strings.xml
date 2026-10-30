@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FIARAM NUMERIQUE</string>
+    <string name="title_activity_main">FIARAM NUMERIQUE</string>
+    <string name="package_name">mg.fiaram.nomerika</string>
+    <string name="custom_url_scheme">mg.fiaram.nomerika</string>
+</resources>
