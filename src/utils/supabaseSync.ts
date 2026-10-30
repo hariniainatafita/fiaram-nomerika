@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { STORAGE_KEYS, SYNCED_KEYS } from './storageKeys';
+import { STORAGE_KEYS, SYNCED_KEYS, isSyncedKey, messageImageKey } from './storageKeys';
 
 const TABLE = 'app_state';
 const pushTimers: Record<string, number> = {};
@@ -146,6 +146,82 @@ function readLocalStorage(key: string): unknown {
   }
 }
 
+// Rows currently being re-fetched after an oversized realtime payload was
+// truncated: prevents duplicate concurrent requests for the same key.
+const refetchingKeys = new Set<string>();
+
+/**
+ * Supabase Realtime silently drops the "value" of a row whose payload is
+ * ~1MB or larger, so big collections (several messages with inline images)
+ * would never update live. When such an event arrives, the row is fetched
+ * over HTTP (no size limit) and merged instead of relying on the payload.
+ */
+async function refetchKey(key: string): Promise<void> {
+  if (!isSupabaseConfigured || !supabase) return;
+  if (refetchingKeys.has(key)) return;
+  refetchingKeys.add(key);
+  try {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('value')
+      .eq('key', key)
+      .single();
+    if (error) {
+      console.warn(`[Supabase] refetch failed for "${key}":`, error.message);
+      return;
+    }
+    if (data && 'value' in data) {
+      writeMerged(key, normalizeRemoteValue(data.value));
+    }
+  } catch (err) {
+    console.warn(`[Supabase] refetch error for "${key}":`, err);
+  } finally {
+    refetchingKeys.delete(key);
+  }
+}
+
+const messageImageInflight = new Set<string>();
+
+/**
+ * A chat image lives in its own row (`fiaram_msgimg_<messageId>`). Realtime
+ * only pushes it in live, so on-demand HTTP fetch guarantees the picture is
+ * also available after a missed event / first connection.
+ */
+export async function fetchMessageImageIfMissing(messageId: string): Promise<string | undefined> {
+  if (!isSupabaseConfigured || !supabase) return undefined;
+  const key = messageImageKey(messageId);
+  const raw = localStorage.getItem(key);
+  if (raw !== null) {
+    try {
+      return JSON.parse(raw) as string;
+    } catch {
+      /* fall through to refetch */
+    }
+  }
+  if (messageImageInflight.has(messageId)) return undefined;
+  messageImageInflight.add(messageId);
+  try {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('value')
+      .eq('key', key)
+      .maybeSingle();
+    if (error || !data) return undefined;
+    const value = normalizeRemoteValue((data as { value?: unknown }).value);
+    if (typeof value !== 'string' || !value) return undefined;
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (err) {
+      console.error(`[Supabase] cannot store "${key}":`, err);
+    }
+    return value;
+  } catch {
+    return undefined;
+  } finally {
+    messageImageInflight.delete(messageId);
+  }
+}
+
 function writeMerged(key: string, remoteValue: unknown): void {
   const localValue = readLocalStorage(key);
   if (localValue === undefined) {
@@ -229,7 +305,7 @@ export async function hydrateFromSupabase(): Promise<void> {
  */
 export function pushKey(key: string, value: unknown): void {
   if (!isSupabaseConfigured || !supabase) return;
-  if (!SYNCED_KEYS.includes(key)) return;
+  if (!isSyncedKey(key)) return;
   if (pushTimers[key]) window.clearTimeout(pushTimers[key]);
   pushTimers[key] = window.setTimeout(() => {
     void upsertKey(key, value);
@@ -241,7 +317,7 @@ export function pushKey(key: string, value: unknown): void {
  */
 export function deleteKey(key: string): void {
   if (!isSupabaseConfigured || !supabase) return;
-  if (!SYNCED_KEYS.includes(key)) return;
+  if (!isSyncedKey(key)) return;
   void supabase
     .from(TABLE)
     .delete()
@@ -276,8 +352,13 @@ export function subscribeToSupabase(onRemoteChange: (key: string) => void): () =
         }
         const row = payload.new as { key?: string; value?: unknown };
         if (row?.key) {
-          writeMerged(row.key, normalizeRemoteValue(row.value));
-          onRemoteChange(row.key);
+          if (row.value === null || row.value === undefined) {
+            // Payload too big for realtime: fetch the row over HTTP and merge.
+            void refetchKey(row.key).then(() => onRemoteChange(row.key as string));
+          } else {
+            writeMerged(row.key, normalizeRemoteValue(row.value));
+            onRemoteChange(row.key);
+          }
         }
       }
     )

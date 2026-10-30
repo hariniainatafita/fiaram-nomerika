@@ -18,6 +18,7 @@ import { compressImage } from '../utils/imageCompressor';
 import { isMemberOnline, PresenceMap } from '../utils/presence';
 import { useLanguage } from '../i18n';
 import { getVisibleGroupIds } from '../utils/permissions';
+import { fetchMessageImageIfMissing } from '../utils/supabaseSync';
 
 interface ChatViewProps {
   currentUser: Membre;
@@ -166,9 +167,40 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   const previewText = (msg?: Message): string => {
     if (!msg) return '';
-    if (msg.image_url || msg.file_url) return '📷 ' + (msg.message || t('chat.unreadPreviewImage'));
+    // Message images may still be lazy-loading from their dedicated sync row
+    if (msg.image_url || msg.file_url || msg.image_ref) return '📷 ' + (msg.message || t('chat.unreadPreviewImage'));
     return msg.message || '';
   };
+
+  // Image of a message: legacy inline data URL, or payload stored in the
+  // message's own sync row (small realtime payloads stay deliverable).
+  const resolveMessageImage = (msg: Message): string | undefined => {
+    if (msg.image_url) return msg.image_url;
+    if (msg.file_type === 'image' && msg.file_url) return msg.file_url;
+    if (msg.image_ref) return StorageService.getMessageImage(msg.image_ref);
+    return undefined;
+  };
+
+  // Chat images sync in their own rows: fetch any payload missing locally
+  const [imageTick, setImageTick] = useState(0);
+  const pendingImageRefs = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    for (const msg of messages) {
+      const ref = msg.image_ref;
+      if (!ref || pendingImageRefs.current.has(ref)) continue;
+      if (StorageService.getMessageImage(ref)) continue;
+      pendingImageRefs.current.add(ref);
+      void fetchMessageImageIfMissing(ref).then(() => {
+        pendingImageRefs.current.delete(ref);
+        if (!cancelled) setImageTick((n) => n + 1);
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [messages]);
 
   // Last incoming message of a channel (used to tell who is talking)
   const lastIncomingMessage = (channelType: 'group' | 'direct', channelId: string): Message | undefined => {
@@ -604,7 +636,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </div>
 
           {/* Messages Feed */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div data-image-rev={imageTick} style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {channelMessages.length === 0 ? (
               <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <div style={{ fontSize: '2rem', marginBottom: '8px' }}>💬</div>
@@ -617,8 +649,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
               channelMessages.map((msg) => {
                 const isMe = msg.sender_id === currentUser.id;
                 const sender = allMembres.find((m) => m.id === msg.sender_id);
-                const hasImage = Boolean(msg.image_url || (msg.file_type === 'image' && msg.file_url));
-                const imageUrl = msg.image_url || msg.file_url;
+                const hasImage = Boolean(msg.image_url || msg.image_ref || (msg.file_type === 'image' && msg.file_url));
+                const imageUrl = resolveMessageImage(msg);
 
                 return (
                   <div
@@ -704,7 +736,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         </div>
                       )}
 
-                      {/* Text content if present */}
+                      {/* Image payload still syncing in its dedicated row */}
+                      {hasImage && !imageUrl && (
+                        <div style={{
+                          padding: '10px',
+                          borderRadius: '10px',
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          border: '1px dashed var(--border-color)',
+                          fontSize: '0.75rem',
+                          color: 'var(--text-muted)',
+                          marginBottom: msg.message ? '8px' : '0'
+                        }}>
+                          📷 {t('chat.unreadPreviewImage')}…
+                        </div>
+                      )}
                       {msg.message && (
                         <div style={{ whiteSpace: 'pre-wrap', fontWeight: isMe ? 500 : 400 }}>
                           {msg.message}

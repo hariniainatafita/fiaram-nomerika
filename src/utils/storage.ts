@@ -10,7 +10,7 @@ import {
   INITIAL_EVENEMENTS,
   INITIAL_PUBLICATIONS
 } from '../data/mockData';
-import { STORAGE_KEYS } from './storageKeys';
+import { STORAGE_KEYS, MESSAGE_IMAGE_PREFIX, messageImageKey } from './storageKeys';
 import { pushKey, deleteKey } from './supabaseSync';
 
 const DEFAULT_RESSOURCE_CATEGORIES: CategorieChanson[] = [
@@ -76,6 +76,25 @@ function setStoredItem<T>(key: string, value: T): void {
     pushKey(key, value);
   } catch (e) {
     console.error(`Error saving key ${key}:`, e);
+  }
+}
+
+function saveMessageImageRow(messageId: string, dataUrl: string): void {
+  try {
+    const key = messageImageKey(messageId);
+    localStorage.setItem(key, JSON.stringify(dataUrl));
+    pushKey(key, dataUrl);
+  } catch (e) {
+    console.error(`Error saving message image ${messageId}:`, e);
+  }
+}
+
+function removeStoredItem(key: string): void {
+  try {
+    localStorage.removeItem(key);
+    deleteKey(key);
+  } catch (e) {
+    console.error(`Error removing key ${key}:`, e);
   }
 }
 
@@ -720,8 +739,33 @@ export const StorageService = {
       this.saveMessages(cleaned);
     }
   },
+  // Inline base64 images must never live inside the shared messages row:
+  // it would blow past the ~1MB Supabase Realtime payload limit (users had
+  // to refresh the page to see new messages). Each image gets its own
+  // per-message row so every payload — text or image — stays small.
   saveMessages(messages: Message[]): void {
+    for (const msg of messages) {
+      if (msg.image_url && msg.image_url.startsWith('data:')) {
+        msg.image_ref = msg.id;
+        saveMessageImageRow(msg.id, msg.image_url);
+        msg.image_url = undefined;
+      }
+      // Older versions also duplicated the base64 into file_url for images
+      if (msg.file_type === 'image' && typeof msg.file_url === 'string' && msg.file_url.startsWith('data:')) {
+        msg.file_url = undefined;
+      }
+    }
     setStoredItem(STORAGE_KEYS.MESSAGES, messages);
+  },
+  // Base64 image payloads, one sync row per message
+  getMessageImage(messageId: string): string | undefined {
+    return getStoredItem<string | undefined>(messageImageKey(messageId), undefined);
+  },
+  moveMessageImage(messageId: string, dataUrl: string): void {
+    setStoredItem(messageImageKey(messageId), dataUrl);
+  },
+  deleteMessageImage(messageId: string): void {
+    removeStoredItem(messageImageKey(messageId));
   },
   sendMessage(
     sender_id: string, 
@@ -980,6 +1024,24 @@ export const StorageService = {
 
   // Full Reset to Clean Manual State
   resetToCleanState(): void {
+    // Chat images live in their own per-message rows: wipe them as well
+    const localKeys: string[] = [];
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(MESSAGE_IMAGE_PREFIX)) localKeys.push(key);
+    }
+    const messageIds = getStoredItem<Message[]>(STORAGE_KEYS.MESSAGES, [])
+      .map((msg) => `${msg.image_ref || ''}`)
+      .filter((ref) => ref.startsWith('msg_') && ref.length > 4);
+    for (const msgId of new Set([...messageIds])) {
+      const key = messageImageKey(msgId);
+      if (!localKeys.includes(key)) localKeys.push(key);
+    }
+    localKeys.forEach((key) => {
+      localStorage.removeItem(key);
+      deleteKey(key);
+    });
+
     const sharedKeys = [
       STORAGE_KEYS.MEMBRES_DELETED,
       STORAGE_KEYS.MEMBRES,

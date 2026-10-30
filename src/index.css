@@ -275,7 +275,8 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--radius-sm);
   color: var(--text-main);
   font-family: var(--font-main);
-  font-size: 0.95rem;
+  /* 16px prevents iOS Safari from zooming the page when an input is focused */
+  font-size: 16px;
   transition: all 0.2s ease;
   outline: none;
 }
@@ -596,5 +597,18 @@ body {
     left: 12px !important;
     right: 12px !important;
     width: auto !important;
+  }
+}
+
+/* Auth page: two-column grids collapse on small phones */
+.auth-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 420px) {
+  .auth-grid-2 {
+    grid-template-columns: 1fr;
   }
 }

@@ -180,6 +180,9 @@ export interface Message {
   file_url?: string;
   file_name?: string;
   file_type?: 'image' | 'audio' | 'document';
+  // Inline images live in their own sync row (message_ref -> base64) so the
+  // shared messages collection stays small enough for realtime delivery.
+  image_ref?: string;
   status: 'sent' | 'read';
   is_deleted: boolean;
   is_edited: boolean;

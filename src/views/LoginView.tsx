@@ -137,12 +137,13 @@ export const LoginView: React.FC<LoginViewProps> = ({
       <div style={{
         minHeight: '100dvh',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: 'column',
         padding: 'clamp(16px, 4vw, 24px)',
+        paddingBottom: 'calc(clamp(16px, 4vw, 24px) + env(safe-area-inset-bottom, 0px))',
         background: 'var(--bg-primary)'
       }}>
         <div className="glass-card-gold" style={{
+          margin: 'auto',
           maxWidth: '460px',
           width: '100%',
           padding: 'clamp(22px, 6vw, 40px) clamp(16px, 5vw, 32px)',
@@ -150,7 +151,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
           position: 'relative',
           boxShadow: 'var(--shadow-lg)'
         }}>
-          <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 2 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' }}>
             <LanguageSwitcher compact />
           </div>
           <div style={{
@@ -223,25 +224,32 @@ export const LoginView: React.FC<LoginViewProps> = ({
     <div style={{
       minHeight: '100dvh',
       display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+      flexDirection: 'column',
       padding: 'clamp(16px, 4vw, 24px)',
+      paddingBottom: 'calc(clamp(16px, 4vw, 24px) + env(safe-area-inset-bottom, 0px))',
       background: 'var(--bg-primary)'
     }}>
-      <div className="glass-card-gold" style={{
+      {/* margin:auto centers the group but top-aligns it when the content is
+          taller than the viewport, so nothing becomes unreachable on phones */}
+      <div style={{
+        margin: 'auto',
+        width: '100%',
         maxWidth: '480px',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+      <div className="glass-card-gold" style={{
         width: '100%',
         padding: 'clamp(20px, 5vw, 32px) clamp(16px, 4vw, 28px)',
         position: 'relative',
         boxShadow: 'var(--shadow-lg)',
-        maxHeight: 'calc(100dvh - 32px)',
+        maxHeight: 'calc(100dvh - 104px)',
         overflowY: 'auto'
       }}>
-        <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 2 }}>
+        {/* Language switcher in normal flow so it never overlaps the title */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' }}>
           <LanguageSwitcher compact />
         </div>
-
-        {/* Branding Header */}
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div style={{
             width: '58px',
@@ -455,7 +463,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-gold)', marginBottom: '10px' }}>
                     {t('auth.step1.title')}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="auth-grid-2">
                     <div>
                       <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '4px' }}>
                         {t('auth.firstNameLabel')}:
@@ -483,7 +491,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       />
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="auth-grid-2">
                     <div>
                       <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '4px' }}>
                         {t('common.username')}:
@@ -804,13 +812,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
       {/* Version marker: helps confirm a device runs the latest deployment */}
       <div style={{
-        marginTop: '14px',
+        marginTop: '12px',
         fontSize: '0.65rem',
         color: 'var(--text-dim)',
         opacity: 0.7,
         textAlign: 'center'
       }}>
         FIARAM NUMERIQUE • ver 2026-10-30
+      </div>
       </div>
     </div>
   );

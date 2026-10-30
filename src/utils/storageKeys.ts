@@ -38,3 +38,14 @@ export const SYNCED_KEYS: string[] = [
   STORAGE_KEYS.ADMIN_SETTINGS,
   STORAGE_KEYS.GROUP_READS
 ];
+
+// Inline chat images are synced too, but each message gets its own row
+// (one base64 image per row) so no collection ever crosses the ~1MB
+// Supabase Realtime payload limit that silently drops "value".
+export const MESSAGE_IMAGE_PREFIX = 'fiaram_msgimg_';
+
+export const messageImageKey = (messageId: string): string =>
+  `${MESSAGE_IMAGE_PREFIX}${messageId}`;
+
+export const isSyncedKey = (key: string): boolean =>
+  SYNCED_KEYS.includes(key) || key.startsWith(MESSAGE_IMAGE_PREFIX);
