@@ -79,6 +79,11 @@ export const badges: TranslationDictionary = {
     fr: 'Cochez les lignes souhaitées. Chaque planche A4 contient 4 badges de 8 × 12 cm.',
     en: 'Check the desired rows. Each A4 sheet contains 4 badges of 8 × 12 cm.'
   },
+  'badges.scopedGroups': {
+    mg: 'Ao amin’ny vondrona {groups} ihany',
+    fr: 'Groupes couverts : {groups}',
+    en: 'Groups covered: {groups}'
+  },
   'badges.stepTemplate': { mg: '1. Modely badge', fr: '1. Modèle de badge', en: '1. Badge template' },
   'badges.templatePrefix': { mg: 'Modely :', fr: 'Modèle :', en: 'Template:' },
   'badges.stepColors': {

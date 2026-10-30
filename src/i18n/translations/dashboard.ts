@@ -191,6 +191,16 @@ export const dashboard: TranslationDictionary = {
     fr: 'Paiements & validation',
     en: 'Payments & validation'
   },
+  'dashboard.shortcuts.badgesTitle': {
+    mg: 'Badges hotonta',
+    fr: 'Badges à générer',
+    en: 'Badges to generate'
+  },
+  'dashboard.shortcuts.badgesSubtitle': {
+    mg: '{count} badge tsy mbola voatonta',
+    fr: '{count} badge(s) restant(s) à générer',
+    en: '{count} badge(s) left to generate'
+  },
   'dashboard.events.title': {
     mg: "Hetsika sy Tetikasa ao amin'ny vondrona",
     fr: 'Événements & Projets du groupe',

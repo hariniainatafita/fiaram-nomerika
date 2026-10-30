@@ -25,6 +25,9 @@ import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 interface BatchBadgeModalProps {
   allMembres: Membre[];
   allGroupes: Groupe[];
+  // When provided, only members belonging to these groups can be listed or
+  // generated (group chefs generate the badges of their own group only).
+  allowedGroupIds?: string[];
   onClose: () => void;
   onRefreshMembres: () => void;
 }
@@ -32,11 +35,15 @@ interface BatchBadgeModalProps {
 export const BatchBadgeModal: React.FC<BatchBadgeModalProps> = ({
   allMembres,
   allGroupes,
+  allowedGroupIds,
   onClose,
   onRefreshMembres
 }) => {
   const { t } = useLanguage();
-  const eligibleMembres = allMembres.filter(m => m.is_approved !== false);
+  const eligibleMembres = allMembres.filter(m =>
+    m.is_approved !== false &&
+    (!allowedGroupIds || (!!m.groupe_id && allowedGroupIds.includes(m.groupe_id)))
+  );
 
   const [selectedStyle, setSelectedStyle] = useState<BadgeStyle>('gold_royal');
   const [colors, setColors] = useState<BadgeColors>(() => getDefaultBadgeColors('gold_royal'));
@@ -47,6 +54,10 @@ export const BatchBadgeModal: React.FC<BatchBadgeModalProps> = ({
 
   const styleConfig = getBadgeConfig(selectedStyle, colors);
   const styleLabel = (styleId: BadgeStyle) => t(`badges.style.${styleId}`);
+
+  const scopedGroupNames = allowedGroupIds
+    ? allGroupes.filter(g => allowedGroupIds.includes(g.id)).map(g => g.nom_groupe)
+    : [];
 
   const filteredList = eligibleMembres.filter(m => {
     if (filterMode === 'ungenerated') return !m.badge_generated;
@@ -206,6 +217,11 @@ export const BatchBadgeModal: React.FC<BatchBadgeModalProps> = ({
               <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                 {t('badges.batchSubtitle')}
               </p>
+              {scopedGroupNames.length > 0 && (
+                <p style={{ margin: '4px 0 0', fontSize: '0.74rem', color: '#10b981', fontWeight: 700 }}>
+                  {t('badges.scopedGroups', { groups: scopedGroupNames.join(', ') })}
+                </p>
+              )}
             </div>
           </div>
 

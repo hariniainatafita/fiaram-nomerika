@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Membre, RegistrationQuestion } from '../types';
-import { Music, Lock, User, ArrowRight, Sparkles, HelpCircle, ArrowLeft, Eye, EyeOff, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Music, Lock, Phone, ArrowRight, Sparkles, HelpCircle, ArrowLeft, Eye, EyeOff, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import confetti from 'canvas-confetti';
 import { useLanguage, LanguageSwitcher } from '../i18n';
@@ -26,7 +26,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
   // Register form state
   const [regNom, setRegNom] = useState('');
   const [regPrenom, setRegPrenom] = useState('');
-  const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
@@ -61,7 +60,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
     e.preventDefault();
     setErrorMsg(null);
 
-    if (!regNom.trim() || !regPrenom.trim() || !regUsername.trim() || !regPassword.trim() || !regConfirmPassword.trim()) {
+    if (!regNom.trim() || !regPrenom.trim() || !regPhone.trim() || !regPassword.trim() || !regConfirmPassword.trim()) {
       setErrorMsg(t('auth.requiredFieldsError'));
       return;
     }
@@ -87,8 +86,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
     const res = StorageService.register({
       nom: regNom,
       prenom: regPrenom,
-      username: regUsername,
-      email: regEmail || `${regUsername.toLowerCase()}@fiaram.mg`,
+      email: regEmail,
       password: regPassword,
       telephone: regPhone,
       registration_answers: answers
@@ -119,7 +117,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
     setIsRegisterMode(false);
     setRegNom('');
     setRegPrenom('');
-    setRegUsername('');
     setRegEmail('');
     setRegPassword('');
     setRegConfirmPassword('');
@@ -350,16 +347,20 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 {t('auth.identifierLabel')}:
               </label>
               <div style={{ position: 'relative' }}>
-                <User size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-dim)' }} />
+                <Phone size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-dim)' }} />
                 <input
                   type="text"
                   required
+                  autoComplete="username"
                   placeholder={t('auth.identifierPlaceholder')}
                   value={loginIdentifier}
                   onChange={(e) => setLoginIdentifier(e.target.value)}
                   className="form-input"
                   style={{ paddingLeft: '38px' }}
                 />
+              </div>
+              <div style={{ marginTop: '5px', fontSize: '0.7rem', color: 'var(--text-dim)' }}>
+                {t('auth.legacyUsernameHint')}
               </div>
             </div>
 
@@ -491,32 +492,28 @@ export const LoginView: React.FC<LoginViewProps> = ({
                       />
                     </div>
                   </div>
-                  <div className="auth-grid-2">
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '4px' }}>
-                        {t('common.username')}:
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder={t('auth.usernamePlaceholder')}
-                        value={regUsername}
-                        onChange={(e) => setRegUsername(e.target.value)}
-                        className="form-input"
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '4px' }}>
-                        {t('common.email')}:
-                      </label>
-                      <input
-                        type="email"
-                        placeholder={t('auth.emailPlaceholder')}
-                        value={regEmail}
-                        onChange={(e) => setRegEmail(e.target.value)}
-                        className="form-input"
-                      />
-                    </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, marginBottom: '4px' }}>
+                      {t('common.email')} <span style={{ color: 'var(--text-dim)', fontWeight: 500 }}>({t('common.optional')})</span>
+                    </label>
+                    <input
+                      type="email"
+                      placeholder={t('auth.emailPlaceholder')}
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
+                  <div style={{
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    background: 'rgba(245, 158, 11, 0.08)',
+                    border: '1px solid rgba(245, 158, 11, 0.2)',
+                    fontSize: '0.76rem',
+                    color: 'var(--text-muted)',
+                    lineHeight: 1.5
+                  }}>
+                    {t('auth.phoneLoginHint')}
                   </div>
                 </>
               )}
@@ -532,6 +529,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      required
+                      autoComplete="tel"
+                      inputMode="tel"
                       placeholder="+261 34..."
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
@@ -718,23 +718,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
                         <div style={{ fontWeight: 700 }}>{regNom}</div>
                       </div>
                       <div>
-                        <div style={{ color: 'var(--text-dim)', marginBottom: '2px' }}>{t('common.username')}</div>
-                        <div style={{ fontWeight: 700 }}>{regUsername}</div>
-                      </div>
-                      <div>
                         <div style={{ color: 'var(--text-dim)', marginBottom: '2px' }}>{t('common.email')}</div>
-                        <div style={{ fontWeight: 700 }}>{regEmail || `${regUsername.toLowerCase()}@fiaram.mg`}</div>
+                        <div style={{ fontWeight: 700 }}>{regEmail || '—'}</div>
                       </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '8px', fontSize: '0.78rem' }}>
                       <div>
                         <div style={{ color: 'var(--text-dim)', marginBottom: '2px' }}>{t('common.phone')}</div>
                         <div style={{ fontWeight: 700 }}>{regPhone || '—'}</div>
                       </div>
-                      <div>
-                        <div style={{ color: 'var(--text-dim)', marginBottom: '2px' }}>{t('auth.groupAssignmentLabel')}</div>
-                        <div style={{ fontWeight: 700 }}>{t('auth.groupPendingAssignment')}</div>
-                      </div>
+                    </div>
+                    <div style={{ marginBottom: '8px', fontSize: '0.78rem' }}>
+                      <div style={{ color: 'var(--text-dim)', marginBottom: '2px' }}>{t('auth.groupAssignmentLabel')}</div>
+                      <div style={{ fontWeight: 700 }}>{t('auth.groupPendingAssignment')}</div>
                     </div>
                     {regQuestions.length > 0 && (
                       <div style={{ marginTop: '8px' }}>

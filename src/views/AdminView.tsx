@@ -228,7 +228,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const handleAddMemberSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdminUser) return;
-    if (!newNom.trim() || !newPrenom.trim() || !newUsername.trim()) return;
+    if (!newNom.trim() || !newPrenom.trim()) return;
+    if (!newTel.trim() && !newEmail.trim()) return; // Phone or email is required to sign in
 
     const count = allMembres.length + 1;
     const code = `GRP-2026-${count.toString().padStart(3, '0')}`;
@@ -236,10 +237,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
     const newM = StorageService.addMembre({
       nom: newNom.toUpperCase().trim(),
       prenom: newPrenom.trim(),
-      username: newUsername.toLowerCase().trim(),
+      username: newUsername.toLowerCase().trim() || undefined,
       password: newPassword || '123456',
-      email: newEmail.trim() || `${newUsername.toLowerCase().trim()}@fiaram.mg`,
-      telephone: newTel.trim(),
+      email: newEmail.trim().toLowerCase(),
+      telephone: newTel.trim() || undefined,
       role: newRole,
       groupe_id: newGroupeId,
       is_active: true,
@@ -499,7 +500,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     <div>
                       <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{m.prenom} {m.nom}</div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        @{m.username} • {m.email} • {m.telephone || t('admin.noPhone')}
+                        {m.username ? `@${m.username} • ` : ''}{m.email || '—'} • {m.telephone || t('admin.noPhone')}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--accent-gold)', marginTop: '2px' }}>
                         {t('admin.codeAndDate', { code: m.code_unique, date: m.created_at })}
@@ -1092,7 +1093,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   </label>
                   <input
                     type="text"
-                    required
                     placeholder={t('admin.usernamePlaceholder')}
                     value={newUsername}
                     onChange={(e) => setNewUsername(e.target.value)}

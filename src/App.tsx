@@ -483,10 +483,12 @@ export function App() {
           {allowedView === 'dashboard' && (
             <DashboardView
               currentUser={currentUser}
+              allMembres={allMembres}
               allPresences={allPresences}
               allCotisations={allCotisations}
               allGroupes={allGroupes}
               allEvenements={allEvenements}
+              onRefreshMembres={refreshMembres}
               onSelectView={setActiveView}
               unreadCount={unreadCount}
             />

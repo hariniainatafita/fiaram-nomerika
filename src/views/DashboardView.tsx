@@ -1,44 +1,60 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Membre, Groupe, Presence, Cotisation, Evenement } from '../types';
-import { 
-  Sparkles, 
-  Crown, 
-  QrCode, 
-  Wallet, 
-  Music, 
-  MessageSquare, 
-  TrendingUp, 
-  CheckCircle2, 
-  Clock, 
-  XCircle, 
+import {
+  Sparkles,
+  Crown,
+  QrCode,
+  Wallet,
+  Music,
+  MessageSquare,
+  TrendingUp,
+  CheckCircle2,
+  Clock,
+  XCircle,
   ArrowUpRight,
   ShieldAlert,
   Users,
-  Camera
+  Camera,
+  BadgeCheck
 } from 'lucide-react';
 import { useLanguage } from '../i18n';
-import { canViewEvenement, getMemberGroup } from '../utils/permissions';
+import { canViewEvenement, getManagedGroupIds, getMemberGroup, isAdmin } from '../utils/permissions';
+import { BatchBadgeModal } from '../components/BatchBadgeModal';
 
 interface DashboardViewProps {
   currentUser: Membre;
+  allMembres: Membre[];
   allPresences: Presence[];
   allCotisations: Cotisation[];
   allGroupes: Groupe[];
   allEvenements: Evenement[];
+  onRefreshMembres: () => void;
   onSelectView: (view: string) => void;
   unreadCount: number;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   currentUser,
+  allMembres,
   allPresences,
   allCotisations,
   allGroupes,
   allEvenements,
+  onRefreshMembres,
   onSelectView,
   unreadCount
 }) => {
   const { t } = useLanguage();
+  const [showBadgeListModal, setShowBadgeListModal] = useState(false);
+
+  // Badge list scope: group chefs only see & generate badges of the groups
+  // they lead (admin / super chef keep the whole organisation).
+  const badgeGroupIds = getManagedGroupIds(currentUser, allGroupes);
+  const canOpenBadgeList = isAdmin(currentUser) || badgeGroupIds.length > 0;
+  const badgePendingCount = allMembres
+    .filter(m => m.is_approved !== false && !m.badge_generated)
+    .filter(m => badgeGroupIds.length > 0 ? (!!m.groupe_id && badgeGroupIds.includes(m.groupe_id)) : true)
+    .length;
 
   // Member's presences
   const userPresences = allPresences.filter((p) => p.membre_id === currentUser.id);
@@ -465,6 +481,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
 
           <button
+            onClick={() => setShowBadgeListModal(true)}
+            className="btn glass-card"
+            style={{
+              padding: '16px',
+              display: canOpenBadgeList ? 'flex' : 'none',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '10px',
+              textAlign: 'center'
+            }}
+          >
+            <div style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '12px',
+              background: 'rgba(245, 158, 11, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#f59e0b'
+            }}>
+              <BadgeCheck size={24} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('dashboard.shortcuts.badgesTitle')}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                {t('dashboard.shortcuts.badgesSubtitle', { count: badgePendingCount })}
+              </div>
+            </div>
+          </button>
+
+          <button
             onClick={() => onSelectView('cotisations')}
             className="btn glass-card"
             style={{
@@ -495,6 +543,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
       </div>
+
+      {showBadgeListModal && canOpenBadgeList && (
+        <BatchBadgeModal
+          allMembres={allMembres}
+          allGroupes={allGroupes}
+          allowedGroupIds={badgeGroupIds.length > 0 ? badgeGroupIds : undefined}
+          onClose={() => setShowBadgeListModal(false)}
+          onRefreshMembres={onRefreshMembres}
+        />
+      )}
 
       {/* Events & Projects Progress Section */}
       <div>

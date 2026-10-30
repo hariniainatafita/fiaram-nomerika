@@ -60,6 +60,22 @@ function isLegacyAutoReply(msg: Message): boolean {
   return Boolean(msg.message && LEGACY_AUTO_REPLY_TEXTS.has(msg.message.trim()));
 }
 
+// Phone numbers are ignored spaces/dashes/dots and the +261/261 prefix so a
+// member typing "034 12 345 67" or "+2613412345677" matches the stored value.
+function normalizePhone(value?: string): string {
+  if (!value) return '';
+  return value.replace(/\D/g, '');
+}
+
+function phonesMatch(stored?: string, typed?: string): boolean {
+  const a = normalizePhone(stored);
+  const b = normalizePhone(typed);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (b.length < 7) return false;
+  return a.slice(-b.length) === b;
+}
+
 function getStoredItem<T>(key: string, defaultValue: T): T {
   try {
     const item = localStorage.getItem(key);
@@ -209,16 +225,32 @@ export const StorageService = {
     return found || null;
   },
 
-  login(usernameOrEmail: string, password: string): { success: boolean; message: string; user?: Membre } {
+  login(identifier: string, password: string): { success: boolean; message: string; user?: Membre } {
     const membres = this.getMembres();
-    const term = usernameOrEmail.trim().toLowerCase();
+    const term = identifier.trim().toLowerCase();
 
-    const user = membres.find(
-      (m) => (m.email.toLowerCase() === term || (m.username && m.username.toLowerCase() === term) || m.code_unique.toLowerCase() === term)
+    // The identifier (email / phone / legacy username / member code) can match
+    // several accounts (e.g. two family members sharing one phone). Sign-in
+    // first ids all accounts behind that identifier, then the password alone
+    // decides which one is actually opened.
+    const matches = membres.filter(
+      (m) => (m.email.toLowerCase() === term ||
+        (m.username && m.username.toLowerCase() === term) || // Legacy accounts may still use their old username
+        phonesMatch(m.telephone, term) ||
+        m.code_unique.toLowerCase() === term)
     );
 
+    if (matches.length === 0) {
+      return { success: false, message: "Tsy misy kaonty mifandraika amin'io mailaka na laharana findraman-telefaona io." };
+    }
+
+    // Check password (default fallback to 'admin' for master or exact match).
+    // Among the accounts sharing the identifier only the one whose password
+    // matches is used, so duplicated emails/phones stay separate accounts.
+    const user = matches.find((m) => password === (m.password || 'admin'));
+
     if (!user) {
-      return { success: false, message: "Tsy misy mpikambana manana io solonanarana / mailaka io." };
+      return { success: false, message: "Diso ny tenimiafina nampidirinao." };
     }
 
     // Check if account is blocked
@@ -230,12 +262,6 @@ export const StorageService = {
       return { success: false, message: "Matoantoka (désactivé) ity kaonty ity. Mifandraisa amin'ny Mpandrindra." };
     }
 
-    // Check password (default fallback to 'admin' for master or exact match)
-    const expectedPassword = user.password || 'admin';
-    if (password !== expectedPassword) {
-      return { success: false, message: "Diso ny tenimiafina nampidirinao." };
-    }
-
     // Set logged in session
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.id);
     return { success: true, message: `Tongasoa, ${user.prenom}!`, user };
@@ -244,24 +270,26 @@ export const StorageService = {
   register(data: {
     nom: string;
     prenom: string;
-    username: string;
-    email: string;
+    email?: string;
     password: string;
-    telephone?: string;
+    telephone: string;
+    username?: string;
     groupe_id?: string;
     registration_answers?: { question: string; answer: string }[];
   }): { success: boolean; message: string; user?: Membre } {
     const list = this.getMembres();
 
-    // Check duplicate username or email
-    const exists = list.some(
-      (m) => m.email.toLowerCase() === data.email.trim().toLowerCase() ||
-             (m.username && m.username.toLowerCase() === data.username.trim().toLowerCase())
-    );
+    const email = data.email?.toLowerCase().trim() || '';
+    const phone = data.telephone?.trim() || '';
+    const username = data.username?.toLowerCase().trim() || '';
 
-    if (exists) {
-      return { success: false, message: "Efa misy mampiasa io solonanarana na adiresy mailaka io." };
+    if (!email && !phone) {
+      return { success: false, message: "Fenoy ny laharana findraman-telefaona na ny mailakao hiditra." };
     }
+
+    // Several accounts may share the same email / phone / username: at sign-in
+    // the password is what decides which account is opened, so no duplicate
+    // check is enforced here.
 
     let count = list.length + 1;
     // Deleted accounts free their number: make sure the code stays unique.
@@ -275,10 +303,9 @@ export const StorageService = {
       id: 'm_' + Date.now(),
       nom: data.nom.toUpperCase().trim(),
       prenom: data.prenom.trim(),
-      username: data.username.toLowerCase().trim(),
-      email: data.email.toLowerCase().trim(),
+      email,
       password: data.password,
-      telephone: data.telephone,
+      telephone: phone || undefined,
       groupe_id: data.groupe_id,
       role: 'membre',
       is_active: true,
@@ -292,6 +319,9 @@ export const StorageService = {
       created_at: new Date().toISOString().split('T')[0],
       registration_answers: data.registration_answers || []
     };
+    if (username) {
+      newMembre.username = username; // Kept only for accounts created before phone-based login
+    }
 
     list.push(newMembre);
     this.saveMembres(list);

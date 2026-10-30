@@ -17,14 +17,19 @@ export const auth: TranslationDictionary = {
     en: 'Register'
   },
   'auth.identifierLabel': {
-    mg: 'Solonanarana na Mailaka',
-    fr: "Nom d'utilisateur ou email",
-    en: 'Username or email'
+    mg: 'Mailaka na Laharana Findraman-telefaona',
+    fr: 'Email ou téléphone',
+    en: 'Email or phone'
   },
   'auth.identifierPlaceholder': {
-    mg: 'Solonanarana na mailaka...',
-    fr: "Nom d'utilisateur ou email...",
-    en: 'Username or email...'
+    mg: 'Mailaka na laharana findraman-telefaona...',
+    fr: 'email ou téléphone...',
+    en: 'email or phone...'
+  },
+  'auth.legacyUsernameHint': {
+    mg: 'Ny mpikambana taloha dia afaka miditra amin\u2019ny solonanarany koa.',
+    fr: "Les anciens membres peuvent aussi se connecter avec leur nom d'utilisateur.",
+    en: 'Existing members can also sign in with their old username.'
   },
   'auth.passwordPlaceholder': {
     mg: 'Ampidiro ny tenimiafina...',
@@ -65,6 +70,11 @@ export const auth: TranslationDictionary = {
     mg: 'oh: hasina@fiaram.mg',
     fr: 'ex : hasina@fiaram.mg',
     en: 'e.g. hasina@fiaram.mg'
+  },
+  'auth.phoneLoginHint': {
+    mg: 'Ny laharana findraman-telefaona no ampiasainao hiditra later: io laharana io (na ny mailakao) + ny tenimiafina.',
+    fr: "Votre numéro de téléphone (ou votre email) servira à vous connecter, avec votre mot de passe.",
+    en: "Your phone number (or your email) will be what you use to sign in, along with your password."
   },
   'auth.groupAssignmentLabel': {
     mg: 'Vondrona',
@@ -147,9 +157,9 @@ export const auth: TranslationDictionary = {
     en: 'Registration successful!'
   },
   'auth.successActiveMessage': {
-    mg: "Miasa avy hatrany ny kaonty nao: ampidiro ny solonanarana sy ny tenimiafina nao hiditra. Ny Mpandrindra no hamarina ny dosienao taty aoriana.",
-    fr: "Votre compte est déjà actif : connectez-vous immédiatement avec votre nom d'utilisateur et votre mot de passe. L'Admin vérifiera votre dossier après votre première connexion.",
-    en: "Your account is already active: connect immediately with your username and password. The Admin will review your file after your first sign-in."
+    mg: "Miasa avy hatrany ny kaonty nao: ampidiro ny laharana findraman-telefaonanao (na ny mailakao) sy ny tenimiafina nao hiditra. Ny Mpandrindra no hamarina ny dosienao taty aoriana.",
+    fr: "Votre compte est déjà actif : connectez-vous immédiatement avec votre numéro de téléphone (ou votre email) et votre mot de passe. L'Admin vérifiera votre dossier après votre première connexion.",
+    en: "Your account is already active: connect immediately with your phone number (or your email) and your password. The Admin will review your file after your first sign-in."
   },
   'auth.memberCodeLabel': {
     mg: 'Kaody maha-mpikambana anao',
