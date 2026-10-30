@@ -11,7 +11,6 @@ import {
   X
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
-import QRCode from 'qrcode';
 import { StorageService } from '../utils/storage';
 import { canManageBadges } from '../utils/permissions';
 import { MemberBadgeModal } from '../components/MemberBadgeModal';
@@ -87,23 +86,32 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   // Generate real QR Code onto the canvas
   useEffect(() => {
-    if (qrCanvasRef.current) {
-      QRCode.toCanvas(
-        qrCanvasRef.current,
-        currentUser.code_unique,
-        {
-          width: 220,
-          margin: 2,
-          color: {
-            dark: '#070d1e',
-            light: '#ffffff'
+    const canvas = qrCanvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    import('qrcode')
+      .then(({ default: QRCode }) => {
+        if (cancelled) return;
+        QRCode.toCanvas(
+          canvas,
+          currentUser.code_unique,
+          {
+            width: 220,
+            margin: 2,
+            color: {
+              dark: '#070d1e',
+              light: '#ffffff'
+            }
+          },
+          (error) => {
+            if (error) console.error(error);
           }
-        },
-        (error) => {
-          if (error) console.error(error);
-        }
-      );
-    }
+        );
+      })
+      .catch((error) => console.error(error));
+    return () => {
+      cancelled = true;
+    };
   }, [currentUser.code_unique]);
 
   // Download QR code image

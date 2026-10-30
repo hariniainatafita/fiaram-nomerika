@@ -1,4 +1,3 @@
-import QRCode from 'qrcode';
 import { Membre, Groupe, BadgeStyle, BadgeColors } from '../types';
 import { StorageService } from './storage';
 import { DEFAULT_AVATAR_IMAGE } from './defaultAvatar';
@@ -505,8 +504,9 @@ export async function renderBadgeOnCanvas(
   ctx.lineWidth = 1.8 * fontSizeScale;
   ctx.stroke();
 
-  try {
-    const qrDataUrl = await QRCode.toDataURL(membre.code_unique || 'GRP-2026-000', {
+    const { default: QRCode } = await import('qrcode');
+    try {
+      const qrDataUrl = await QRCode.toDataURL(membre.code_unique || 'GRP-2026-000', {
       margin: 1,
       width: Math.round(qrSize - 14 * fontSizeScale),
       errorCorrectionLevel: 'M',

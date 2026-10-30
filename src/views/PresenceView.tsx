@@ -18,7 +18,8 @@ import {
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import confetti from 'canvas-confetti';
 import { StorageService } from '../utils/storage';
-import { Html5Qrcode } from 'html5-qrcode';
+import type { Html5Qrcode } from 'html5-qrcode';
+import { loadHtml5QrcodeClass } from '../utils/html5QrcodeLoader';
 import { playScanSuccessSound, playScanErrorSound } from '../utils/audio';
 import { canValidateAnyPresence, canValidatePresence } from '../utils/permissions';
 import { useLanguage } from '../i18n';
@@ -135,7 +136,7 @@ export const PresenceView: React.FC<PresenceViewProps> = ({
     setCameraError(null);
     try {
       if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode(presenceScannerId);
+        html5QrCodeRef.current = new (await loadHtml5QrcodeClass())(presenceScannerId);
       }
       if (html5QrCodeRef.current.isScanning) {
         await html5QrCodeRef.current.stop();
@@ -237,7 +238,7 @@ export const PresenceView: React.FC<PresenceViewProps> = ({
 
     try {
       if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode(presenceScannerId);
+        html5QrCodeRef.current = new (await loadHtml5QrcodeClass())(presenceScannerId);
       }
       if (html5QrCodeRef.current.isScanning) {
         await html5QrCodeRef.current.stop();

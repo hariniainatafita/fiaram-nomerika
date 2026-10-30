@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import type { Html5Qrcode } from 'html5-qrcode';
+import { loadHtml5QrcodeClass } from '../utils/html5QrcodeLoader';
 import { Membre, StatutPresence } from '../types';
 import { StorageService } from '../utils/storage';
 import { playScanSuccessSound, playScanErrorSound } from '../utils/audio';
@@ -126,7 +127,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     setCameraError(null);
     try {
       if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode(scannerContainerId);
+        html5QrCodeRef.current = new (await loadHtml5QrcodeClass())(scannerContainerId);
       }
 
       // If already scanning, stop first
@@ -182,7 +183,9 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
   // Initialize cameras and start
   useEffect(() => {
-    Html5Qrcode.getCameras()
+    (async () => {
+      const ScannerClass = await loadHtml5QrcodeClass();
+      ScannerClass.getCameras()
       .then((devices) => {
         if (devices && devices.length > 0) {
           // Prefer back camera if available
@@ -198,6 +201,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
         console.warn('GetCameras fallback:', err);
         startScanner({ facingMode: 'environment' });
       });
+    })().catch((err) => console.warn('Chargement du scanner:', err));
 
     return () => {
       if (html5QrCodeRef.current) {
@@ -223,7 +227,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
     try {
       if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode(scannerContainerId);
+        html5QrCodeRef.current = new (await loadHtml5QrcodeClass())(scannerContainerId);
       }
       // If scanning camera, stop first
       if (html5QrCodeRef.current.isScanning) {
