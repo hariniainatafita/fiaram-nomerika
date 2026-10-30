@@ -16,6 +16,7 @@ import { StorageService } from '../utils/storage';
 import { canManageBadges } from '../utils/permissions';
 import { MemberBadgeModal } from '../components/MemberBadgeModal';
 import { compressImage } from '../utils/imageCompressor';
+import { uploadDataUrl } from '../utils/media';
 import { useLanguage } from '../i18n';
 
 interface ProfileViewProps {
@@ -136,11 +137,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   // Save updated photo
-  const handleSavePhoto = () => {
+  const handleSavePhoto = async () => {
     if (!tempPhotoUrl) return;
+    // La photo part vers R2 ; si indisponible on garde la base64 interne.
+    const storedUrl = await uploadDataUrl(tempPhotoUrl, 'image') ?? tempPhotoUrl;
     const updated: Membre = {
       ...currentUser,
-      photo_url: tempPhotoUrl
+      photo_url: storedUrl
     };
     StorageService.updateMembre(updated);
     setPhotoUrl(tempPhotoUrl);

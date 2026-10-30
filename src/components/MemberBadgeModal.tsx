@@ -3,6 +3,7 @@ import { Membre, Groupe, BadgeStyle, BadgeColors } from '../types';
 import { Download, Printer, X, Sparkles, Edit3, Check, Upload, Palette, RotateCcw } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
+import { uploadDataUrl } from '../utils/media';
 import { useLanguage } from '../i18n';
 import {
   BADGE_STYLES,
@@ -82,8 +83,10 @@ export const MemberBadgeModal: React.FC<MemberBadgeModalProps> = ({
     setIsUploadingPhoto(true);
     try {
       const result = await compressImage(file, 1200, 1200, 0.92);
-      setEditPhotoUrl(result);
-      persistMember({ ...membre, photo_url: result, badge_style: selectedStyle, badge_colors: badgeColors });
+      // Photo envoyée vers R2 ; si indisponible on garde la base64 interne.
+      const storedUrl = await uploadDataUrl(result, 'image') ?? result;
+      setEditPhotoUrl(storedUrl);
+      persistMember({ ...membre, photo_url: storedUrl, badge_style: selectedStyle, badge_colors: badgeColors });
     } catch {
       alert(t('badges.photoPrepareError'));
     } finally {

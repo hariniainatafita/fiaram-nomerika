@@ -15,6 +15,7 @@ import {
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
+import { uploadDataUrl } from '../utils/media';
 import { isMemberOnline, PresenceMap } from '../utils/presence';
 import { useLanguage } from '../i18n';
 import { getVisibleGroupIds } from '../utils/permissions';
@@ -298,39 +299,46 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   // Send message
-  const handleSendMessage = (e?: React.FormEvent) => {
+  const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputText.trim() && !stagedImage) return;
 
-    const imageUrlToSend = stagedImage?.dataUrl;
+    // Le média est d'abord envoyé vers R2 ; en cas d'échec on garde la base64
+    // interne afin que le message parte quand même.
+    setIsProcessingImage(true);
+    const uploadedUrl = stagedImage ? await uploadDataUrl(stagedImage.dataUrl, 'image') : undefined;
+    const imageUrlToSend = stagedImage
+      ? (uploadedUrl ?? stagedImage.dataUrl)
+      : undefined;
     const attachmentPayload = stagedImage ? {
-      file_url: stagedImage.dataUrl,
+      file_url: imageUrlToSend,
       file_name: stagedImage.fileName,
       file_type: 'image' as const
     } : undefined;
 
     if (activeChannelType === 'group') {
       StorageService.sendMessage(
-        currentUser.id, 
-        inputText.trim(), 
-        undefined, 
-        activeChannelId, 
-        imageUrlToSend, 
+        currentUser.id,
+        inputText.trim(),
+        undefined,
+        activeChannelId,
+        imageUrlToSend,
         attachmentPayload
       );
     } else {
       StorageService.sendMessage(
-        currentUser.id, 
-        inputText.trim(), 
-        activeChannelId, 
-        undefined, 
-        imageUrlToSend, 
+        currentUser.id,
+        inputText.trim(),
+        activeChannelId,
+        undefined,
+        imageUrlToSend,
         attachmentPayload
       );
     }
 
     setInputText('');
     setStagedImage(null);
+    setIsProcessingImage(false);
     onRefreshMessages();
   };
 

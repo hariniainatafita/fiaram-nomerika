@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
+import { uploadDataUrl } from '../utils/media';
 import { canViewPublication, getVisibleGroupIds, isAdmin } from '../utils/permissions';
 import { useLanguage } from '../i18n';
 
@@ -206,10 +207,14 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     setIsPublishing(true);
     try {
       const publicationAudience = audience === 'group' && targetGroupeId ? 'group' : 'all';
+      // L'image part vers R2 ; si indisponible on garde la base64 interne.
+      const imageUrl = stagedImage
+        ? (await uploadDataUrl(stagedImage.dataUrl, 'image') ?? stagedImage.dataUrl)
+        : undefined;
       StorageService.createPublication(
         currentUser.id,
         content,
-        stagedImage?.dataUrl,
+        imageUrl,
         publicationAudience,
         targetGroupeId || undefined
       );
