@@ -180,6 +180,61 @@ export const ChatView: React.FC<ChatViewProps> = ({
     return list[list.length - 1];
   };
 
+  // Most recent activity per channel (any message, mine or theirs): the
+  // conversation list behaves like a messenger, the freshest channel on top.
+  const lastActivity = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const msg of messages) {
+      if (msg.is_deleted || !msg.sent_at) continue;
+      const key = msg.group_id
+        ? `g:${msg.group_id}`
+        : `d:${msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id}`;
+      if (!map[key] || msg.sent_at > map[key]) map[key] = msg.sent_at;
+    }
+    return map;
+  }, [messages, currentUser.id]);
+
+  const channelOrderCompare = (
+    type: 'g' | 'd',
+    idA: string,
+    idB: string,
+    nameA: string,
+    nameB: string
+  ): number => {
+    const ta = lastActivity[`${type}:${idA}`];
+    const tb = lastActivity[`${type}:${idB}`];
+    if (!ta && !tb) return nameA.localeCompare(nameB);
+    if (!ta) return 1;
+    if (!tb) return -1;
+    if (ta !== tb) return ta > tb ? -1 : 1;
+    return nameA.localeCompare(nameB);
+  };
+
+  const orderedGroupes = React.useMemo(() => {
+    const q = searchContact.trim().toLowerCase();
+    return visibleGroupes
+      .filter((g) => !q || g.nom_groupe.toLowerCase().includes(q))
+      .slice()
+      .sort((a, b) => channelOrderCompare('g', a.id, b.id, a.nom_groupe, b.nom_groupe));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleGroupes, lastActivity, searchContact]);
+
+  const orderedDirects = React.useMemo(() => {
+    const q = searchContact.trim().toLowerCase();
+    return allMembres
+      .filter((m) => m.id !== currentUser.id)
+      .filter((m) => {
+        if (!q) return true;
+        const hay = `${m.prenom} ${m.nom} ${m.username || ''}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .slice()
+      .sort((a, b) =>
+        channelOrderCompare('d', a.id, b.id, `${a.prenom} ${a.nom}`, `${b.prenom} ${b.nom}`)
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allMembres, currentUser.id, lastActivity, searchContact]);
+
   // Handle local image file selection with canvas compression
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -293,7 +348,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               {t('chat.groupsSection', { count: visibleGroupes.length })}
             </div>
 
-            {visibleGroupes.map((g) => {
+            {orderedGroupes.map((g) => {
               const isSelected = activeChannelType === 'group' && activeChannelId === g.id;
               const chef = allMembres.find((m) => m.id === g.chef_id);
               const unread = unreadGroupCount(g.id);
@@ -380,7 +435,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               {t('chat.directMessages')}
             </div>
 
-            {allMembres.filter((m) => m.id !== currentUser.id).map((m) => {
+            {orderedDirects.map((m) => {
               const isSelected = activeChannelType === 'direct' && activeChannelId === m.id;
               const unread = unreadDirectCount(m.id);
               const lastMsg = lastIncomingMessage('direct', m.id);
