@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Membre, RegistrationQuestion } from '../types';
-import { Music, Lock, Phone, ArrowRight, Sparkles, HelpCircle, ArrowLeft, Eye, EyeOff, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Lock, Phone, ArrowRight, Sparkles, HelpCircle, ArrowLeft, Eye, EyeOff, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import confetti from 'canvas-confetti';
 import { useLanguage, LanguageSwitcher } from '../i18n';
 import devAvatar from '../profiles-developpeur-mini.jpeg';
+import fnLogo from '../iconne-mini.jpg';
 
 interface LoginViewProps {
   onLoginSuccess: (user: Membre) => void;
@@ -44,6 +45,9 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
   // Feedback message
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Developer credit popup (collapsed behind a small avatar icon)
+  const [devCreditOpen, setDevCreditOpen] = useState(false);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -249,20 +253,19 @@ export const LoginView: React.FC<LoginViewProps> = ({
           <LanguageSwitcher compact />
         </div>
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div style={{
-            width: '58px',
-            height: '58px',
-            borderRadius: '16px',
-            background: 'linear-gradient(135deg, #f59e0b, #8b5cf6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#ffffff',
-            margin: '0 auto 12px',
-            boxShadow: '0 8px 24px rgba(245, 158, 11, 0.4)'
-          }}>
-            <Music size={30} />
-          </div>
+          <img
+            src={fnLogo}
+            alt="FIARAM NUMERIQUE"
+            style={{
+              width: '58px',
+              height: '58px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+              margin: '0 auto 12px',
+              display: 'block',
+              boxShadow: '0 8px 24px rgba(245, 158, 11, 0.4)'
+            }}
+          />
 
           <h1 style={{
             fontSize: '1.5rem',
@@ -803,44 +806,71 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
       </div>
 
-      {/* Developer credit — visible to every user before sign-in */}
-      <div className="glass-card" style={{
-        marginTop: '14px',
-        padding: '12px 16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px'
-      }}>
-        <img
-          src={devAvatar}
-          alt="RANDRIAMANANTSOA Tafita Hariniaina"
+      {/* Developer credit — collapsed to one small icon, tap to expand */}
+      <div style={{ textAlign: 'center', marginTop: '10px' }}>
+        <button
+          type="button"
+          onClick={() => setDevCreditOpen(!devCreditOpen)}
+          aria-label={t('auth.devCreditBadge')}
+          title={t('auth.devCreditBadge')}
           style={{
-            width: '56px',
-            height: '56px',
+            width: '40px',
+            height: '40px',
             borderRadius: '50%',
-            objectFit: 'cover',
+            padding: 0,
             border: '2px solid var(--accent-gold)',
-            flexShrink: 0
+            background: 'transparent',
+            cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)'
           }}
-        />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.3 }}>
-            RANDRIAMANANTSOA Tafita Hariniaina
-          </div>
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--accent-gold)', marginTop: '2px' }}>
-            {t('auth.devCredit.role')}
-          </div>
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-            Batisa faha-12 FIARAM Ampangabe Tsinjony
-          </div>
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>
-            {t('auth.devCredit.studies')}
-          </div>
-        </div>
-        <span className="badge badge-gold" style={{ flexShrink: 0, fontSize: '0.6rem' }}>
-          {t('auth.devCreditBadge')}
-        </span>
+        >
+          <img
+            src={devAvatar}
+            alt=""
+            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', display: 'block' }}
+          />
+        </button>
       </div>
+
+      {devCreditOpen && (
+        <div className="glass-card" style={{
+          marginTop: '10px',
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <img
+            src={devAvatar}
+            alt="RANDRIAMANANTSOA Tafita Hariniaina"
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: '2px solid var(--accent-gold)',
+              flexShrink: 0
+            }}
+          />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.3 }}>
+              RANDRIAMANANTSOA Tafita Hariniaina
+            </div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--accent-gold)', marginTop: '2px' }}>
+              {t('auth.devCredit.role')}
+            </div>
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+              Batisa faha-12 FIARAM Ampangabe Tsinjony
+            </div>
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>
+              {t('auth.devCredit.studies')}
+            </div>
+          </div>
+          <span className="badge badge-gold" style={{ flexShrink: 0, fontSize: '0.6rem' }}>
+            {t('auth.devCreditBadge')}
+          </span>
+        </div>
+      )}
 
       {/* Version marker: helps confirm a device runs the latest deployment */}
       <div style={{
@@ -850,7 +880,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         opacity: 0.7,
         textAlign: 'center'
       }}>
-        FIARAM NUMERIQUE • ver 2026-10-31
+        FIARAM NUMERIQUE • ver 2026-10-31.1
       </div>
       </div>
     </div>
