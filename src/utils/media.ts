@@ -1,11 +1,16 @@
-// Envoi des fichiers média vers le stockage R2 via la fonction interne /api/upload.
-// La fonction retourne une URL relative /media/<clé>.
-// Si le réseau ou la fonction n'est pas joignable, la valeur undefined est
-// retournée et l'appelant conserve son mode localhost (data URL) — aucune
-// régression possible : les médias ne sont pas perdus, simplement localisés.
+// Envoi des fichiers média vers le stockage de fichiers Supabase (bucket public).
+// La fonction retourne une URL https publique du fichier ; si le stockage
+// n'est pas disponible (bucket « fiaram-media » pas encore créé, réseau
+// coupé), la valeur undefined est retournée et l'appelant conserve son mode
+// interne (data URL) — aucune régression possible : les médias ne sont pas
+// perdus, simplement localisés. Si un jour Cloudflare R2 est activé, seule
+// cette fonction change : le reste de l'application ne voit que des URL.
+
+import { supabase } from '../lib/supabase';
 
 export type MediaKind = 'image' | 'audio' | 'document';
 
+const MEDIA_BUCKET = 'fiaram-media';
 const MAX_BYTES = 25 * 1024 * 1024;
 
 const MIME_EXTENSIONS: Record<string, string> = {
@@ -34,37 +39,36 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([bytes], { type: mime });
 }
 
-async function postFormData(formData: FormData): Promise<string | undefined> {
-  try {
-    const res = await fetch('/api/upload', { method: 'POST', body: formData });
-    if (!res.ok) {
-      console.warn('Téléversement média refusé:', res.status);
-      return undefined;
-    }
-    const payload = await res.json() as { url?: unknown };
-    const url = typeof payload?.url === 'string' ? payload.url : undefined;
-    return url && url.startsWith('/media/') ? url : undefined;
-  } catch (error) {
-    console.warn('Téléversement média indisponible:', error);
+function buildObjectKey(kind: MediaKind, mime: string): string {
+  const ext = MIME_EXTENSIONS[mime] || 'bin';
+  return `${kind}_m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}.${ext}`;
+}
+
+async function storeBlob(blob: Blob, kind: MediaKind): Promise<string | undefined> {
+  if (!supabase) {
+    console.warn('Stockage média indisponible: Supabase non configuré');
     return undefined;
   }
+  const key = buildObjectKey(kind, blob.type);
+  const { error } = await supabase.storage
+    .from(MEDIA_BUCKET)
+    .upload(key, blob, { contentType: blob.type || 'application/octet-stream' });
+  if (error) {
+    console.warn('Téléversement média refusé:', error.message);
+    return undefined;
+  }
+  const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(key);
+  return data?.publicUrl ?? undefined;
 }
 
 export async function uploadDataUrl(dataUrl: string, kind: MediaKind = 'image'): Promise<string | undefined> {
   if (!dataUrl.startsWith('data:')) return undefined;
   const blob = dataUrlToBlob(dataUrl);
   if (blob.size > MAX_BYTES) return undefined;
-  const ext = MIME_EXTENSIONS[blob.type] || 'bin';
-  const formData = new FormData();
-  formData.append('kind', kind);
-  formData.append('file', blob, `media.${ext}`);
-  return postFormData(formData);
+  return storeBlob(blob, kind);
 }
 
 export async function uploadFile(file: File, kind: MediaKind): Promise<string | undefined> {
   if (file.size > MAX_BYTES) return undefined;
-  const formData = new FormData();
-  formData.append('kind', kind);
-  formData.append('file', file, file.name);
-  return postFormData(formData);
+  return storeBlob(file, kind);
 }
