@@ -737,7 +737,8 @@ export const StorageService = {
     const timeStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
     const newMsg: Message = {
-      id: 'msg_' + Date.now(),
+      // Unique even when several messages are sent within the same millisecond
+      id: 'msg_' + now.getTime() + '_' + Math.random().toString(36).slice(2, 8),
       sender_id,
       receiver_id,
       group_id,

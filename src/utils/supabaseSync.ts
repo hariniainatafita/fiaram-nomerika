@@ -102,7 +102,39 @@ function mergeKeyValues(key: string, local: unknown, remote: unknown): unknown {
     return { ...local, ...remote };
   }
 
+  // Remaining cases:
+  // - local missing: adopt the remote value;
+  // - remote missing: keep the local value;
+  // - shape mismatch (e.g. realtime delivering JSONB as a string while the
+  //   local value is a structured collection): keep the structured local
+  //   value instead of destroying it with an unusable payload.
+  if (local === undefined) return remote;
+  if (remote === undefined) return local;
+  if (Array.isArray(local) || isPlainObject(local)) return local;
   return remote;
+}
+
+/**
+ * Realtime payloads sometimes deliver JSONB columns as escaped strings.
+ * Unwrap them so collections merge as structured data instead of raw text.
+ */
+function normalizeRemoteValue(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  try {
+    const parsed = JSON.parse(value);
+    if (isPlainObject(parsed) || Array.isArray(parsed)) return parsed;
+    if (typeof parsed === 'string') {
+      try {
+        const inner = JSON.parse(parsed);
+        return isPlainObject(inner) || Array.isArray(inner) ? inner : parsed;
+      } catch {
+        return parsed;
+      }
+    }
+    return parsed;
+  } catch {
+    return value;
+  }
 }
 
 function readLocalStorage(key: string): unknown {
@@ -125,7 +157,12 @@ function writeMerged(key: string, remoteValue: unknown): void {
     return;
   }
   try {
-    localStorage.setItem(key, JSON.stringify(mergeKeyValues(key, localValue, remoteValue)));
+    // The local value is normalized as well: a previously corrupted value
+    // (JSONB delivered as a string) is repaired during the next merge.
+    localStorage.setItem(
+      key,
+      JSON.stringify(mergeKeyValues(key, normalizeRemoteValue(localValue), remoteValue))
+    );
   } catch (err) {
     console.error(`[Supabase] cannot merge "${key}":`, err);
     try {
@@ -149,7 +186,7 @@ async function pushKeyNow(key: string): Promise<void> {
   const raw = localStorage.getItem(key);
   if (raw === null) return;
   try {
-    await upsertKey(key, JSON.parse(raw));
+    await upsertKey(key, normalizeRemoteValue(JSON.parse(raw)));
   } catch {
     /* ignore malformed local value */
   }
@@ -177,7 +214,7 @@ export async function hydrateFromSupabase(): Promise<void> {
 
     for (const key of SYNCED_KEYS) {
       if (remote.has(key)) {
-        writeMerged(key, remote.get(key));
+        writeMerged(key, normalizeRemoteValue(remote.get(key)));
       } else if (localStorage.getItem(key) !== null) {
         await pushKeyNow(key);
       }
@@ -239,7 +276,7 @@ export function subscribeToSupabase(onRemoteChange: (key: string) => void): () =
         }
         const row = payload.new as { key?: string; value?: unknown };
         if (row?.key) {
-          writeMerged(row.key, row.value);
+          writeMerged(row.key, normalizeRemoteValue(row.value));
           onRemoteChange(row.key);
         }
       }

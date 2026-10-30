@@ -801,6 +801,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
         )}
 
       </div>
+
+      {/* Version marker: helps confirm a device runs the latest deployment */}
+      <div style={{
+        marginTop: '14px',
+        fontSize: '0.65rem',
+        color: 'var(--text-dim)',
+        opacity: 0.7,
+        textAlign: 'center'
+      }}>
+        FIARAM NUMERIQUE • ver 2026-10-30
+      </div>
     </div>
   );
 };

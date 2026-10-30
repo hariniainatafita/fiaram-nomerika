@@ -159,6 +159,23 @@ export function App() {
     return unsubscribe;
   }, [currentUser?.id]);
 
+  // Unread counter for nav badges: unread private messages + group messages
+  // that arrived after the user's per-group read cursor.
+  const unreadCount = React.useMemo(() => {
+    const direct = allMessages.filter(
+      (m) => m.receiver_id === currentUser?.id && m.status === 'sent' && !m.is_deleted
+    ).length;
+    const reads = currentUser ? StorageService.getGroupReads() : {};
+    const groups = currentUser
+      ? allMessages.filter((m) => {
+          if (!m.group_id || m.is_deleted || m.sender_id === currentUser.id) return false;
+          const cursor = reads[`${currentUser.id}:${m.group_id}`] || '';
+          return !cursor || m.sent_at > cursor;
+        }).length
+      : 0;
+    return direct + groups;
+  }, [allMessages, currentUser]);
+
   // If user is not logged in, render Login / Registration View
   if (!currentUser) {
     return (
@@ -172,11 +189,6 @@ export function App() {
     );
   }
 
-  const unreadCount = allMessages.filter(
-    (m) => m.receiver_id === currentUser.id && m.status === 'sent'
-  ).length;
-
-  // Final guard: even if a forbidden view is in state, render a safe view instead
   const defaultView = canAccessGroupData(currentUser) ? 'dashboard' : 'publications';
   const allowedView = canAccessView(currentUser, activeView) ? activeView : defaultView;
 

@@ -79,13 +79,22 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               {item.badge && item.badge > 0 ? (
                 <span style={{
                   position: 'absolute',
-                  top: '-4px',
-                  right: '-6px',
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: '#ef4444'
-                }} />
+                  top: '-5px',
+                  right: '-8px',
+                  minWidth: '16px',
+                  height: '16px',
+                  padding: '0 4px',
+                  borderRadius: '999px',
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  fontSize: '0.62rem',
+                  fontWeight: 800,
+                  lineHeight: '16px',
+                  textAlign: 'center',
+                  boxShadow: '0 0 0 2px var(--bg-secondary, #111827)'
+                }}>
+                  {item.badge > 9 ? '9+' : item.badge}
+                </span>
               ) : null}
             </div>
             <span style={{

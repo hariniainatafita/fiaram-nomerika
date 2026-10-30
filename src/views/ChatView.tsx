@@ -160,8 +160,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (activeGroupUnread > 0) {
       StorageService.markGroupAsRead(currentUser.id, activeChannelId);
       setReadTick((n) => n + 1);
+      onRefreshMessages();
     }
-  }, [activeChannelType, activeChannelId, currentUser.id, activeGroupUnread]);
+  }, [activeChannelType, activeChannelId, currentUser.id, activeGroupUnread, onRefreshMessages]);
 
   const previewText = (msg?: Message): string => {
     if (!msg) return '';
