@@ -10,15 +10,20 @@ import {
   X,
   Maximize2,
   Download,
-  ArrowLeft
+  ArrowLeft,
+  Plus,
+  Pencil,
+  Trash2,
+  Settings,
+  MessageSquare
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
-import { uploadDataUrl } from '../utils/media';
+import { uploadDataUrl, downloadMedia } from '../utils/media';
 import { isMemberOnline, PresenceMap } from '../utils/presence';
 import { useLanguage } from '../i18n';
-import { getVisibleGroupIds } from '../utils/permissions';
+import { getVisibleGroupIds, isAdmin } from '../utils/permissions';
 import { fetchMessageImageIfMissing } from '../utils/supabaseSync';
 
 interface ChatViewProps {
@@ -28,6 +33,7 @@ interface ChatViewProps {
   messages: Message[];
   presence: PresenceMap;
   onRefreshMessages: () => void;
+  onRefreshGroupes: () => void;
   openPeerId?: string;
   focusKey?: number;
 }
@@ -39,6 +45,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   messages,
   presence,
   onRefreshMessages,
+  onRefreshGroupes,
   openPeerId,
   focusKey
 }) => {
@@ -72,6 +79,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   // On phones, show either the contact list or the active conversation
   const [isMobileConversation, setIsMobileConversation] = useState(false);
+
+  // Édition / suppression de messages
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [editingText, setEditingText] = useState('');
+
+  // Groupes Messenger (discussion uniquement)
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupMemberIds, setNewGroupMemberIds] = useState<string[]>([]);
+  const [manageGroupId, setManageGroupId] = useState<string | null>(null);
+  const [manageName, setManageName] = useState('');
+  const [manageMemberIds, setManageMemberIds] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -123,9 +142,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const groupReads = React.useMemo(() => StorageService.getGroupReads(), [readTick, messages]);
 
-  // Deep link: open a direct conversation when triggered from another view
+  // Deep link: open a direct conversation when triggered from another view.
+  // Sans cible (clic sur l'icône « messages »), on revient à la liste des
+  // discussions : on n'atterrit plus dans la conversation d'un utilisateur.
   useEffect(() => {
-    if (!openPeerId) return;
+    if (!openPeerId) {
+      setIsMobileConversation(false);
+      return;
+    }
     setActiveChannelType('direct');
     setActiveChannelId(openPeerId);
     setIsMobileConversation(true);
@@ -165,6 +189,24 @@ export const ChatView: React.FC<ChatViewProps> = ({
       onRefreshMessages();
     }
   }, [activeChannelType, activeChannelId, currentUser.id, activeGroupUnread, onRefreshMessages]);
+
+  // Accusés de lecture des groupes : marque comme « vu » les messages des
+  // autres dès que le membre ouvre la conversation (comme Messenger).
+  const hasUnreadGroupByMe = activeChannelType === 'group' && activeChannelId
+    ? channelMessages.some(
+        (msg) =>
+          msg.sender_id !== currentUser.id &&
+          !msg.is_deleted &&
+          !(msg.read_by || []).includes(currentUser.id)
+      )
+    : false;
+
+  useEffect(() => {
+    if (activeChannelType !== 'group' || !activeChannelId || !hasUnreadGroupByMe) return;
+    if (StorageService.markGroupMessagesRead(currentUser.id, activeChannelId)) {
+      onRefreshMessages();
+    }
+  }, [activeChannelType, activeChannelId, currentUser.id, hasUnreadGroupByMe, onRefreshMessages]);
 
   const previewText = (msg?: Message): string => {
     if (!msg) return '';
@@ -275,6 +317,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allMembres, currentUser.id, lastActivity, searchContact]);
 
+  // Groupes Messenger (créés librement) vs groupes officiels de l'application
+  const orderedMessengerGroupes = orderedGroupes.filter((g) => g.is_messenger);
+  const orderedOfficialGroupes = orderedGroupes.filter((g) => !g.is_messenger);
+  const canManageActiveGroup = Boolean(
+    activeGroup?.is_messenger &&
+      (activeGroup.chef_id === currentUser.id || isAdmin(currentUser))
+  );
+
   // Handle local image file selection with canvas compression
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -348,6 +398,40 @@ export const ChatView: React.FC<ChatViewProps> = ({
     onRefreshMessages();
   };
 
+  // Create Messenger Group
+  const handleCreateMessengerGroup = async () => {
+    if (!newGroupName.trim() || newGroupMemberIds.length === 0) {
+      alert(t('chat.groupCreationError')); // Ensure at least one member and name
+      return;
+    }
+    await StorageService.createMessengerGroupe(newGroupName, newGroupMemberIds, currentUser.id);
+    setShowCreateGroup(false);
+    setNewGroupName('');
+    setNewGroupMemberIds([]);
+    onRefreshGroupes();
+  };
+
+  // Manage Group
+  const handleManageGroup = async () => {
+    if (!manageGroupId) return;
+    await StorageService.renameMessengerGroupe(manageGroupId, manageName);
+    await StorageService.updateMessengerGroupeMembers(manageGroupId, manageMemberIds);
+    setManageGroupId(null);
+    setManageName('');
+    setManageMemberIds([]);
+    onRefreshGroupes();
+  };
+
+  // Edit Message
+  const handleEditMessage = async () => {
+    if (editingMessage) {
+      await StorageService.editMessage(editingMessage.id, editingText);
+      setEditingMessage(null);
+      setEditingText('');
+      onRefreshMessages();
+    }
+  };
+
   return (
     <div className={`animate-fade-in chat-container-wrapper${isMobileConversation ? ' chat-mobile-conversation' : ''}`} style={{
       padding: '16px 20px',
@@ -374,20 +458,63 @@ export const ChatView: React.FC<ChatViewProps> = ({
           {/* Header search */}
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-color)' }}>
             <h3 style={{ fontSize: '1.05rem', margin: '0 0 10px' }}>{t('chat.title')}</h3>
-            <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
-              <input
-                type="text"
-                placeholder={t('chat.searchPlaceholder')}
-                value={searchContact}
-                onChange={(e) => setSearchContact(e.target.value)}
-                className="form-input"
-                style={{ padding: '7px 12px 7px 30px', fontSize: '0.82rem' }}
-              />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ position: 'relative', flexGrow: 1 }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+                <input
+                  type="text"
+                  placeholder={t('chat.searchPlaceholder')}
+                  value={searchContact}
+                  onChange={(e) => setSearchContact(e.target.value)}
+                  className="form-input"
+                  style={{ padding: '7px 12px 7px 30px', fontSize: '0.82rem' }}
+                />
+              </div>
+              <button onClick={() => setShowCreateGroup(true)} title={t('chat.newGroup')}>  
+                <Plus size={20} />
+              </button>
             </div>
           </div>
 
-          {/* Channels & Contacts List */}
+          {/* Render messenger groups */}
+          {orderedMessengerGroupes.length > 0 && (
+            <h4 style={{ fontSize: '1rem', margin: '10px 0' }}>{t('chat.messengerGroups')}</h4>
+          )}
+          {orderedMessengerGroupes.map((g) => {
+            const isSelected = activeChannelType === 'group' && activeChannelId === g.id;
+            const chef = allMembres.find((m) => m.id === g.chef_id);
+            const unread = unreadGroupCount(g.id);
+            const lastMsg = lastChannelMessage('group', g.id);
+            const lastSender = lastMsg ? allMembres.find((m) => m.id === lastMsg.sender_id) : undefined;
+
+            return (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => {
+                  setActiveChannelType('group');
+                  setActiveChannelId(g.id);
+                  setIsMobileConversation(true);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '9px 12px',
+                  borderRadius: '10px',
+                  border: isSelected ? '1px solid var(--border-gold)' : '1px solid transparent',
+                  background: isSelected ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                  color: 'var(--text-main)',
+                  width: '100%',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  marginBottom: '2px'
+                }}
+              >
+                {/* Group details go here, e.g., chef, unread count, etc. */}
+              </button>
+            );
+          })}
           <div style={{ flex: 1, overflowY: 'auto', padding: '10px 8px' }}>
             
             {/* Groups section */}

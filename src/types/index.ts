@@ -87,6 +87,10 @@ export interface Groupe {
   membres?: Membre[];
   solde?: number;
   created_at: string;
+  // Groupe Messenger : simple discussion de groupe, sans lien avec les
+  // présences / finances / cotisations. Les comptes restent inchangés.
+  is_messenger?: boolean;
+  membre_ids?: string[];
 }
 
 export interface GroupeMembre {
@@ -186,6 +190,8 @@ export interface Message {
   status: 'sent' | 'read';
   is_deleted: boolean;
   is_edited: boolean;
+  // Membres qui ont lu ce message (utilisé pour les groupes Messenger).
+  read_by?: string[];
   sent_at: string;
 }
 
@@ -207,9 +213,7 @@ export interface PublicationComment {
   auteur_id: string;
   contenu: string;
   created_at: string;
-}
-
-export interface Publication {
+}export interface Publication {
   id: string;
   auteur_id: string;
   contenu: string;
@@ -220,6 +224,17 @@ export interface Publication {
   liked_by: string[];
   commentaires: PublicationComment[];
   partages: number;
+}
+
+// ==================== STORY (24h, style Facebook) ====================
+export interface Story {
+  id: string;
+  auteur_id: string;
+  caption?: string;
+  image_url?: string;
+  created_at: string;
+  expires_at: string;
+  seen_by: string[];
 }
 
 // ==================== EVENEMENT ====================

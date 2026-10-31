@@ -31,7 +31,8 @@ const SORT_FIELDS_DESC: Record<string, string> = {
   [STORAGE_KEYS.PRESENCES]: 'date_pointage',
   [STORAGE_KEYS.FINANCES]: 'date_operation',
   [STORAGE_KEYS.COTISATIONS]: 'date_paiement',
-  [STORAGE_KEYS.PUBLICATIONS]: 'created_at'
+  [STORAGE_KEYS.PUBLICATIONS]: 'created_at',
+  [STORAGE_KEYS.STORIES]: 'created_at'
 };
 
 // Chat messages must stay in strict chronological order (oldest first).

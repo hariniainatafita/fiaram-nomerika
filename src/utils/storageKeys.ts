@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   PRESENCE_ONLINE: 'fiaram_presence_online_v1',
   EVENEMENTS: 'fiaram_evenements_v2',
   PUBLICATIONS: 'fiaram_publications_v1',
+  STORIES: 'fiaram_stories_v1',
   CATEGORIES_RESSOURCES: 'fiaram_ressource_categories_v1',
   ADMIN_SETTINGS: 'fiaram_admin_settings_v2',
   GROUP_READS: 'fiaram_group_reads_v1'
@@ -34,6 +35,7 @@ export const SYNCED_KEYS: string[] = [
   STORAGE_KEYS.PRESENCE_ONLINE,
   STORAGE_KEYS.EVENEMENTS,
   STORAGE_KEYS.PUBLICATIONS,
+  STORAGE_KEYS.STORIES,
   STORAGE_KEYS.CATEGORIES_RESSOURCES,
   STORAGE_KEYS.ADMIN_SETTINGS,
   STORAGE_KEYS.GROUP_READS

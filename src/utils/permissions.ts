@@ -230,6 +230,10 @@ export function getVisibleGroupIds(
     groupes.filter((g) => g.chef_id === user.id).forEach((g) => ids.add(g.id));
   }
   if (user.groupe_id) ids.add(user.groupe_id);
+  // Groupes Messenger : visibles uniquement par leurs participants.
+  groupes
+    .filter((g) => g.is_messenger && (g.membre_ids || []).includes(user.id))
+    .forEach((g) => ids.add(g.id));
   return [...ids];
 }
 

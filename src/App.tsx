@@ -4,7 +4,7 @@ import { StorageService } from './utils/storage';
 import { subscribeToSupabase, hydrateFromSupabase } from './utils/supabaseSync';
 import { usePresence } from './utils/presence';
 import { canAccessGroupData, canAccessView } from './utils/permissions';
-import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication } from './types';
+import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication, Story } from './types';
 import {useLanguage} from './i18n';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
@@ -63,6 +63,7 @@ export function App() {
   const [allMessages, setAllMessages] = useState<Message[]>(() => StorageService.getMessages());
   const [allEvenements, setAllEvenements] = useState<Evenement[]>(() => StorageService.getEvenements());
   const [allPublications, setAllPublications] = useState<Publication[]>(() => StorageService.getPublications());
+const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getStories());
 
   // Live presence: only members with a recent heartbeat are shown online
   const presenceMap = usePresence(currentUser?.id);
@@ -163,6 +164,10 @@ export function App() {
     setAllPublications(StorageService.getPublications());
   };
 
+const refreshStories = () => {
+    setAllStories(StorageService.getStories());
+  };
+
   // Live sync: when another device updates shared data, refresh every store.
   useEffect(() => {
     const refreshAll = () => {
@@ -175,6 +180,7 @@ export function App() {
       setAllMessages(StorageService.getMessages());
       setAllEvenements(StorageService.getEvenements());
       setAllPublications(StorageService.getPublications());
+      setAllStories(StorageService.getStories());
       setCurrentUser((prev) => {
         if (!prev) return prev;
         return StorageService.getMembres().find((m) => m.id === prev.id) ?? null;
@@ -500,7 +506,9 @@ export function App() {
               allMembres={allMembres}
               allGroupes={allGroupes}
               publications={allPublications}
+              stories={allStories}
               onRefreshPublications={refreshPublications}
+              onRefreshStories={refreshStories}
             />
           )}
 
@@ -559,6 +567,10 @@ export function App() {
               messages={allMessages}
               presence={presenceMap}
               onRefreshMessages={refreshMessages}
+              onRefreshGroupes={() => {
+                setAllGroupes(StorageService.getGroupes());
+                refreshMembres();
+              }}
               openPeerId={chatFocus?.peerId}
               focusKey={chatFocus?.nonce}
             />

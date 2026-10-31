@@ -100,5 +100,44 @@ export const chat: TranslationDictionary = {
     mg: 'Tsy afaka nakatona na namboarina io sary io. Mba andramo sary hafa.',
     fr: 'Impossible de traiter cette image. Veuillez essayer une autre image.',
     en: 'This image could not be processed. Please try another image.'
-  }
+  },
+  'chat.newGroup': { mg: 'Vondrona Messenger vaovao', fr: 'Nouveau groupe Messenger', en: 'New Messenger group' },
+  'chat.newGroupTitle': { mg: 'Mamorona vondrona Messenger', fr: 'Créer un groupe Messenger', en: 'Create a Messenger group' },
+  'chat.newGroupName': { mg: 'Anaran’ny vondrona', fr: 'Nom du groupe', en: 'Group name' },
+  'chat.newGroupNamePlaceholder': { mg: 'Ohatra: Ekipa ara-bola', fr: 'Ex.: Équipe finances', en: 'E.g. Finance team' },
+  'chat.newGroupMembers': { mg: 'Mpikambana ao amin’ny vondrona', fr: 'Membres du groupe', en: 'Group members' },
+  'chat.newGroupCreate': { mg: 'Foronina ny vondrona', fr: 'Créer le groupe', en: 'Create group' },
+  'chat.newGroupEmptyMembers': { mg: 'Misafidiana mpikambana iray farafahakeliny.', fr: 'Sélectionnez au moins un membre.', en: 'Select at least one member.' },
+  'chat.newGroupEmptyName': { mg: 'Fenoy ny anaran’ny vondrona.', fr: 'Renseignez le nom du groupe.', en: 'Enter the group name.' },
+  'chat.messengerGroupBadge': { mg: 'GROUPE MESSENGER', fr: 'GROUPE MESSENGER', en: 'MESSENGER GROUP' },
+  'chat.messengerGroupSubtitle': {
+    mg: '{count} mpikambana • resaka tsotra',
+    fr: '{count} membres • discussion simple',
+    en: '{count} members • simple chat'
+  },
+  'chat.manageGroup': { mg: 'Fitantanana ny vondrona', fr: 'Gérer le groupe', en: 'Manage group' },
+  'chat.manageGroupTitle': { mg: 'Hanova ny vondrona', fr: 'Modifier le groupe', en: 'Edit group' },
+  'chat.saveGroup': { mg: 'Tehirizo ny fiovana', fr: 'Enregistrer les modifications', en: 'Save changes' },
+  'chat.deleteGroup': { mg: 'Fafao ny vondrona', fr: 'Supprimer le groupe', en: 'Delete group' },
+  'chat.confirmDeleteGroup': {
+    mg: 'Ho voafafa ny vondrona sy ny hafatra rehetra ao aminy ?',
+    fr: 'Supprimer ce groupe et tous ses messages ?',
+    en: 'Delete this group and all its messages?'
+  },
+  'chat.editMessageTitle': { mg: 'Hanova ny hafatra', fr: 'Modifier le message', en: 'Edit message' },
+  'chat.editMessageSave': { mg: 'Tehirizo', fr: 'Enregistrer', en: 'Save' },
+  'chat.deleteMessageTitle': { mg: 'Fafao ny hafatra', fr: 'Supprimer le message', en: 'Delete message' },
+  'chat.confirmDeleteMessage': {
+    mg: 'Ho voafafa ity hafatra ity ho an’ny rehetra ?',
+    fr: 'Supprimer ce message pour tout le monde ?',
+    en: 'Delete this message for everyone?'
+  },
+  'chat.editedLabel': { mg: 'Novaina', fr: 'Modifié', en: 'Edited' },
+  'chat.deletedMessage': { mg: 'Hafatra voafafa', fr: 'Message supprimé', en: 'Message deleted' },
+  'chat.readByCount': { mg: 'Vakiana {count}', fr: 'Vu par {count}', en: 'Seen by {count}' },
+  'chat.readByYou': { mg: 'Vakiana', fr: 'Vu', en: 'Seen' },
+  'chat.messageActions': { mg: 'Safidy', fr: 'Actions', en: 'Actions' },
+  'chat.groupMembersCount': { mg: '{count} mpikambana', fr: '{count} membres', en: '{count} members' },
+  'chat.addMembers': { mg: 'Ampio mpikambana', fr: 'Ajouter des membres', en: 'Add members' },
+  'chat.messengerGroupsSection': { mg: 'VONDRONA MESSENGER ({count})', fr: 'GROUPES MESSENGER ({count})', en: 'MESSENGER GROUPS ({count})' }
 };

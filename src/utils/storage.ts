@@ -1,4 +1,4 @@
-import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, AdminSettings, RegistrationQuestion, BadgeStyle, BadgeColors, Publication, PublicationComment, CategorieChanson } from '../types';
+import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, AdminSettings, RegistrationQuestion, BadgeStyle, BadgeColors, Publication, PublicationComment, CategorieChanson, Story } from '../types';
 import {
   INITIAL_MEMBRES,
   INITIAL_GROUPES,
@@ -547,6 +547,51 @@ export const StorageService = {
     }
   },
 
+  // ==================== GROUPES MESSENGER ====================
+  // Simples groupes de discussion (style Messenger) : ils ne touchent ni aux
+  // présences, ni aux cotisations, ni aux finances. Les comptes des membres
+  // restent exactement les mêmes, ils sont juste réunis pour discuter.
+  getMessengerGroupes(): Groupe[] {
+    return this.getGroupes().filter((g) => g.is_messenger);
+  },
+  createMessengerGroupe(nom: string, membreIds: string[], creatorId: string): Groupe {
+    const list = this.getGroupes();
+    const uniqueIds = [...new Set([creatorId, ...membreIds])];
+    const newG: Groupe = {
+      id: 'mg_' + Date.now(),
+      nom_groupe: nom.trim(),
+      description: 'Groupe Messenger',
+      chef_id: creatorId,
+      solde: 0,
+      created_at: new Date().toISOString(),
+      is_messenger: true,
+      membre_ids: uniqueIds
+    };
+    list.push(newG);
+    this.saveGroupes(list);
+    return newG;
+  },
+  updateMessengerGroupeMembers(groupId: string, membreIds: string[]): void {
+    const list = this.getGroupes();
+    const index = list.findIndex((g) => g.id === groupId);
+    if (index !== -1 && list[index].is_messenger) {
+      list[index].membre_ids = [...new Set(membreIds)];
+      this.saveGroupes(list);
+    }
+  },
+  renameMessengerGroupe(groupId: string, nom: string): void {
+    const list = this.getGroupes();
+    const index = list.findIndex((g) => g.id === groupId);
+    if (index !== -1 && list[index].is_messenger) {
+      list[index].nom_groupe = nom.trim();
+      this.saveGroupes(list);
+    }
+  },
+  deleteMessengerGroupe(groupId: string): void {
+    const list = this.getGroupes().filter((g) => g.id !== groupId || !g.is_messenger);
+    this.saveGroupes(list);
+  },
+
   // Presences
   getPresences(): Presence[] {
     return getStoredItem<Presence[]>(STORAGE_KEYS.PRESENCES, INITIAL_PRESENCES);
@@ -855,6 +900,52 @@ export const StorageService = {
     if (changed) this.saveMessages(list);
     return changed;
   },
+  editMessage(messageId: string, newText: string): boolean {
+    const list = this.getMessages();
+    const msg = list.find((m) => m.id === messageId);
+    if (!msg || msg.is_deleted) return false;
+    msg.message = newText.trim();
+    msg.is_edited = true;
+    this.saveMessages(list);
+    return true;
+  },
+  deleteMessage(messageId: string): boolean {
+    const list = this.getMessages();
+    const msg = list.find((m) => m.id === messageId);
+    if (!msg) return false;
+    msg.is_deleted = true;
+    msg.message = '';
+    msg.image_url = undefined;
+    msg.file_url = undefined;
+    msg.audio_url = undefined;
+    if (msg.image_ref) {
+      this.deleteMessageImage(msg.image_ref);
+      msg.image_ref = undefined;
+    }
+    this.saveMessages(list);
+    return true;
+  },
+  // Marque tous les messages d'un groupe comme lus par un membre (accusés de
+  // lecture pour les groupes Messenger : "Vu par N").
+  markGroupMessagesRead(userId: string, groupId: string): boolean {
+    const list = this.getMessages();
+    let changed = false;
+    list.forEach((msg) => {
+      if (
+        msg.group_id === groupId &&
+        msg.sender_id !== userId &&
+        !msg.is_deleted
+      ) {
+        const readBy = msg.read_by || [];
+        if (!readBy.includes(userId)) {
+          msg.read_by = [...readBy, userId];
+          changed = true;
+        }
+      }
+    });
+    if (changed) this.saveMessages(list);
+    return changed;
+  },
 
   // Group read cursors: { "userId:groupId": "YYYY-MM-DD HH:MM:SS" }
   // Cursors share the sent_at format so both strings are comparable.
@@ -982,6 +1073,48 @@ export const StorageService = {
     this.savePublications(list);
   },
 
+  // ==================== STORIES (24h, style Facebook) ====================
+  getStories(): Story[] {
+    const now = Date.now();
+    return getStoredItem<Story[]>(STORAGE_KEYS.STORIES, [])
+      .filter((story) => {
+        const expires = story.expires_at ? new Date(story.expires_at).getTime() : NaN;
+        return !Number.isNaN(expires) && expires > now;
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+  saveStories(stories: Story[]): void {
+    setStoredItem(STORAGE_KEYS.STORIES, stories);
+  },
+  addStory(auteur_id: string, image_url: string, caption?: string): Story {
+    const list = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []);
+    const now = new Date();
+    const story: Story = {
+      id: 'story_' + now.getTime() + '_' + Math.random().toString(36).slice(2, 6),
+      auteur_id,
+      caption: caption?.trim() || undefined,
+      image_url,
+      created_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+      seen_by: []
+    };
+    list.unshift(story);
+    this.saveStories(list);
+    return story;
+  },
+  deleteStory(storyId: string): void {
+    const list = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []).filter((s) => s.id !== storyId);
+    this.saveStories(list);
+  },
+  markStorySeen(storyId: string, membreId: string): void {
+    const list = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []);
+    const story = list.find((s) => s.id === storyId);
+    if (story && !story.seen_by.includes(membreId)) {
+      story.seen_by = [...story.seen_by, membreId];
+      this.saveStories(list);
+    }
+  },
+
   // ==================== PDF RECEIPT GENERATION ====================
   generateReceiptPDF(cotisation: Cotisation, membre: Membre): void {
     const moisNames: Record<string, string> = {
@@ -1091,6 +1224,7 @@ export const StorageService = {
       STORAGE_KEYS.MESSAGES,
       STORAGE_KEYS.EVENEMENTS,
       STORAGE_KEYS.PUBLICATIONS,
+      STORAGE_KEYS.STORIES,
       STORAGE_KEYS.CATEGORIES_RESSOURCES,
       STORAGE_KEYS.ADMIN_SETTINGS,
       STORAGE_KEYS.GROUP_READS

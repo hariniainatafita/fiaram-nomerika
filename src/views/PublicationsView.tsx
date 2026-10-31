@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Groupe, Membre, Publication } from '../types';
+import { Groupe, Membre, Publication, Story } from '../types';
 import {
   Heart,
   MessageCircle,
@@ -9,11 +9,16 @@ import {
   X,
   Loader2,
   Trash2,
-  User
+  User,
+  Plus,
+  Download,
+  Clock,
+  Eye,
+  RefreshCw
 } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
-import { uploadDataUrl } from '../utils/media';
+import { uploadDataUrl, downloadMedia } from '../utils/media';
 import { canViewPublication, getVisibleGroupIds, isAdmin } from '../utils/permissions';
 import { useLanguage } from '../i18n';
 
@@ -22,7 +27,9 @@ interface PublicationsViewProps {
   allMembres: Membre[];
   allGroupes: Groupe[];
   publications: Publication[];
+  stories: Story[];
   onRefreshPublications: () => void;
+  onRefreshStories: () => void;
 }
 
 interface StagedImage {
@@ -31,7 +38,18 @@ interface StagedImage {
   fileSizeKb: number;
 }
 
+interface StoryGroup {
+  auteurId: string;
+  stories: Story[];
+}
+
+interface StoryViewerState {
+  stories: Story[];
+  index: number;
+}
+
 const PAGE_SIZE = 4;
+const STORY_DURATION_MS = 5000;
 
 const ROLE_TRANSLATION_KEYS: Record<Membre['role'], string> = {
   admin: 'common.role.admin',
@@ -77,6 +95,49 @@ function MemberAvatar({ membre, size }: { membre?: Membre; size: number }) {
   );
 }
 
+function StoryRing({ membre, seen }: { membre?: Membre; seen: boolean }) {
+  const ring = seen
+    ? 'linear-gradient(135deg, #4b5563, #6b7280)'
+    : 'linear-gradient(135deg, #f59e0b, #ec4899, #8b5cf6)';
+  return (
+    <div style={{
+      width: '64px',
+      height: '64px',
+      borderRadius: '50%',
+      padding: '2px',
+      background: ring,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      <MemberAvatar membre={membre} size={56} />
+    </div>
+  );
+}
+
+const storyTileStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '6px',
+  background: 'transparent',
+  border: 'none',
+  cursor: 'pointer',
+  flexShrink: 0,
+  width: '78px',
+  padding: 0
+};
+
+const storyLabelStyle: React.CSSProperties = {
+  fontSize: '0.68rem',
+  color: 'var(--text-muted)',
+  maxWidth: '78px',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  fontWeight: 600
+};
+
 async function copyText(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -98,7 +159,9 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   allMembres,
   allGroupes,
   publications,
-  onRefreshPublications
+  stories,
+  onRefreshPublications,
+  onRefreshStories
 }) => {
   const { t, language } = useLanguage();
   const composerGroupes = getVisibleGroupIds(currentUser, allGroupes)
@@ -116,7 +179,25 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
 
+  // Stories
+  const [storyComposerOpen, setStoryComposerOpen] = useState(false);
+  const [storyImage, setStoryImage] = useState<StagedImage | null>(null);
+  const [storyCaption, setStoryCaption] = useState('');
+  const [isCompressingStory, setIsCompressingStory] = useState(false);
+  const [isPublishingStory, setIsPublishingStory] = useState(false);
+  const [storyViewer, setStoryViewer] = useState<StoryViewerState | null>(null);
+
+  // Fil d'actualité : compteur de nouveautés (style Facebook)
+  const [feedSeenUpTo, setFeedSeenUpTo] = useState<number>(() =>
+    publications.reduce(
+      (max, publication) => Math.max(max, new Date(publication.created_at).getTime()),
+      0
+    )
+  );
+  const feedInitRef = useRef(feedSeenUpTo > 0);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const storyFileInputRef = useRef<HTMLInputElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const formatRelativeDate = (value: string): string => {
@@ -140,12 +221,85 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const formatCount = (count: number, base: 'likes' | 'comments' | 'shares'): string =>
     t(`publications.stats.${base}.${count > 1 ? 'plural' : 'single'}`, { count });
 
-  const sortedPublications = useMemo(
-    () => publications
+  // Fil d'actualité « à la Facebook » : les publications qui suscitent de
+  // l'engagement (j'aime, commentaires, partages) remontent, avec une prime à
+  // la fraîcheur. Une publication qui reçoit un j'aime remonte donc aussitôt
+  // dans le fil, au lieu de rester bloquée tout en bas.
+  const sortedPublications = useMemo(() => {
+    const now = Date.now();
+    const score = (publication: Publication): number => {
+      const ageHours = Math.max(0, (now - new Date(publication.created_at).getTime()) / 3_600_000);
+      const engagement =
+        publication.liked_by.length * 2 +
+        publication.commentaires.length * 3 +
+        publication.partages * 4;
+      return (engagement + 1) / Math.pow(ageHours + 2, 1.25);
+    };
+    return publications
       .filter((publication) => canViewPublication(currentUser, publication, allGroupes))
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-    [publications, currentUser, allGroupes]
+      .slice()
+      .sort((a, b) => {
+        const diff = score(b) - score(a);
+        if (Math.abs(diff) > 1e-9) return diff;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  }, [publications, currentUser, allGroupes]);
+
+  const newestPublicationTime = useMemo(
+    () => sortedPublications.reduce(
+      (max, publication) => Math.max(max, new Date(publication.created_at).getTime()),
+      0
+    ),
+    [sortedPublications]
   );
+
+  // À l'ouverture du fil, on mémorise l'état courant : seules les vraies
+  // nouveautés déclenchent la bannière « nouvelles publications ».
+  useEffect(() => {
+    if (feedInitRef.current) return;
+    if (newestPublicationTime <= 0) return;
+    feedInitRef.current = true;
+    setFeedSeenUpTo(newestPublicationTime);
+  }, [newestPublicationTime]);
+
+  const newPostsCount = sortedPublications.filter(
+    (publication) =>
+      publication.auteur_id !== currentUser.id &&
+      new Date(publication.created_at).getTime() > feedSeenUpTo
+  ).length;
+
+  // Stories actives (expirent après 24 h) regroupées par auteur.
+  const activeStories = useMemo(
+    () => stories
+      .filter((story) => new Date(story.expires_at).getTime() > Date.now())
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    [stories]
+  );
+
+  const ownStories = useMemo(
+    () => activeStories.filter((story) => story.auteur_id === currentUser.id),
+    [activeStories, currentUser.id]
+  );
+
+  const orderedStoryGroups = useMemo<StoryGroup[]>(() => {
+    const map = new Map<string, Story[]>();
+    activeStories.forEach((story) => {
+      if (story.auteur_id === currentUser.id) return;
+      const list = map.get(story.auteur_id) || [];
+      list.push(story);
+      map.set(story.auteur_id, list);
+    });
+    return [...map.entries()]
+      .map(([auteurId, list]) => ({ auteurId, stories: list }))
+      .sort((a, b) => {
+        const aUnseen = a.stories.some((story) => !story.seen_by.includes(currentUser.id)) ? 1 : 0;
+        const bUnseen = b.stories.some((story) => !story.seen_by.includes(currentUser.id)) ? 1 : 0;
+        if (aUnseen !== bUnseen) return bUnseen - aUnseen;
+        const aLast = new Date(a.stories[a.stories.length - 1]?.created_at || 0).getTime();
+        const bLast = new Date(b.stories[b.stories.length - 1]?.created_at || 0).getTime();
+        return bLast - aLast;
+      });
+  }, [activeStories, currentUser.id]);
 
   const visiblePublications = sortedPublications.slice(0, visibleCount);
 
@@ -198,6 +352,108 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       event.target.value = '';
     }
   };
+
+  const handleStoryImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert(t('publications.errors.selectImage'));
+      event.target.value = '';
+      return;
+    }
+
+    setIsCompressingStory(true);
+    try {
+      const dataUrl = await compressImage(file, 1080, 1920, 0.82);
+      setStoryImage({
+        dataUrl,
+        fileName: file.name,
+        fileSizeKb: Math.round((dataUrl.length * 0.75) / 1024)
+      });
+    } catch {
+      alert(t('publications.errors.prepareImage'));
+    } finally {
+      setIsCompressingStory(false);
+      event.target.value = '';
+    }
+  };
+
+  const closeStoryComposer = () => {
+    setStoryComposerOpen(false);
+    setStoryImage(null);
+    setStoryCaption('');
+  };
+
+  const handlePublishStory = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!storyImage) return;
+
+    setIsPublishingStory(true);
+    try {
+      const imageUrl = (await uploadDataUrl(storyImage.dataUrl, 'image')) ?? storyImage.dataUrl;
+      StorageService.addStory(currentUser.id, imageUrl, storyCaption);
+      closeStoryComposer();
+      onRefreshStories();
+      showTemporaryMessage(t('publications.success.published'));
+    } catch {
+      alert(t('publications.stories.error'));
+    } finally {
+      setIsPublishingStory(false);
+    }
+  };
+
+  const openStoryGroup = (groupStories: Story[]) => {
+    if (!groupStories.length) return;
+    setStoryViewer({ stories: groupStories, index: 0 });
+  };
+
+  const closeStoryViewer = () => setStoryViewer(null);
+
+  const storyNext = () => {
+    setStoryViewer((viewer) => {
+      if (!viewer) return viewer;
+      if (viewer.index + 1 < viewer.stories.length) {
+        return { ...viewer, index: viewer.index + 1 };
+      }
+      return null;
+    });
+  };
+
+  const storyPrev = () => {
+    setStoryViewer((viewer) => {
+      if (!viewer) return viewer;
+      if (viewer.index > 0) {
+        return { ...viewer, index: viewer.index - 1 };
+      }
+      return viewer;
+    });
+  };
+
+  const handleDeleteStory = (storyId: string) => {
+    if (!window.confirm(t('publications.confirmDelete'))) return;
+    StorageService.deleteStory(storyId);
+    setStoryViewer((viewer) => {
+      if (!viewer) return viewer;
+      const remaining = viewer.stories.filter((story) => story.id !== storyId);
+      if (!remaining.length) return null;
+      return { stories: remaining, index: Math.min(viewer.index, remaining.length - 1) };
+    });
+    onRefreshStories();
+  };
+
+  // Marque la story affichée comme vue puis avance automatiquement (5 s).
+  useEffect(() => {
+    if (!storyViewer) return;
+    const current = storyViewer.stories[storyViewer.index];
+    if (!current) return;
+    if (!current.seen_by.includes(currentUser.id)) {
+      StorageService.markStorySeen(current.id, currentUser.id);
+    }
+    const timer = window.setTimeout(storyNext, STORY_DURATION_MS);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storyViewer, currentUser.id]);
 
   const handlePublish = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -305,6 +561,65 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
         <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
           {t('publications.subtitle')}
         </p>
+      </div>
+
+      {/* ===== ZONE STORIES (style Facebook, expire en 24 h) ===== */}
+      <div className="glass-card" style={{ padding: '14px 12px', marginBottom: '18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 10px' }}>
+          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+            {t('publications.stories.title')}
+          </span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Clock size={12} /> {t('publications.stories.expires')}
+          </span>
+        </div>
+
+        <div className="stories-strip" style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
+          <button type="button" onClick={() => setStoryComposerOpen(true)} style={storyTileStyle}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '2px dashed var(--border-gold)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Plus size={22} style={{ color: 'var(--accent-gold)' }} />
+            </div>
+            <span style={storyLabelStyle}>{t('publications.stories.create')}</span>
+          </button>
+
+          {ownStories.length > 0 && (
+            <button type="button" onClick={() => openStoryGroup(ownStories)} style={storyTileStyle}>
+              <StoryRing membre={currentUser} seen={false} />
+              <span style={storyLabelStyle}>{t('publications.stories.yourStory')}</span>
+            </button>
+          )}
+
+          {orderedStoryGroups.map((group) => {
+            const author = getAuthor(group.auteurId);
+            const seen = group.stories.every((story) => story.seen_by.includes(currentUser.id));
+            return (
+              <button
+                key={group.auteurId}
+                type="button"
+                onClick={() => openStoryGroup(group.stories)}
+                style={storyTileStyle}
+              >
+                <StoryRing membre={author} seen={seen} />
+                <span style={storyLabelStyle}>{author ? author.prenom : t('common.member')}</span>
+              </button>
+            );
+          })}
+
+          {ownStories.length === 0 && orderedStoryGroups.length === 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-dim)', padding: '0 8px' }}>
+              {t('publications.stories.empty')}
+            </div>
+          )}
+        </div>
       </div>
 
       <form
@@ -448,6 +763,35 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
           </div>
         </div>
       </form>
+
+      {newPostsCount > 0 && (
+        <div style={{
+          position: 'sticky',
+          top: '74px',
+          zIndex: 20,
+          display: 'flex',
+          justifyContent: 'center',
+          marginBottom: '14px'
+        }}>
+          <button
+            type="button"
+            onClick={() => {
+              setFeedSeenUpTo(Date.now());
+              setVisibleCount(PAGE_SIZE);
+              onRefreshPublications();
+            }}
+            className="btn btn-primary"
+            style={{ fontSize: '0.8rem', padding: '9px 16px', borderRadius: '999px', boxShadow: 'var(--shadow-lg)' }}
+          >
+            <RefreshCw size={15} />
+            <span>
+              {newPostsCount > 1
+                ? t('publications.newPosts.many', { count: newPostsCount })
+                : t('publications.newPosts.one')} · {t('publications.newPosts.refresh')}
+            </span>
+          </button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
         {visiblePublications.map((publication) => {
@@ -737,30 +1081,327 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
             position: 'fixed',
             inset: 0,
             zIndex: 80,
-            background: 'rgba(0, 0, 0, 0.92)',
+            background: 'rgba(0, 0, 0, 0.94)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '24px',
+            padding: '12px',
             cursor: 'zoom-out'
           }}
         >
-          <button
-            type="button"
-            onClick={() => setPreviewImage(null)}
-            className="btn btn-ghost"
-            style={{ position: 'fixed', top: '20px', right: '20px', color: '#ffffff', padding: '8px' }}
-            title={t('common.close')}
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              position: 'relative',
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
           >
-            <X size={24} />
-          </button>
-          <img
-            src={previewImage}
-            alt={t('publications.image.previewAlt')}
-            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '10px' }}
-          />
+            <div style={{
+              position: 'fixed',
+              top: '14px',
+              right: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              zIndex: 2
+            }}>
+              <button
+                type="button"
+                onClick={() => downloadMedia(previewImage, 'publication.jpg')}
+                className="btn btn-ghost"
+                style={{ color: '#ffffff', padding: '8px 12px', fontSize: '0.78rem' }}
+                title={t('publications.image.download')}
+              >
+                <Download size={18} />
+                <span>{t('common.download')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="btn btn-ghost"
+                style={{ color: '#ffffff', padding: '8px' }}
+                title={t('common.close')}
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <img
+              src={previewImage}
+              alt={t('publications.image.previewAlt')}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                width: 'auto',
+                height: 'auto',
+                objectFit: 'contain',
+                borderRadius: '10px'
+              }}
+            />
+          </div>
         </div>
       )}
+
+      {/* ===== CRÉATION D'UNE STORY ===== */}
+      {storyComposerOpen && (
+        <div
+          onClick={closeStoryComposer}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 92,
+            background: 'rgba(0, 0, 0, 0.78)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <form
+            onSubmit={handlePublishStory}
+            onClick={(event) => event.stopPropagation()}
+            className="glass-card"
+            style={{ width: 'min(460px, 100%)', padding: '20px', borderRadius: '18px' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.05rem' }}>{t('publications.stories.create')}</h3>
+              <button type="button" onClick={closeStoryComposer} className="btn btn-ghost" style={{ padding: '6px' }} title={t('common.close')}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <input
+              ref={storyFileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleStoryImageChange}
+              style={{ display: 'none' }}
+            />
+
+            <button
+              type="button"
+              onClick={() => storyFileInputRef.current?.click()}
+              style={{
+                width: '100%',
+                minHeight: '180px',
+                borderRadius: '14px',
+                border: '1px dashed var(--border-gold)',
+                background: 'rgba(0, 0, 0, 0.2)',
+                overflow: 'hidden',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-muted)'
+              }}
+            >
+              {storyImage ? (
+                <img
+                  src={storyImage.dataUrl}
+                  alt={t('publications.stories.addPhoto')}
+                  style={{ width: '100%', maxHeight: '320px', objectFit: 'contain', display: 'block' }}
+                />
+              ) : (
+                <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                  {isCompressingStory ? <Loader2 size={26} className="animate-pulse-glow" /> : <ImageIcon size={26} />}
+                  {isCompressingStory ? t('publications.composer.compressing') : t('publications.stories.addPhoto')}
+                </span>
+              )}
+            </button>
+
+            <input
+              type="text"
+              value={storyCaption}
+              onChange={(event) => setStoryCaption(event.target.value)}
+              maxLength={120}
+              className="form-input"
+              placeholder={t('publications.stories.caption')}
+              style={{ marginTop: '12px' }}
+            />
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={!storyImage || isCompressingStory || isPublishingStory}
+              style={{ width: '100%', marginTop: '12px' }}
+            >
+              {isPublishingStory ? <Loader2 size={16} className="animate-pulse-glow" /> : <Plus size={16} />}
+              <span>{t('publications.stories.publish')}</span>
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ===== VISIONNEUSE DE STORIES ===== */}
+      {storyViewer && (() => {
+        const currentStory = storyViewer.stories[storyViewer.index];
+        if (!currentStory) return null;
+        const author = getAuthor(currentStory.auteur_id);
+        const isOwn = currentStory.auteur_id === currentUser.id;
+        return (
+          <div
+            onClick={closeStoryViewer}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 95,
+              background: 'rgba(0, 0, 0, 0.96)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <div
+              onClick={(event) => event.stopPropagation()}
+              style={{
+                position: 'relative',
+                width: 'min(440px, 100vw)',
+                height: 'min(88dvh, 800px)',
+                borderRadius: '14px',
+                overflow: 'hidden',
+                background: '#000',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <div style={{
+                position: 'absolute',
+                top: '10px',
+                left: '10px',
+                right: '10px',
+                display: 'flex',
+                gap: '4px',
+                zIndex: 2
+              }}>
+                {storyViewer.stories.map((story, index) => (
+                  <div
+                    key={story.id}
+                    style={{
+                      flex: 1,
+                      height: '3px',
+                      borderRadius: '2px',
+                      background: 'rgba(255, 255, 255, 0.35)',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <div
+                      key={index === storyViewer.index ? `${story.id}-active` : story.id}
+                      className={index === storyViewer.index ? 'story-progress-fill' : ''}
+                      style={{
+                        height: '100%',
+                        width: index < storyViewer.index ? '100%' : index === storyViewer.index ? undefined : '0%',
+                        background: '#ffffff'
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div style={{
+                position: 'absolute',
+                top: '22px',
+                left: '12px',
+                right: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                zIndex: 2
+              }}>
+                <MemberAvatar membre={author} size={36} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {author ? `${author.prenom} ${author.nom}` : t('common.member')}
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: 'rgba(255, 255, 255, 0.75)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Clock size={11} /> {formatRelativeDate(currentStory.created_at)}
+                  </div>
+                </div>
+                {isOwn && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteStory(currentStory.id)}
+                    className="btn btn-ghost"
+                    style={{ padding: '6px', color: '#f87171' }}
+                    title={t('publications.stories.delete')}
+                  >
+                    <Trash2 size={17} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={closeStoryViewer}
+                  className="btn btn-ghost"
+                  style={{ padding: '6px', color: '#ffffff' }}
+                  title={t('common.close')}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <img
+                src={currentStory.image_url || ''}
+                alt={t('publications.image.alt')}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000', display: 'block' }}
+              />
+
+              {currentStory.caption && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '18px',
+                  left: '14px',
+                  right: '14px',
+                  color: '#ffffff',
+                  fontSize: '0.9rem',
+                  lineHeight: 1.5,
+                  textShadow: '0 1px 6px rgba(0, 0, 0, 0.9)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
+                }}>
+                  {currentStory.caption}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={(event) => { event.stopPropagation(); storyPrev(); }}
+                aria-label={t('common.previous')}
+                style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '34%', background: 'transparent', border: 'none', cursor: 'pointer' }}
+              />
+              <button
+                type="button"
+                onClick={(event) => { event.stopPropagation(); storyNext(); }}
+                aria-label={t('common.next')}
+                style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: '34%', background: 'transparent', border: 'none', cursor: 'pointer' }}
+              />
+
+              <div style={{
+                position: 'absolute',
+                bottom: '16px',
+                right: '14px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                color: 'rgba(255, 255, 255, 0.85)',
+                fontSize: '0.72rem',
+                zIndex: 2
+              }}>
+                <Eye size={13} /> {t('publications.stories.viewers', { count: currentStory.seen_by.length })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      <style>{`
+        @keyframes storyProgress { from { width: 0%; } to { width: 100%; } }
+        .story-progress-fill { animation: storyProgress ${STORY_DURATION_MS}ms linear forwards; }
+        .stories-strip { scrollbar-width: thin; }
+        .stories-strip::-webkit-scrollbar { height: 4px; }
+      `}</style>
 
       {shareMessage && (
         <div style={{

@@ -1,0 +1,10 @@
+# Déploiement Cloudflare Pages : site statique (dist) + fonctions (functions/)
+# avec accès direct au bucket média R2.
+
+name = "fiaram-nomerika"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-06-01"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "fiaram-nomerika-media"

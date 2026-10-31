@@ -72,3 +72,33 @@ export async function uploadFile(file: File, kind: MediaKind): Promise<string | 
   if (file.size > MAX_BYTES) return undefined;
   return storeBlob(file, kind);
 }
+
+/**
+ * Télécharge un média (data URL interne ou URL distante) comme le fait
+ * Facebook : le fichier est récupéré puis proposé au téléchargement.
+ * En cas de blocage CORS, le média s'ouvre dans un nouvel onglet.
+ */
+export async function downloadMedia(url: string, fileName = 'fiaram-media.jpg'): Promise<void> {
+  try {
+    let href = url;
+    let objectUrl: string | undefined;
+    if (url.startsWith('data:')) {
+      objectUrl = URL.createObjectURL(dataUrlToBlob(url));
+    } else {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('download failed');
+      objectUrl = URL.createObjectURL(await response.blob());
+    }
+    href = objectUrl;
+    const anchor = document.createElement('a');
+    anchor.href = href;
+    anchor.download = fileName;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(href), 1500);
+  } catch {
+    window.open(url, '_blank', 'noopener');
+  }
+}

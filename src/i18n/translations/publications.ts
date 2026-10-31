@@ -235,5 +235,90 @@ export const publications: TranslationDictionary = {
     mg: 'Vondrona · {group}',
     fr: 'Groupe · {group}',
     en: 'Group · {group}'
+  },
+  'publications.stories.title': {
+    mg: 'Stories',
+    fr: 'Stories',
+    en: 'Stories'
+  },
+  'publications.stories.yourStory': {
+    mg: 'Ny story-nao',
+    fr: 'Votre story',
+    en: 'Your story'
+  },
+  'publications.stories.create': {
+    mg: 'Mamorona story',
+    fr: 'Créer une story',
+    en: 'Create a story'
+  },
+  'publications.stories.caption': {
+    mg: 'Soraty ny fanazavana...',
+    fr: 'Écrire une légende...',
+    en: 'Write a caption...'
+  },
+  'publications.stories.addPhoto': {
+    mg: 'Ampio sary',
+    fr: 'Ajouter une photo',
+    en: 'Add a photo'
+  },
+  'publications.stories.publish': {
+    mg: 'Avoahy ny story',
+    fr: 'Publier la story',
+    en: 'Publish story'
+  },
+  'publications.stories.empty': {
+    mg: 'Tsy misy story amin’izao fotoana izao.',
+    fr: 'Aucune story pour le moment.',
+    en: 'No stories right now.'
+  },
+  'publications.stories.expires': {
+    mg: 'Lany afaka 24 ora',
+    fr: 'Expire dans 24 h',
+    en: 'Expires in 24 h'
+  },
+  'publications.stories.delete': {
+    mg: 'Fafao ny story',
+    fr: 'Supprimer la story',
+    en: 'Delete story'
+  },
+  'publications.stories.viewers': {
+    mg: '{count} nijery',
+    fr: '{count} vue(s)',
+    en: '{count} view(s)'
+  },
+  'publications.stories.error': {
+    mg: 'Tsy afaka namoaka ny story. Andramo indray.',
+    fr: 'Impossible de publier la story. Réessayez.',
+    en: 'Could not publish the story. Try again.'
+  },
+  'publications.stories.justNow': {
+    mg: 'Ankehitriny',
+    fr: "À l'instant",
+    en: 'Just now'
+  },
+  'publications.newPosts.one': {
+    mg: 'Misy publication vaovao',
+    fr: 'Nouvelle publication',
+    en: 'New post'
+  },
+  'publications.newPosts.many': {
+    mg: 'Misy publication vaovao {count}',
+    fr: '{count} nouvelles publications',
+    en: '{count} new posts'
+  },
+  'publications.newPosts.refresh': {
+    mg: 'Havaozina',
+    fr: 'Actualiser',
+    en: 'Refresh'
+  },
+  'publications.image.download': {
+    mg: 'Alaivo ny sary',
+    fr: "Télécharger l'image",
+    en: 'Download image'
+  },
+  'publications.ranking.label': {
+    mg: 'Laharam-pahavelomana',
+    fr: 'Les plus populaires',
+    en: 'Most popular'
   }
 };
