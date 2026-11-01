@@ -277,6 +277,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
+  const storiesSectionRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const formatRelativeDate = (value: string): string => {
@@ -485,9 +486,11 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     setIsPublishingStory(true);
     try {
       const imageUrl = (await uploadDataUrl(storyImage.dataUrl, 'image')) ?? storyImage.dataUrl;
-      StorageService.addStory(currentUser.id, imageUrl, storyCaption);
+      const story = StorageService.addStory(currentUser.id, imageUrl, storyCaption);
       closeStoryComposer();
       onRefreshStories();
+      storiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setStoryViewer({ stories: [story], index: 0 });
       showTemporaryMessage(t('publications.success.published'));
     } catch {
       alert(t('publications.stories.error'));
@@ -667,7 +670,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       </div>
 
       {/* ===== ZONE STORIES (style Facebook, expire en 24 h) ===== */}
-      <div className="glass-card" style={{ padding: '14px 12px', marginBottom: '18px' }}>
+      <div ref={storiesSectionRef} className="glass-card" style={{ padding: '14px 12px', marginBottom: '18px', scrollMarginTop: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 10px' }}>
           <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)' }}>
             {t('publications.stories.title')}
