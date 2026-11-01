@@ -143,7 +143,6 @@ function StoryCard({
         <img
           src={imageUrl}
           alt={label}
-          loading="lazy"
           decoding="async"
           onError={(event) => { event.currentTarget.style.display = 'none'; }}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
@@ -1388,7 +1387,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
             onSubmit={handlePublishStory}
             onClick={(event) => event.stopPropagation()}
             className="glass-card"
-            style={{ width: 'min(460px, 100%)', padding: '20px', borderRadius: '18px' }}
+            style={{ width: 'min(460px, 100%)', padding: '20px', borderRadius: '18px', maxHeight: '90dvh', overflowY: 'auto' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
               <h3 style={{ margin: 0, fontSize: '1.05rem' }}>{t('publications.stories.create')}</h3>
