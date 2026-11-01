@@ -14,7 +14,11 @@ import {
   Download,
   Clock,
   Eye,
-  RefreshCw
+  RefreshCw,
+  Type,
+  Smile,
+  AtSign,
+  Move
 } from 'lucide-react';
 import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
@@ -48,8 +52,20 @@ interface StoryViewerState {
   index: number;
 }
 
+// Interface pour les éléments ajoutés sur la story
+interface StoryOverlay {
+  id: string;
+  type: 'text' | 'sticker' | 'tag';
+  content: string;
+  x: number;
+  y: number;
+  color?: string;
+  bgColor?: string;
+}
+
 const PAGE_SIZE = 4;
 const STORY_DURATION_MS = 5000;
+const STICKERS = ['❤️', '🔥', '😂', '😍', '👏', '🙌', '✨', '🎉', '😎', '🥳'];
 
 const ROLE_TRANSLATION_KEYS: Record<Membre['role'], string> = {
   admin: 'common.role.admin',
@@ -236,11 +252,23 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   allMembres,
   allGroupes,
   publications,
-  stories,
+  stories: propsStories,
   onRefreshPublications,
   onRefreshStories
 }) => {
   const { t, language } = useLanguage();
+
+  // État local pour l'affichage instantané des stories
+  const [localStories, setLocalStories] = useState<Story[]>(propsStories);
+  useEffect(() => {
+    setLocalStories(prev => {
+      const newLocalStories = prev.filter(
+        localStory => !propsStories.some(propStory => propStory.id === localStory.id)
+      );
+      return [...newLocalStories, ...propsStories];
+    });
+  }, [propsStories]);
+
   const composerGroupes = getVisibleGroupIds(currentUser, allGroupes)
     .map((id) => allGroupes.find((g) => g.id === id))
     .filter((g): g is Groupe => Boolean(g));
@@ -258,13 +286,23 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
 
-  // Stories
+  // Stories States
   const [storyComposerOpen, setStoryComposerOpen] = useState(false);
   const [storyImage, setStoryImage] = useState<StagedImage | null>(null);
   const [storyCaption, setStoryCaption] = useState('');
+  const [storyOverlays, setStoryOverlays] = useState<StoryOverlay[]>([]);
   const [isCompressingStory, setIsCompressingStory] = useState(false);
   const [isPublishingStory, setIsPublishingStory] = useState(false);
   const [storyViewer, setStoryViewer] = useState<StoryViewerState | null>(null);
+
+  // Story Studio States
+  const [activeTool, setActiveTool] = useState<'none' | 'text' | 'sticker' | 'tag'>('none');
+  const [textInput, setTextInput] = useState('');
+  const [textColor, setTextColor] = useState('#ffffff');
+  const [textBgColor, setTextBgColor] = useState('#8b5cf6');
+  const [tagSearch, setTagSearch] = useState('');
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const storyCanvasRef = useRef<HTMLDivElement>(null);
 
   // Fil d'actualité : compteur de nouveautés (style Facebook)
   const [feedSeenUpTo, setFeedSeenUpTo] = useState<number>(() =>
@@ -301,10 +339,6 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const formatCount = (count: number, base: 'likes' | 'comments' | 'shares'): string =>
     t(`publications.stats.${base}.${count > 1 ? 'plural' : 'single'}`, { count });
 
-  // Fil d'actualité « à la Facebook » : les publications qui suscitent de
-  // l'engagement (j'aime, commentaires, partages) remontent, avec une prime à
-  // la fraîcheur. Une publication qui reçoit un j'aime remonte donc aussitôt
-  // dans le fil, au lieu de rester bloquée tout en bas.
   const sortedPublications = useMemo(() => {
     const now = Date.now();
     const score = (publication: Publication): number => {
@@ -333,8 +367,6 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     [sortedPublications]
   );
 
-  // À l'ouverture du fil, on mémorise l'état courant : seules les vraies
-  // nouveautés déclenchent la bannière « nouvelles publications ».
   useEffect(() => {
     if (feedInitRef.current) return;
     if (newestPublicationTime <= 0) return;
@@ -348,12 +380,16 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       new Date(publication.created_at).getTime() > feedSeenUpTo
   ).length;
 
-  // Stories actives (expirent après 24 h) regroupées par auteur.
+  // Filtre des stories actives
   const activeStories = useMemo(
-    () => stories
-      .filter((story) => new Date(story.expires_at).getTime() > Date.now())
+    () => localStories
+      .filter((story) => {
+        if (!story.expires_at) return true;
+        const exp = new Date(story.expires_at).getTime();
+        return isNaN(exp) || exp > Date.now();
+      })
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
-    [stories]
+    [localStories]
   );
 
   const ownStories = useMemo(
@@ -473,26 +509,119 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     }
   };
 
+  // --- LOGIQUE OVERLAYS ---
+  const addOverlay = (type: 'text' | 'sticker' | 'tag', content: string, extra?: { color?: string, bgColor?: string }) => {
+    if (!content.trim()) return;
+    const newOverlay: StoryOverlay = {
+      id: `ov-${Date.now()}`,
+      type,
+      content,
+      x: 50,
+      y: 50,
+      color: extra?.color || '#ffffff',
+      bgColor: extra?.bgColor || (type === 'text' ? 'rgba(0,0,0,0.5)' : 'transparent'),
+    };
+    setStoryOverlays([...storyOverlays, newOverlay]);
+    setTextInput('');
+    setTagSearch('');
+    setActiveTool('none');
+  };
+
+  const removeOverlay = (id: string) => setStoryOverlays(storyOverlays.filter(o => o.id !== id));
+
+  // --- DRAG & DROP ---
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>, id: string) => {
+    e.stopPropagation();
+    setActiveDragId(id);
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+
+    const rect = storyCanvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const ov = storyOverlays.find(o => o.id === id);
+    if (!ov) return;
+
+    const startPctX = ov.x;
+    const startPctY = ov.y;
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      const newPctX = startPctX + (dx / rect.width) * 100;
+      const newPctY = startPctY + (dy / rect.height) * 100;
+
+      setStoryOverlays(prev => prev.map(o =>
+        o.id === id ? { ...o, x: Math.max(5, Math.min(95, newPctX)), y: Math.max(5, Math.min(95, newPctY)) } : o
+      ));
+    };
+
+    const handlePointerUp = () => {
+      el.releasePointerCapture(e.pointerId);
+      el.removeEventListener('pointermove', handlePointerMove);
+      el.removeEventListener('pointerup', handlePointerUp);
+      // On garde activeDragId pour la corbeille
+    };
+
+    el.addEventListener('pointermove', handlePointerMove);
+    el.addEventListener('pointerup', handlePointerUp);
+  };
+
   const closeStoryComposer = () => {
     setStoryComposerOpen(false);
     setStoryImage(null);
     setStoryCaption('');
+    setStoryOverlays([]);
+    setActiveTool('none');
+    setActiveDragId(null);
   };
 
-  const handlePublishStory = async (event: React.FormEvent) => {
-    event.preventDefault();
+  // --- PUBLIER UNE STORY (MISE À JOUR) ---
+  const handlePublishStory = async (event?: React.MouseEvent | React.FormEvent) => {
+    if (event) event.preventDefault();
     if (!storyImage) return;
 
     setIsPublishingStory(true);
     try {
       const imageUrl = (await uploadDataUrl(storyImage.dataUrl, 'image')) ?? storyImage.dataUrl;
-      const story = StorageService.addStory(currentUser.id, imageUrl, storyCaption);
+      const captionData = JSON.stringify({ text: storyCaption, overlays: storyOverlays });
+
+      const now = new Date();
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      // Création locale
+      const newStory: Story = {
+        id: `temp-${Date.now()}`,
+        auteur_id: currentUser.id,
+        image_url: imageUrl,
+        caption: captionData,
+        created_at: now.toISOString(),
+        expires_at: tomorrow.toISOString(),
+        seen_by: []
+      };
+
+      // Affichage instantané
+      setLocalStories(prev => [newStory, ...prev]);
+      setStoryViewer({ stories: [newStory], index: 0 });
       closeStoryComposer();
+
+      // Sauvegarde Supabase
+      try {
+        const savedStory = await StorageService.addStory(currentUser.id, imageUrl, captionData);
+        if (savedStory && savedStory.id) {
+          setLocalStories(prev => prev.map(s => s.id === newStory.id ? { ...newStory, id: savedStory.id } : s));
+        }
+      } catch (dbError) {
+        console.error("Erreur Supabase story:", dbError);
+      }
+
       onRefreshStories();
       storiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setStoryViewer({ stories: [story], index: 0 });
       showTemporaryMessage(t('publications.success.published'));
-    } catch {
+    } catch (error) {
+      console.error(error);
       alert(t('publications.stories.error'));
     } finally {
       setIsPublishingStory(false);
@@ -529,6 +658,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const handleDeleteStory = (storyId: string) => {
     if (!window.confirm(t('publications.confirmDelete'))) return;
     StorageService.deleteStory(storyId);
+    setLocalStories(prev => prev.filter(s => s.id !== storyId));
     setStoryViewer((viewer) => {
       if (!viewer) return viewer;
       const remaining = viewer.stories.filter((story) => story.id !== storyId);
@@ -538,7 +668,6 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     onRefreshStories();
   };
 
-  // Précharge la story suivante pour un passage instantané.
   useEffect(() => {
     if (!storyViewer) return;
     const next = storyViewer.stories[storyViewer.index + 1];
@@ -548,7 +677,6 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     }
   }, [storyViewer]);
 
-  // Marque la story affichée comme vue puis avance automatiquement (5 s).
   useEffect(() => {
     if (!storyViewer) return;
     const current = storyViewer.stories[storyViewer.index];
@@ -568,7 +696,6 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     setIsPublishing(true);
     try {
       const publicationAudience = audience === 'group' && targetGroupeId ? 'group' : 'all';
-      // L'image part vers R2 ; si indisponible on garde la base64 interne.
       const imageUrl = stagedImage
         ? (await uploadDataUrl(stagedImage.dataUrl, 'image') ?? stagedImage.dataUrl)
         : undefined;
@@ -656,6 +783,17 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     }
   };
 
+  // Helper pour lire les overlays
+  const parseStoryCaption = (story: Story): { text: string, overlays: StoryOverlay[] } => {
+    try {
+      if (story.caption?.startsWith('{')) {
+        const parsed = JSON.parse(story.caption);
+        return { text: parsed.text || '', overlays: parsed.overlays || [] };
+      }
+    } catch (e) { /* ignore */ }
+    return { text: story.caption || '', overlays: [] };
+  };
+
   return (
     <div className="animate-fade-in" style={{ padding: '24px 16px 40px', maxWidth: '760px', margin: '0 auto' }}>
 
@@ -669,7 +807,6 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
         </p>
       </div>
 
-      {/* ===== ZONE STORIES (style Facebook, expire en 24 h) ===== */}
       <div ref={storiesSectionRef} className="glass-card" style={{ padding: '14px 12px', marginBottom: '18px', scrollMarginTop: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 10px' }}>
           <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)' }}>
@@ -822,8 +959,8 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                     {formatRelativeDate(publication.created_at)} ·{' '}
                     {publication.audience === 'group' && publication.groupe_id
                       ? t('publications.audience.groupPost', {
-                          group: allGroupes.find((g) => g.id === publication.groupe_id)?.nom_groupe || ''
-                        })
+                        group: allGroupes.find((g) => g.id === publication.groupe_id)?.nom_groupe || ''
+                      })
                       : t('publications.publicPost')}
                   </div>
                 </div>
@@ -1370,94 +1507,138 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
         </div>
       )}
 
-      {/* ===== CRÉATION D'UNE STORY ===== */}
+      {/* ===== CRÉATION D'UNE STORY (STUDIO COMPLET) ===== */}
       {storyComposerOpen && (
-        <div
-          onClick={closeStoryComposer}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 92,
-            background: 'rgba(0, 0, 0, 0.78)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px'
-          }}
-        >
-          <form
-            onSubmit={handlePublishStory}
-            onClick={(event) => event.stopPropagation()}
-            className="glass-card"
-            style={{ width: 'min(460px, 100%)', padding: '20px', borderRadius: '18px', maxHeight: '90dvh', overflowY: 'auto' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.05rem' }}>{t('publications.stories.create')}</h3>
-              <button type="button" onClick={closeStoryComposer} className="btn btn-ghost" style={{ padding: '6px' }} title={t('common.close')}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <input
-              ref={storyFileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleStoryImageChange}
-              style={{ display: 'none' }}
-            />
-
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#000', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', color: '#fff', zIndex: 1000, position: 'relative' }}>
+            <button type="button" onClick={closeStoryComposer} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
+            <span style={{ fontWeight: 'bold' }}>Créer une story</span>
             <button
               type="button"
-              onClick={() => storyFileInputRef.current?.click()}
-              style={{
-                width: '100%',
-                minHeight: '180px',
-                borderRadius: '14px',
-                border: '1px dashed var(--border-gold)',
-                background: 'rgba(0, 0, 0, 0.2)',
-                overflow: 'hidden',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--text-muted)'
-              }}
+              onClick={() => handlePublishStory()}
+              disabled={!storyImage || isPublishingStory}
+              style={{ background: 'none', border: 'none', color: (!storyImage || isPublishingStory) ? '#555' : '#10b981', fontWeight: 'bold', cursor: (!storyImage || isPublishingStory) ? 'not-allowed' : 'pointer' }}
             >
-              {storyImage ? (
-                <img
-                  src={storyImage.dataUrl}
-                  alt={t('publications.stories.addPhoto')}
-                  style={{ width: '100%', maxHeight: '320px', objectFit: 'contain', display: 'block' }}
-                />
-              ) : (
-                <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
-                  {isCompressingStory ? <Loader2 size={26} className="animate-pulse-glow" /> : <ImageIcon size={26} />}
-                  {isCompressingStory ? t('publications.composer.compressing') : t('publications.stories.addPhoto')}
-                </span>
+              {isPublishingStory ? 'Publication...' : 'Publier'}
+            </button>
+          </div>
+
+          <div
+            ref={storyCanvasRef}
+            onPointerDown={(e) => { if (e.target === e.currentTarget) setActiveDragId(null); }}
+            style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+          >
+            {storyImage ? (
+              <>
+                <img src={storyImage.dataUrl} alt="Story" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', pointerEvents: 'none' }} />
+
+                {storyOverlays.map(ov => (
+                  <div key={ov.id}
+                    onPointerDown={(e) => handlePointerDown(e, ov.id)}
+                    style={{
+                      position: 'absolute', top: `${ov.y}%`, left: `${ov.x}%`, transform: 'translate(-50%, -50%)',
+                      color: ov.color, backgroundColor: ov.bgColor, padding: ov.type === 'text' ? '8px 16px' : '0',
+                      borderRadius: '8px', fontSize: ov.type === 'text' ? '1.5rem' : '3rem', fontWeight: 'bold',
+                      cursor: activeDragId === ov.id ? 'grabbing' : 'grab', textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                      touchAction: 'none', userSelect: 'none',
+                      border: activeDragId === ov.id ? '2px dashed #fff' : '2px solid transparent',
+                      zIndex: activeDragId === ov.id ? 50 : 1
+                    }}
+                  >
+                    {ov.type === 'tag' ? (
+                      <div style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '4px 12px', borderRadius: '20px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #fff' }}>
+                        <AtSign size={16} /> {ov.content}
+                      </div>
+                    ) : ov.content}
+
+                    {/* Bouton supprimer flottant */}
+                    {activeDragId === ov.id && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeOverlay(ov.id); }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        style={{
+                          position: 'absolute',
+                          bottom: '-50px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          background: '#ef4444',
+                          color: '#fff',
+                          borderRadius: '50%',
+                          width: '40px',
+                          height: '40px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '2px solid #fff',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                          cursor: 'pointer',
+                          zIndex: 100
+                        }}
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </>
+            ) : (
+              <button type="button" onClick={() => storyFileInputRef.current?.click()} style={{ width: '80%', height: '50%', border: '2px dashed #555', borderRadius: '16px', color: '#888', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'transparent', cursor: 'pointer' }}>
+                <ImageIcon size={48} />
+                <span style={{ marginTop: '16px' }}>Sélectionner une image</span>
+              </button>
+            )}
+            <input ref={storyFileInputRef} type="file" accept="image/*" onChange={handleStoryImageChange} style={{ display: 'none' }} />
+          </div>
+
+          {storyImage && (
+            <div style={{ padding: '16px', background: '#111', color: '#fff', zIndex: 100, position: 'relative' }}>
+              <div style={{ marginBottom: '8px', fontSize: '0.7rem', color: '#aaa', textAlign: 'center' }}>
+                <Move size={12} style={{ display: 'inline', marginRight: '4px' }} /> Touchez et glissez pour déplacer
+              </div>
+
+              {activeTool === 'text' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                  <input type="text" value={textInput} onChange={e => setTextInput(e.target.value)} placeholder="Votre texte..." style={{ padding: '12px', borderRadius: '8px', border: 'none', background: '#222', color: '#fff' }} />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} title="Couleur texte" style={{ width: '40px', height: '40px', border: 'none', background: 'transparent' }} />
+                    <input type="color" value={textBgColor} onChange={e => setTextBgColor(e.target.value)} title="Couleur fond" style={{ width: '40px', height: '40px', border: 'none', background: 'transparent' }} />
+                    <button type="button" onClick={() => addOverlay('text', textInput, { color: textColor, bgColor: textBgColor })} style={{ background: '#3b82f6', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', color: '#fff', flex: 1, border: 'none', cursor: 'pointer' }}>Ajouter</button>
+                    <button type="button" onClick={() => setActiveTool('none')} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={20} /></button>
+                  </div>
+                </div>
               )}
-            </button>
 
-            <input
-              type="text"
-              value={storyCaption}
-              onChange={(event) => setStoryCaption(event.target.value)}
-              maxLength={120}
-              className="form-input"
-              placeholder={t('publications.stories.caption')}
-              style={{ marginTop: '12px' }}
-            />
+              {activeTool === 'sticker' && (
+                <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '16px' }}>
+                  {STICKERS.map(s => <button type="button" key={s} onClick={() => addOverlay('sticker', s)} style={{ fontSize: '2rem', background: 'none', border: 'none', cursor: 'pointer' }}>{s}</button>)}
+                  <button type="button" onClick={() => setActiveTool('none')} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={20} /></button>
+                </div>
+              )}
 
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={!storyImage || isCompressingStory || isPublishingStory}
-              style={{ width: '100%', marginTop: '12px' }}
-            >
-              {isPublishingStory ? <Loader2 size={16} className="animate-pulse-glow" /> : <Plus size={16} />}
-              <span>{t('publications.stories.publish')}</span>
-            </button>
-          </form>
+              {activeTool === 'tag' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                  <input type="text" value={tagSearch} onChange={e => setTagSearch(e.target.value)} placeholder="Chercher un membre..." style={{ padding: '12px', borderRadius: '8px', border: 'none', background: '#222', color: '#fff' }} />
+                  <div style={{ maxHeight: '120px', overflowY: 'auto' }}>
+                    {allMembres.filter(m => m.id !== currentUser.id && (m.prenom.toLowerCase().includes(tagSearch.toLowerCase()) || m.nom.toLowerCase().includes(tagSearch.toLowerCase()))).map(m => (
+                      <button type="button" key={m.id} onClick={() => addOverlay('tag', `${m.prenom} ${m.nom}`)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', background: '#222', width: '100%', color: '#fff', border: 'none', borderBottom: '1px solid #333', cursor: 'pointer' }}>
+                        <MemberAvatar membre={m} size={24} /> <span>{m.prenom} {m.nom}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => setActiveTool('none')} style={{ color: '#ef4444', alignSelf: 'flex-end', background: 'none', border: 'none', cursor: 'pointer' }}>Annuler</button>
+                </div>
+              )}
+
+              {activeTool === 'none' && (
+                <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+                  <button type="button" onClick={() => setActiveTool('text')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><Type size={24} /><span style={{ fontSize: '0.7rem' }}>Texte</span></button>
+                  <button type="button" onClick={() => setActiveTool('sticker')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><Smile size={24} /><span style={{ fontSize: '0.7rem' }}>Sticker</span></button>
+                  <button type="button" onClick={() => setActiveTool('tag')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><AtSign size={24} /><span style={{ fontSize: '0.7rem' }}>Identifier</span></button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1467,6 +1648,8 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
         if (!currentStory) return null;
         const author = getAuthor(currentStory.auteur_id);
         const isOwn = currentStory.auteur_id === currentUser.id;
+        const { text, overlays } = parseStoryCaption(currentStory);
+
         return (
           <div
             onClick={closeStoryViewer}
@@ -1564,10 +1747,26 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                 style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000', display: 'block' }}
               />
 
-              {currentStory.caption && (
+              {/* Rendu des Overlays */}
+              {overlays.map(ov => (
+                <div key={ov.id} style={{
+                  position: 'absolute', top: `${ov.y}%`, left: `${ov.x}%`, transform: 'translate(-50%, -50%)',
+                  color: ov.color, backgroundColor: ov.bgColor, padding: ov.type === 'text' ? '8px 16px' : '0',
+                  borderRadius: '8px', fontSize: ov.type === 'text' ? '1.5rem' : '3rem', fontWeight: 'bold',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.5)', pointerEvents: 'none'
+                }}>
+                  {ov.type === 'tag' ? (
+                    <div style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '4px 12px', borderRadius: '20px', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #fff' }}>
+                      <AtSign size={16} /> {ov.content}
+                    </div>
+                  ) : ov.content}
+                </div>
+              ))}
+
+              {text && (
                 <div style={{
                   position: 'absolute',
-                  bottom: '18px',
+                  bottom: '60px',
                   left: '14px',
                   right: '14px',
                   color: '#ffffff',
@@ -1575,9 +1774,10 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                   lineHeight: 1.5,
                   textShadow: '0 1px 6px rgba(0, 0, 0, 0.9)',
                   whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
+                  wordBreak: 'break-word',
+                  textAlign: 'center'
                 }}>
-                  {currentStory.caption}
+                  {text}
                 </div>
               )}
 
