@@ -41,6 +41,16 @@ export const publications: TranslationDictionary = {
     fr: 'Ajouter une image',
     en: 'Add an image'
   },
+  'publications.composer.title': {
+    mg: 'Mamorona publication',
+    fr: 'Créer une publication',
+    en: 'Create post'
+  },
+  'publications.composer.photo': {
+    mg: 'Sary',
+    fr: 'Photo',
+    en: 'Photo'
+  },
   'publications.errors.selectImage': {
     mg: 'Misafidiana sary azafady.',
     fr: 'Veuillez sélectionner une image.',

@@ -77,12 +77,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pwSuccessMsg, setPwSuccessMsg] = useState(false);
 
-  // Sync photo if current user updates
+  // Sync photo and editable fields if current user updates
   useEffect(() => {
     if (currentUser.photo_url) {
       setPhotoUrl(currentUser.photo_url);
+      setTempPhotoUrl((previous) => previous || currentUser.photo_url || '');
     }
   }, [currentUser.photo_url]);
+
+  useEffect(() => {
+    setNom(currentUser.nom);
+    setPrenom(currentUser.prenom);
+    setTelephone(currentUser.telephone || '');
+    setFingerprint(currentUser.fingerprint_registered);
+  }, [currentUser.id, currentUser.nom, currentUser.prenom, currentUser.telephone, currentUser.fingerprint_registered]);
 
   // Generate real QR Code onto the canvas
   useEffect(() => {
@@ -154,7 +162,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       photo_url: storedUrl
     };
     StorageService.updateMembre(updated);
-    setPhotoUrl(tempPhotoUrl);
+    setPhotoUrl(storedUrl);
+    setTempPhotoUrl(storedUrl);
     onRefreshUser();
     setPhotoSavedMsg(true);
     setTimeout(() => {
@@ -171,7 +180,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       nom,
       prenom,
       telephone,
-      photo_url: photoUrl,
       fingerprint_registered: fingerprint
     };
     StorageService.updateMembre(updated);
@@ -366,7 +374,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             )}
 
             <form onSubmit={handleSaveInfo} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
                     {t('profile.editInfo.firstName')}
@@ -449,7 +457,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
                     {t('profile.password.new')}
@@ -500,7 +508,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           justifyContent: 'center',
           padding: '16px'
         }}>
-          <div className="glass-card" style={{ maxWidth: '480px', width: '100%', padding: '24px', position: 'relative' }}>
+          <div className="glass-card" style={{ maxWidth: '480px', width: '100%', padding: '24px', position: 'relative', maxHeight: '90dvh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Camera size={20} style={{ color: 'var(--accent-gold)' }} />

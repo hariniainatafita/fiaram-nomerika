@@ -95,48 +95,126 @@ function MemberAvatar({ membre, size }: { membre?: Membre; size: number }) {
   );
 }
 
-function StoryRing({ membre, seen }: { membre?: Membre; seen: boolean }) {
+function StoryCard({
+  membre,
+  seen,
+  imageUrl,
+  label,
+  onClick,
+  create = false
+}: {
+  membre?: Membre;
+  seen: boolean;
+  imageUrl?: string;
+  label: string;
+  onClick: () => void;
+  create?: boolean;
+}) {
   const ring = seen
     ? 'linear-gradient(135deg, #4b5563, #6b7280)'
     : 'linear-gradient(135deg, #f59e0b, #ec4899, #8b5cf6)';
+
   return (
-    <div style={{
-      width: '64px',
-      height: '64px',
-      borderRadius: '50%',
-      padding: '2px',
-      background: ring,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <MemberAvatar membre={membre} size={56} />
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        position: 'relative',
+        width: '108px',
+        height: '174px',
+        flexShrink: 0,
+        borderRadius: '14px',
+        overflow: 'hidden',
+        border: '1px solid var(--border-color)',
+        background: '#0b1220',
+        cursor: 'pointer',
+        padding: 0,
+        textAlign: 'left',
+        boxShadow: 'var(--shadow-sm)'
+      }}
+    >
+      {create ? (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(160deg, rgba(245, 158, 11, 0.32), rgba(139, 92, 246, 0.28), rgba(7, 13, 30, 1))'
+        }} />
+      ) : imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={label}
+          loading="lazy"
+          decoding="async"
+          onError={(event) => { event.currentTarget.style.display = 'none'; }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      ) : (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(160deg, rgba(245, 158, 11, 0.5), rgba(139, 92, 246, 0.5))'
+        }} />
+      )}
+
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(180deg, rgba(0, 0, 0, 0.04) 38%, rgba(0, 0, 0, 0.82) 100%)'
+      }} />
+
+      {create ? (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          left: '10px',
+          width: '42px',
+          height: '42px',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#070d1e',
+          border: '2px solid var(--bg-primary)'
+        }}>
+          <Plus size={22} />
+        </div>
+      ) : (
+        <div style={{
+          position: 'absolute',
+          top: '9px',
+          left: '9px',
+          width: '42px',
+          height: '42px',
+          borderRadius: '50%',
+          padding: '2px',
+          background: ring,
+          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.45)'
+        }}>
+          <div style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', background: '#0b1220' }}>
+            <MemberAvatar membre={membre} size={38} />
+          </div>
+        </div>
+      )}
+
+      <span style={{
+        position: 'absolute',
+        left: '9px',
+        right: '9px',
+        bottom: '9px',
+        color: '#ffffff',
+        fontSize: '0.72rem',
+        fontWeight: 700,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        textShadow: '0 1px 4px rgba(0, 0, 0, 0.85)'
+      }}>
+        {label}
+      </span>
+    </button>
   );
 }
-
-const storyTileStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: '6px',
-  background: 'transparent',
-  border: 'none',
-  cursor: 'pointer',
-  flexShrink: 0,
-  width: '78px',
-  padding: 0
-};
-
-const storyLabelStyle: React.CSSProperties = {
-  fontSize: '0.68rem',
-  color: 'var(--text-muted)',
-  maxWidth: '78px',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
-  fontWeight: 600
-};
 
 async function copyText(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
@@ -167,6 +245,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const composerGroupes = getVisibleGroupIds(currentUser, allGroupes)
     .map((id) => allGroupes.find((g) => g.id === id))
     .filter((g): g is Groupe => Boolean(g));
+  const [composerOpen, setComposerOpen] = useState(false);
   const [newContent, setNewContent] = useState('');
   const [audience, setAudience] = useState<'all' | 'group'>('all');
   const [targetGroupeId, setTargetGroupeId] = useState(composerGroupes[0]?.id || '');
@@ -500,6 +579,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       );
       setNewContent('');
       setStagedImage(null);
+      setComposerOpen(false);
       setVisibleCount((count) => Math.max(count, PAGE_SIZE));
       onRefreshPublications();
       showTemporaryMessage(t('publications.success.published'));
@@ -598,43 +678,36 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
           </span>
         </div>
 
-        <div className="stories-strip" style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
-          <button type="button" onClick={() => setStoryComposerOpen(true)} style={storyTileStyle}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '2px dashed var(--border-gold)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Plus size={22} style={{ color: 'var(--accent-gold)' }} />
-            </div>
-            <span style={storyLabelStyle}>{t('publications.stories.create')}</span>
-          </button>
+        <div className="stories-strip" style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px', scrollSnapType: 'x proximity' }}>
+          <StoryCard
+            create
+            seen={false}
+            label={t('publications.stories.create')}
+            onClick={() => setStoryComposerOpen(true)}
+          />
 
           {ownStories.length > 0 && (
-            <button type="button" onClick={() => openStoryGroup(ownStories)} style={storyTileStyle}>
-              <StoryRing membre={currentUser} seen={false} />
-              <span style={storyLabelStyle}>{t('publications.stories.yourStory')}</span>
-            </button>
+            <StoryCard
+              membre={currentUser}
+              seen={false}
+              imageUrl={ownStories[ownStories.length - 1]?.image_url}
+              label={t('publications.stories.yourStory')}
+              onClick={() => openStoryGroup(ownStories)}
+            />
           )}
 
           {orderedStoryGroups.map((group) => {
             const author = getAuthor(group.auteurId);
             const seen = group.stories.every((story) => story.seen_by.includes(currentUser.id));
             return (
-              <button
+              <StoryCard
                 key={group.auteurId}
-                type="button"
+                membre={author}
+                seen={seen}
+                imageUrl={group.stories[group.stories.length - 1]?.image_url}
+                label={author ? author.prenom : t('common.member')}
                 onClick={() => openStoryGroup(group.stories)}
-                style={storyTileStyle}
-              >
-                <StoryRing membre={author} seen={seen} />
-                <span style={storyLabelStyle}>{author ? author.prenom : t('common.member')}</span>
-              </button>
+              />
             );
           })}
 
@@ -646,147 +719,44 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
         </div>
       </div>
 
-      <form
-        onSubmit={handlePublish}
+      <button
+        type="button"
+        onClick={() => setComposerOpen(true)}
         className="glass-card"
-        style={{ padding: '20px', marginBottom: '22px' }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          width: '100%',
+          padding: '14px 16px',
+          marginBottom: '22px',
+          cursor: 'pointer',
+          textAlign: 'left',
+          color: 'var(--text-main)',
+          fontFamily: 'inherit'
+        }}
       >
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-          <MemberAvatar membre={currentUser} size={46} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <textarea
-              value={newContent}
-              onChange={(event) => setNewContent(event.target.value)}
-              className="form-input"
-              rows={3}
-              maxLength={3000}
-              placeholder={t('publications.composer.placeholder', { name: currentUser.prenom })}
-              style={{ resize: 'vertical', minHeight: '86px' }}
-            />
-
-            {stagedImage && (
-              <div style={{
-                position: 'relative',
-                marginTop: '12px',
-                borderRadius: '12px',
-                overflow: 'hidden',
-                border: '1px solid var(--border-color)',
-                background: '#050a16'
-              }}>
-                <img
-                  src={stagedImage.dataUrl}
-                  alt={stagedImage.fileName}
-                  style={{ width: '100%', maxHeight: '360px', objectFit: 'contain', display: 'block' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setStagedImage(null)}
-                  className="btn btn-ghost"
-                  style={{
-                    position: 'absolute',
-                    top: '8px',
-                    right: '8px',
-                    padding: '6px',
-                    borderRadius: '50%',
-                    background: 'rgba(7, 13, 30, 0.8)',
-                    color: '#ffffff'
-                  }}
-                  title={t('publications.composer.removeImage')}
-                >
-                  <X size={16} />
-                </button>
-                <div style={{
-                  padding: '8px 12px',
-                  fontSize: '0.72rem',
-                  color: 'var(--text-muted)',
-                  background: 'rgba(7, 13, 30, 0.85)'
-                }}>
-                  {t('publications.composer.fileInfo', { name: stagedImage.fileName, size: stagedImage.fileSizeKb })}
-                </div>
-              </div>
-            )}
-
-            {composerGroupes.length > 0 && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                flexWrap: 'wrap',
-                marginTop: '12px'
-              }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  {t('publications.audience.label')}
-                </span>
-                <select
-                  value={audience}
-                  onChange={(event) => setAudience(event.target.value as 'all' | 'group')}
-                  className="form-select"
-                  style={{ width: 'auto', fontSize: '0.8rem', padding: '7px 10px' }}
-                >
-                  <option value="all">{t('publications.audience.all')}</option>
-                  <option value="group">{t('publications.audience.group')}</option>
-                </select>
-                {audience === 'group' && composerGroupes.length > 1 && (
-                  <select
-                    value={targetGroupeId}
-                    onChange={(event) => setTargetGroupeId(event.target.value)}
-                    className="form-select"
-                    style={{ width: 'auto', fontSize: '0.8rem', padding: '7px 10px' }}
-                  >
-                    {composerGroupes.map((g) => (
-                      <option key={g.id} value={g.id}>{g.nom_groupe}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            )}
-
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '10px',
-              flexWrap: 'wrap',
-              marginTop: '12px',
-              paddingTop: '12px',
-              borderTop: '1px solid var(--border-color)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  style={{ display: 'none' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="btn btn-ghost"
-                  style={{ fontSize: '0.8rem', padding: '8px 12px' }}
-                  disabled={isCompressing}
-                >
-                  {isCompressing ? <Loader2 size={16} className="animate-pulse-glow" /> : <ImageIcon size={16} style={{ color: '#10b981' }} />}
-                  <span>{isCompressing ? t('publications.composer.compressing') : t('publications.composer.addImage')}</span>
-                </button>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
-                  {newContent.length}/3000
-                </span>
-              </div>
-
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={isPublishing || isCompressing || (!newContent.trim() && !stagedImage)}
-                style={{ opacity: isPublishing || isCompressing || (!newContent.trim() && !stagedImage) ? 0.55 : 1 }}
-              >
-                {isPublishing ? <Loader2 size={16} className="animate-pulse-glow" /> : <Send size={16} />}
-                <span>{t('common.publish')}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </form>
+        <MemberAvatar membre={currentUser} size={44} />
+        <span style={{
+          flex: 1,
+          minWidth: 0,
+          background: 'rgba(255, 255, 255, 0.06)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '999px',
+          padding: '11px 16px',
+          color: 'var(--text-muted)',
+          fontSize: '0.88rem',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}>
+          {t('publications.composer.placeholder', { name: currentUser.prenom })}
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#10b981', fontSize: '0.82rem', fontWeight: 700, flexShrink: 0 }}>
+          <ImageIcon size={20} />
+          <span className="composer-photo-label">{t('publications.composer.photo')}</span>
+        </span>
+      </button>
 
       {newPostsCount > 0 && (
         <div style={{
@@ -895,7 +865,9 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                     padding: 0,
                     border: 'none',
                     background: '#050a16',
-                    cursor: 'zoom-in'
+                    cursor: 'zoom-in',
+                    maxHeight: 'min(72dvh, 640px)',
+                    overflow: 'hidden'
                   }}
                   title={t('publications.image.enlarge')}
                 >
@@ -906,8 +878,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                     decoding="async"
                     style={{
                       width: '100%',
-                      maxHeight: 'min(70dvh, 640px)',
-                      objectFit: 'contain',
+                      height: 'auto',
                       display: 'block'
                     }}
                   />
@@ -1099,6 +1070,206 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
         )}
       </div>
 
+      {composerOpen && (
+        <div
+          onClick={() => setComposerOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 93,
+            background: 'rgba(0, 0, 0, 0.82)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <form
+            onSubmit={handlePublish}
+            onClick={(event) => event.stopPropagation()}
+            className="glass-card"
+            style={{
+              width: 'min(560px, 100%)',
+              maxHeight: '92dvh',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: '18px',
+              overflow: 'hidden',
+              padding: 0
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--border-color)',
+              flexShrink: 0
+            }}>
+              <h3 style={{ margin: 0, fontSize: '1.05rem' }}>{t('publications.composer.title')}</h3>
+              <button
+                type="button"
+                onClick={() => setComposerOpen(false)}
+                className="btn btn-ghost"
+                style={{ padding: '6px' }}
+                title={t('common.close')}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{
+              padding: '16px 20px',
+              overflowY: 'auto',
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <MemberAvatar membre={currentUser} size={44} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: '0.92rem', fontWeight: 700 }}>
+                    {currentUser.prenom} {currentUser.nom}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>
+                    {audience === 'group' && targetGroupeId
+                      ? composerGroupes.find((g) => g.id === targetGroupeId)?.nom_groupe || t('publications.audience.group')
+                      : t('publications.audience.all')}
+                  </div>
+                </div>
+              </div>
+
+              <textarea
+                value={newContent}
+                onChange={(event) => setNewContent(event.target.value)}
+                className="form-input"
+                rows={5}
+                maxLength={3000}
+                placeholder={t('publications.composer.placeholder', { name: currentUser.prenom })}
+                style={{ resize: 'vertical', minHeight: '120px' }}
+              />
+
+              {stagedImage && (
+                <div style={{
+                  position: 'relative',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  border: '1px solid var(--border-color)',
+                  background: '#050a16'
+                }}>
+                  <img
+                    src={stagedImage.dataUrl}
+                    alt={stagedImage.fileName}
+                    style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', display: 'block' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setStagedImage(null)}
+                    className="btn btn-ghost"
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      padding: '6px',
+                      borderRadius: '50%',
+                      background: 'rgba(7, 13, 30, 0.8)',
+                      color: '#ffffff'
+                    }}
+                    title={t('publications.composer.removeImage')}
+                  >
+                    <X size={16} />
+                  </button>
+                  <div style={{
+                    padding: '8px 12px',
+                    fontSize: '0.72rem',
+                    color: 'var(--text-muted)',
+                    background: 'rgba(7, 13, 30, 0.85)'
+                  }}>
+                    {t('publications.composer.fileInfo', { name: stagedImage.fileName, size: stagedImage.fileSizeKb })}
+                  </div>
+                </div>
+              )}
+
+              {composerGroupes.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    {t('publications.audience.label')}
+                  </span>
+                  <select
+                    value={audience}
+                    onChange={(event) => setAudience(event.target.value as 'all' | 'group')}
+                    className="form-select"
+                    style={{ width: 'auto', fontSize: '0.8rem', padding: '7px 10px' }}
+                  >
+                    <option value="all">{t('publications.audience.all')}</option>
+                    <option value="group">{t('publications.audience.group')}</option>
+                  </select>
+                  {audience === 'group' && composerGroupes.length > 1 && (
+                    <select
+                      value={targetGroupeId}
+                      onChange={(event) => setTargetGroupeId(event.target.value)}
+                      className="form-select"
+                      style={{ width: 'auto', fontSize: '0.8rem', padding: '7px 10px' }}
+                    >
+                      {composerGroupes.map((g) => (
+                        <option key={g.id} value={g.id}>{g.nom_groupe}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px',
+              flexWrap: 'wrap',
+              padding: '12px 20px',
+              borderTop: '1px solid var(--border-color)',
+              flexShrink: 0
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn btn-ghost"
+                  style={{ fontSize: '0.8rem', padding: '8px 12px' }}
+                  disabled={isCompressing}
+                >
+                  {isCompressing ? <Loader2 size={16} className="animate-pulse-glow" /> : <ImageIcon size={16} style={{ color: '#10b981' }} />}
+                  <span>{isCompressing ? t('publications.composer.compressing') : t('publications.composer.addImage')}</span>
+                </button>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
+                  {newContent.length}/3000
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={isPublishing || isCompressing || (!newContent.trim() && !stagedImage)}
+                style={{ opacity: isPublishing || isCompressing || (!newContent.trim() && !stagedImage) ? 0.55 : 1 }}
+              >
+                {isPublishing ? <Loader2 size={16} className="animate-pulse-glow" /> : <Send size={16} />}
+                <span>{t('common.publish')}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {previewImage && (
         <div
           onClick={() => setPreviewImage(null)}
@@ -1106,90 +1277,94 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 80,
-            background: 'rgba(0, 0, 0, 0.96)',
-            display: 'flex',
-            flexDirection: 'column',
-            paddingTop: 'env(safe-area-inset-top, 0px)',
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-            cursor: 'zoom-out'
+            zIndex: 90,
+            background: '#000000',
+            cursor: 'zoom-out',
+            overflow: 'hidden'
           }}
         >
-          <div
-            onClick={(event) => event.stopPropagation()}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: '8px',
-              padding: '12px 14px',
-              flexShrink: 0
-            }}
-          >
+          <div style={{
+            position: 'absolute',
+            top: 'calc(env(safe-area-inset-top, 0px) + 10px)',
+            right: '10px',
+            zIndex: 2,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
             <button
               type="button"
-              onClick={() => downloadMedia(previewImage, 'publication.jpg')}
+              onClick={(event) => {
+                event.stopPropagation();
+                downloadMedia(previewImage, 'publication.jpg');
+              }}
               className="btn btn-ghost"
-              style={{ color: '#ffffff', padding: '8px 14px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.08)' }}
+              style={{
+                color: '#ffffff',
+                padding: '10px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.14)',
+                backdropFilter: 'blur(8px)'
+              }}
               title={t('publications.image.download')}
             >
-              <Download size={18} />
-              <span>{t('common.download')}</span>
+              <Download size={20} />
             </button>
             <button
               type="button"
-              onClick={() => setPreviewImage(null)}
+              onClick={(event) => {
+                event.stopPropagation();
+                setPreviewImage(null);
+              }}
               className="btn btn-ghost"
-              style={{ color: '#ffffff', padding: '8px', background: 'rgba(255,255,255,0.08)' }}
+              style={{
+                color: '#ffffff',
+                padding: '10px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.14)',
+                backdropFilter: 'blur(8px)'
+              }}
               title={t('common.close')}
             >
-              <X size={24} />
+              <X size={22} />
             </button>
           </div>
 
-          <div
-            onClick={(event) => event.stopPropagation()}
-            style={{
-              flex: 1,
-              minHeight: 0,
+          {previewLoading && (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '0 8px 12px'
+              gap: '10px',
+              color: '#e5e7eb',
+              fontSize: '0.82rem',
+              pointerEvents: 'none'
+            }}>
+              <Loader2 size={30} className="animate-pulse-glow" />
+              <span>{t('publications.image.loading')}</span>
+            </div>
+          )}
+
+          <img
+            src={previewImage}
+            alt={t('publications.image.previewAlt')}
+            onClick={(event) => event.stopPropagation()}
+            onLoad={() => setPreviewLoading(false)}
+            onError={() => setPreviewLoading(false)}
+            decoding="async"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              opacity: previewLoading ? 0 : 1,
+              transition: 'opacity 0.18s ease'
             }}
-          >
-            {previewLoading && (
-              <div style={{
-                position: 'absolute',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '10px',
-                color: '#e5e7eb',
-                fontSize: '0.82rem'
-              }}>
-                <Loader2 size={30} className="animate-pulse-glow" />
-                <span>{t('publications.image.loading')}</span>
-              </div>
-            )}
-            <img
-              src={previewImage}
-              alt={t('publications.image.previewAlt')}
-              onLoad={() => setPreviewLoading(false)}
-              onError={() => setPreviewLoading(false)}
-              decoding="async"
-              style={{
-                maxWidth: '100%',
-                maxHeight: '100%',
-                width: 'auto',
-                height: 'auto',
-                objectFit: 'contain',
-                borderRadius: '8px',
-                opacity: previewLoading ? 0 : 1,
-                transition: 'opacity 0.18s ease'
-              }}
-            />
-          </div>
+          />
         </div>
       )}
 
@@ -1305,16 +1480,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
           >
             <div
               onClick={(event) => event.stopPropagation()}
-              style={{
-                position: 'relative',
-                width: 'min(440px, 100vw)',
-                height: 'min(88dvh, 800px)',
-                borderRadius: '14px',
-                overflow: 'hidden',
-                background: '#000',
-                display: 'flex',
-                flexDirection: 'column'
-              }}
+              className="story-viewer-frame"
             >
               <div style={{
                 position: 'absolute',
@@ -1393,7 +1559,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
               <img
                 src={currentStory.image_url || ''}
                 alt={t('publications.image.alt')}
-                style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000', display: 'block' }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000', display: 'block' }}
               />
 
               {currentStory.caption && (
@@ -1449,6 +1615,23 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
         .story-progress-fill { animation: storyProgress ${STORY_DURATION_MS}ms linear forwards; }
         .stories-strip { scrollbar-width: thin; }
         .stories-strip::-webkit-scrollbar { height: 4px; }
+        .stories-strip > * { scroll-snap-align: start; }
+        .story-viewer-frame {
+          position: relative;
+          width: min(440px, 100vw);
+          height: min(92dvh, 860px);
+          border-radius: 14px;
+          overflow: hidden;
+          background: #000;
+          display: flex;
+          flex-direction: column;
+        }
+        @media (max-width: 600px) {
+          .story-viewer-frame { width: 100vw; height: 100dvh; border-radius: 0; }
+        }
+        @media (max-width: 480px) {
+          .composer-photo-label { display: none; }
+        }
       `}</style>
 
       {shareMessage && (
