@@ -8,6 +8,7 @@ interface BottomNavProps {
   activeView: string;
   onSelectView: (view: string) => void;
   unreadCount: number;
+  publicationUnreadCount: number;
   currentUser: Membre;
 }
 
@@ -15,6 +16,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   activeView,
   onSelectView,
   unreadCount,
+  publicationUnreadCount,
   currentUser
 }) => {
   const { t } = useLanguage();
@@ -27,7 +29,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           { id: 'cotisations', label: t('nav.short.cotisations'), icon: Wallet }
         ]
       : [{ id: 'songs', label: t('nav.short.resources'), icon: Music }]),
-    { id: 'publications', label: t('nav.short.publications'), icon: Camera },
+    { id: 'publications', label: t('nav.short.publications'), icon: Camera, badge: publicationUnreadCount },
     { id: 'members', label: t('nav.short.members'), icon: UsersRound },
     { id: 'chat', label: t('nav.short.chat'), icon: MessageSquare, badge: unreadCount }
   ];

@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   PRESENCE_ONLINE: 'fiaram_presence_online_v1',
   EVENEMENTS: 'fiaram_evenements_v2',
   PUBLICATIONS: 'fiaram_publications_v1',
+  PUBLICATIONS_SEEN: 'fiaram_publications_seen_v1',
   STORIES: 'fiaram_stories_v1',
   CATEGORIES_RESSOURCES: 'fiaram_ressource_categories_v1',
   ADMIN_SETTINGS: 'fiaram_admin_settings_v2',

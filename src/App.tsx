@@ -3,7 +3,8 @@ import { AlertTriangle } from 'lucide-react';
 import { StorageService } from './utils/storage';
 import { subscribeToSupabase, hydrateFromSupabase } from './utils/supabaseSync';
 import { usePresence } from './utils/presence';
-import { canAccessGroupData, canAccessView } from './utils/permissions';
+import { canAccessGroupData, canAccessView, canViewPublication } from './utils/permissions';
+import { STORAGE_KEYS } from './utils/storageKeys';
 import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication, Story } from './types';
 import {useLanguage} from './i18n';
 import { Navbar } from './components/Navbar';
@@ -48,6 +49,16 @@ export function App() {
 
   // Deep link into a direct chat conversation (from the members directory)
   const [chatFocus, setChatFocus] = useState<{ peerId: string; nonce: number } | null>(null);
+  // Incrémenté à chaque clic sur l'icône Messages pour forcer la liste des
+  // discussions, même si l'utilisateur était déjà dans la vue chat.
+  const [chatListNonce, setChatListNonce] = useState(0);
+
+  // Cursor « dernières publications vues » : sert au badge rouge du bouton
+  // Publications, comme sur Facebook quand de nouvelles publications arrivent.
+  const [publicationSeenAt, setPublicationSeenAt] = useState<number>(() => {
+    const stored = window.localStorage.getItem(STORAGE_KEYS.PUBLICATIONS_SEEN);
+    return stored ? Number(stored) || 0 : Date.now();
+  });
 
   // Confirmation before logging out
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -92,6 +103,14 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
     StorageService.setTheme(next);
+  };
+
+  // Navigation depuis la barre / le menu : on repart toujours de la liste des
+  // discussions, jamais de la dernière conversation privée ouverte.
+  const handleSelectView = (view: string) => {
+    setChatFocus(null);
+    if (view === 'chat') setChatListNonce((nonce) => nonce + 1);
+    setActiveView(view);
   };
 
   // Refresh functions
@@ -231,6 +250,34 @@ const refreshStories = () => {
       : 0;
     return direct + groups;
   }, [allMessages, allMembres, currentUser]);
+
+  // Badge du bouton Publications : nombre de publications d'autres membres
+  // arrivées après la dernière visite du fil.
+  const publicationUnreadCount = React.useMemo(() => {
+    if (!currentUser) return 0;
+    return allPublications.filter(
+      (publication) =>
+        publication.auteur_id !== currentUser.id &&
+        new Date(publication.created_at).getTime() > publicationSeenAt &&
+        canViewPublication(currentUser, publication, allGroupes)
+    ).length;
+  }, [allPublications, allGroupes, currentUser, publicationSeenAt]);
+
+  // Ouvrir le fil marque les publications comme vues (le badge disparaît).
+  useEffect(() => {
+    if (!currentUser || activeView !== 'publications') return;
+    const newest = allPublications.reduce(
+      (max, publication) =>
+        canViewPublication(currentUser, publication, allGroupes)
+          ? Math.max(max, new Date(publication.created_at).getTime())
+          : max,
+      0
+    );
+    if (newest > publicationSeenAt) {
+      window.localStorage.setItem(STORAGE_KEYS.PUBLICATIONS_SEEN, String(newest));
+      setPublicationSeenAt(newest);
+    }
+  }, [activeView, allPublications, allGroupes, currentUser, publicationSeenAt]);
 
   // ==================== CENTRE DE NOTIFICATIONS (style Facebook) ====================
   // Différencie les rendus consécutifs de CHAQUE collection : tout ce qui est
@@ -456,12 +503,13 @@ const refreshStories = () => {
       {/* Sidebar Navigation */}
       <Sidebar
         activeView={allowedView}
-        onSelectView={setActiveView}
+        onSelectView={handleSelectView}
         currentUser={currentUser}
         allMembres={allMembres}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         unreadCount={unreadCount}
+        publicationUnreadCount={publicationUnreadCount}
       />
 
       {/* Main Content Area */}
@@ -473,7 +521,7 @@ const refreshStories = () => {
           onToggleTheme={handleToggleTheme}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
           activeView={allowedView}
-          onSelectView={setActiveView}
+          onSelectView={handleSelectView}
           allMembres={allMembres}
           allGroupes={allGroupes}
           allEvenements={allEvenements}
@@ -495,7 +543,7 @@ const refreshStories = () => {
               allGroupes={allGroupes}
               allEvenements={allEvenements}
               onRefreshMembres={refreshMembres}
-              onSelectView={setActiveView}
+              onSelectView={handleSelectView}
               unreadCount={unreadCount}
             />
           )}
@@ -573,6 +621,7 @@ const refreshStories = () => {
               }}
               openPeerId={chatFocus?.peerId}
               focusKey={chatFocus?.nonce}
+              listKey={chatListNonce}
             />
           )}
 
@@ -619,8 +668,9 @@ const refreshStories = () => {
         {/* Mobile Bottom Navigation Bar */}
         <BottomNav
           activeView={allowedView}
-          onSelectView={setActiveView}
+          onSelectView={handleSelectView}
           unreadCount={unreadCount}
+          publicationUnreadCount={publicationUnreadCount}
           currentUser={currentUser}
         />
 

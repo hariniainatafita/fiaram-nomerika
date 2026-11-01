@@ -313,8 +313,13 @@ export const publications: TranslationDictionary = {
   },
   'publications.image.download': {
     mg: 'Alaivo ny sary',
-    fr: "Télécharger l'image",
+    fr: "TAclAccharger l'image",
     en: 'Download image'
+  },
+  'publications.image.loading': {
+    mg: 'Eo am-pakana ny sary...',
+    fr: "Chargement de l'image...",
+    en: 'Loading image...'
   },
   'publications.ranking.label': {
     mg: 'Laharam-pahavelomana',

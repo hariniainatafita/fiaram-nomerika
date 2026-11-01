@@ -177,6 +177,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
 
   // Stories
@@ -327,6 +328,20 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     window.setTimeout(() => setShareMessage(null), 2800);
   };
 
+  const openPreview = (src: string) => {
+    setPreviewLoading(true);
+    setPreviewImage(src);
+  };
+
+  useEffect(() => {
+    if (!previewImage) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPreviewImage(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [previewImage]);
+
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -442,6 +457,16 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     onRefreshStories();
   };
 
+  // Précharge la story suivante pour un passage instantané.
+  useEffect(() => {
+    if (!storyViewer) return;
+    const next = storyViewer.stories[storyViewer.index + 1];
+    if (next?.image_url) {
+      const image = new window.Image();
+      image.src = next.image_url;
+    }
+  }, [storyViewer]);
+
   // Marque la story affichée comme vue puis avance automatiquement (5 s).
   useEffect(() => {
     if (!storyViewer) return;
@@ -452,7 +477,6 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     }
     const timer = window.setTimeout(storyNext, STORY_DURATION_MS);
     return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storyViewer, currentUser.id]);
 
   const handlePublish = async (event: React.FormEvent) => {
@@ -864,7 +888,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
               {publication.image_url && (
                 <button
                   type="button"
-                  onClick={() => setPreviewImage(publication.image_url || null)}
+                  onClick={() => publication.image_url && openPreview(publication.image_url)}
                   style={{
                     display: 'block',
                     width: '100%',
@@ -879,9 +903,10 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                     src={publication.image_url}
                     alt={t('publications.image.alt')}
                     loading="lazy"
+                    decoding="async"
                     style={{
                       width: '100%',
-                      maxHeight: '600px',
+                      maxHeight: 'min(70dvh, 640px)',
                       objectFit: 'contain',
                       display: 'block'
                     }}
@@ -1077,68 +1102,91 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       {previewImage && (
         <div
           onClick={() => setPreviewImage(null)}
+          className="publication-lightbox"
           style={{
             position: 'fixed',
             inset: 0,
             zIndex: 80,
-            background: 'rgba(0, 0, 0, 0.94)',
+            background: 'rgba(0, 0, 0, 0.96)',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '12px',
+            flexDirection: 'column',
+            paddingTop: 'env(safe-area-inset-top, 0px)',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             cursor: 'zoom-out'
           }}
         >
           <div
             onClick={(event) => event.stopPropagation()}
             style={{
-              position: 'relative',
-              width: '100%',
-              height: '100%',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'flex-end',
+              gap: '8px',
+              padding: '12px 14px',
+              flexShrink: 0
             }}
           >
-            <div style={{
-              position: 'fixed',
-              top: '14px',
-              right: '14px',
+            <button
+              type="button"
+              onClick={() => downloadMedia(previewImage, 'publication.jpg')}
+              className="btn btn-ghost"
+              style={{ color: '#ffffff', padding: '8px 14px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.08)' }}
+              title={t('publications.image.download')}
+            >
+              <Download size={18} />
+              <span>{t('common.download')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              className="btn btn-ghost"
+              style={{ color: '#ffffff', padding: '8px', background: 'rgba(255,255,255,0.08)' }}
+              title={t('common.close')}
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              flex: 1,
+              minHeight: 0,
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              zIndex: 2
-            }}>
-              <button
-                type="button"
-                onClick={() => downloadMedia(previewImage, 'publication.jpg')}
-                className="btn btn-ghost"
-                style={{ color: '#ffffff', padding: '8px 12px', fontSize: '0.78rem' }}
-                title={t('publications.image.download')}
-              >
-                <Download size={18} />
-                <span>{t('common.download')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewImage(null)}
-                className="btn btn-ghost"
-                style={{ color: '#ffffff', padding: '8px' }}
-                title={t('common.close')}
-              >
-                <X size={24} />
-              </button>
-            </div>
+              justifyContent: 'center',
+              padding: '0 8px 12px'
+            }}
+          >
+            {previewLoading && (
+              <div style={{
+                position: 'absolute',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '10px',
+                color: '#e5e7eb',
+                fontSize: '0.82rem'
+              }}>
+                <Loader2 size={30} className="animate-pulse-glow" />
+                <span>{t('publications.image.loading')}</span>
+              </div>
+            )}
             <img
               src={previewImage}
               alt={t('publications.image.previewAlt')}
+              onLoad={() => setPreviewLoading(false)}
+              onError={() => setPreviewLoading(false)}
+              decoding="async"
               style={{
                 maxWidth: '100%',
                 maxHeight: '100%',
                 width: 'auto',
                 height: 'auto',
                 objectFit: 'contain',
-                borderRadius: '10px'
+                borderRadius: '8px',
+                opacity: previewLoading ? 0 : 1,
+                transition: 'opacity 0.18s ease'
               }}
             />
           </div>

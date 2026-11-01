@@ -590,6 +590,14 @@ export const StorageService = {
   deleteMessengerGroupe(groupId: string): void {
     const list = this.getGroupes().filter((g) => g.id !== groupId || !g.is_messenger);
     this.saveGroupes(list);
+    // Un groupe Messenger supprimé emporte aussi ses messages.
+    const remaining = this.getMessages().filter((m) => m.group_id !== groupId);
+    this.saveMessages(remaining);
+    const reads = this.getGroupReads();
+    Object.keys(reads).forEach((key) => {
+      if (key.endsWith(`:${groupId}`)) delete reads[key];
+    });
+    setStoredItem(STORAGE_KEYS.GROUP_READS, reads);
   },
 
   // Presences

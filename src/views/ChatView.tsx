@@ -36,6 +36,7 @@ interface ChatViewProps {
   onRefreshGroupes: () => void;
   openPeerId?: string;
   focusKey?: number;
+  listKey?: number;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -47,7 +48,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onRefreshMessages,
   onRefreshGroupes,
   openPeerId,
-  focusKey
+  focusKey,
+  listKey
 }) => {
   const visibleGroupIds = getVisibleGroupIds(currentUser, allGroupes);
   const visibleGroupes = allGroupes.filter((g) => visibleGroupIds.includes(g.id));
@@ -153,7 +155,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setActiveChannelType('direct');
     setActiveChannelId(openPeerId);
     setIsMobileConversation(true);
-  }, [openPeerId, focusKey]);
+  }, [openPeerId, focusKey, listKey]);
 
   // Per-conversation unread helpers
   const unreadDirectCount = (peerId: string): number =>
@@ -476,53 +478,104 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           </div>
 
-          {/* Render messenger groups */}
-          {orderedMessengerGroupes.length > 0 && (
-            <h4 style={{ fontSize: '1rem', margin: '10px 0' }}>{t('chat.messengerGroups')}</h4>
-          )}
-          {orderedMessengerGroupes.map((g) => {
-            const isSelected = activeChannelType === 'group' && activeChannelId === g.id;
-            const chef = allMembres.find((m) => m.id === g.chef_id);
-            const unread = unreadGroupCount(g.id);
-            const lastMsg = lastChannelMessage('group', g.id);
-            const lastSender = lastMsg ? allMembres.find((m) => m.id === lastMsg.sender_id) : undefined;
-
-            return (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => {
-                  setActiveChannelType('group');
-                  setActiveChannelId(g.id);
-                  setIsMobileConversation(true);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '9px 12px',
-                  borderRadius: '10px',
-                  border: isSelected ? '1px solid var(--border-gold)' : '1px solid transparent',
-                  background: isSelected ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
-                  color: 'var(--text-main)',
-                  width: '100%',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  marginBottom: '2px'
-                }}
-              >
-                {/* Group details go here, e.g., chef, unread count, etc. */}
-              </button>
-            );
-          })}
           <div style={{ flex: 1, overflowY: 'auto', padding: '10px 8px' }}>
-            
-            {/* Groups section */}
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-dim)', padding: '6px 10px', textTransform: 'uppercase' }}>
-              {t('chat.groupsSection', { count: visibleGroupes.length })}
+
+            {/* Groupes Messenger (discussion libre, sans impact sur les
+                cotisations / présences) */}
+            {orderedMessengerGroupes.length > 0 && (
+              <>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--accent-gold)', padding: '6px 10px', textTransform: 'uppercase' }}>
+                  {t('chat.messengerGroupsSection', { count: orderedMessengerGroupes.length })}
+                </div>
+                {orderedMessengerGroupes.map((g) => {
+                  const isSelected = activeChannelType === 'group' && activeChannelId === g.id;
+                  const unread = unreadGroupCount(g.id);
+                  const lastMsg = lastChannelMessage('group', g.id);
+                  const lastSender = lastMsg ? allMembres.find((m) => m.id === lastMsg.sender_id) : undefined;
+
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveChannelType('group');
+                        setActiveChannelId(g.id);
+                        setIsMobileConversation(true);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        border: isSelected ? '1px solid var(--border-gold)' : '1px solid transparent',
+                        background: isSelected ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                        color: 'var(--text-main)',
+                        width: '100%',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        marginBottom: '2px'
+                      }}
+                    >
+                      <div style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(245, 158, 11, 0.25))',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#c4b5fd',
+                        flexShrink: 0
+                      }}>
+                        <MessageSquare size={18} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.86rem', fontWeight: isSelected || unread > 0 ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {g.nom_groupe}
+                        </div>
+                        <div style={{
+                          fontSize: '0.7rem',
+                          color: unread > 0 ? 'var(--accent-gold)' : 'var(--text-muted)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {lastMsg
+                            ? `${lastSender?.id === currentUser.id ? t('chat.youPrefix') + ' : ' : lastSender ? lastSender.prenom + ' : ' : ''}${previewText(lastMsg)}`
+                            : t('chat.groupMembersCount', { count: (g.membre_ids || []).length })}
+                        </div>
+                      </div>
+                      {unread > 0 && (
+                        <span style={{
+                          flexShrink: 0,
+                          minWidth: '20px',
+                          height: '20px',
+                          padding: '0 6px',
+                          borderRadius: '999px',
+                          background: '#ef4444',
+                          color: '#ffffff',
+                          fontSize: '0.68rem',
+                          fontWeight: 800,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          {unread > 9 ? '9+' : unread}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Groupes officiels */}
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-dim)', padding: '12px 10px 6px', textTransform: 'uppercase' }}>
+              {t('chat.groupsSection', { count: orderedOfficialGroupes.length })}
             </div>
 
-            {orderedGroupes.map((g) => {
+            {orderedOfficialGroupes.map((g) => {
               const isSelected = activeChannelType === 'group' && activeChannelId === g.id;
               const chef = allMembres.find((m) => m.id === g.chef_id);
               const unread = unreadGroupCount(g.id);
@@ -755,7 +808,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   gap: '5px'
                 }}>
                   {activeChannelType === 'group' ? (
-                    t('chat.groupSubtitle')
+                    activeGroup?.is_messenger
+                      ? t('chat.messengerGroupSubtitle', { count: (activeGroup.membre_ids || []).length })
+                      : t('chat.groupSubtitle')
                   ) : (
                     <>
                       <span style={{
@@ -774,7 +829,27 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="badge badge-gold" style={{ fontSize: '0.65rem' }}>{t('chat.groupBadge')}</span>
+              <span className="badge badge-gold" style={{ fontSize: '0.65rem' }}>
+                {activeChannelType === 'group' && activeGroup?.is_messenger
+                  ? t('chat.messengerGroupBadge')
+                  : t('chat.groupBadge')}
+              </span>
+              {canManageActiveGroup && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ padding: '6px', color: 'var(--text-muted)' }}
+                  title={t('chat.manageGroup')}
+                  onClick={() => {
+                    if (!activeGroup) return;
+                    setManageGroupId(activeGroup.id);
+                    setManageName(activeGroup.nom_groupe);
+                    setManageMemberIds(activeGroup.membre_ids || []);
+                  }}
+                >
+                  <Settings size={16} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -794,6 +869,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 const sender = allMembres.find((m) => m.id === msg.sender_id);
                 const hasImage = Boolean(msg.image_url || msg.image_ref || (msg.file_type === 'image' && msg.file_url));
                 const imageUrl = resolveMessageImage(msg);
+                const readByOthers = (msg.read_by || []).filter((id) => id !== currentUser.id).length;
+                const isGroupChannel = activeChannelType === 'group';
 
                 return (
                   <div
@@ -809,113 +886,189 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <img
                         src={sender?.photo_url || DEFAULT_AVATAR_IMAGE}
                         alt=""
-                        style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', marginBottom: '4px', flexShrink: 0 }}
+                        style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover', marginBottom: '4px', flexShrink: 0 }}
                       />
                     )}
 
-                    <div style={{
-                      maxWidth: '75%',
-                      minWidth: '120px',
-                      padding: '10px 14px',
-                      borderRadius: '14px',
-                      borderBottomRightRadius: isMe ? '2px' : '14px',
-                      borderBottomLeftRadius: !isMe ? '2px' : '14px',
-                      background: isMe 
-                        ? 'linear-gradient(135deg, #f59e0b, #d97706)' 
-                        : 'rgba(255, 255, 255, 0.08)',
-                      color: isMe ? '#070d1e' : 'var(--text-main)',
-                      fontSize: '0.88rem',
-                      lineHeight: 1.4,
-                      boxShadow: 'var(--shadow-sm)',
-                      wordBreak: 'break-word'
-                    }}>
+                    <div
+                      className="chat-bubble"
+                      style={{
+                        minWidth: '120px',
+                        padding: '11px 15px',
+                        borderRadius: '16px',
+                        borderBottomRightRadius: isMe ? '3px' : '16px',
+                        borderBottomLeftRadius: !isMe ? '3px' : '16px',
+                        background: isMe
+                          ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                          : 'rgba(255, 255, 255, 0.08)',
+                        color: isMe ? '#070d1e' : 'var(--text-main)',
+                        fontSize: 'clamp(0.9rem, 2.5vw, 1rem)',
+                        lineHeight: 1.5,
+                        boxShadow: 'var(--shadow-sm)',
+                        wordBreak: 'break-word'
+                      }}
+                    >
                       {!isMe && (
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--accent-gold)', marginBottom: '4px' }}>
+                        <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--accent-gold)', marginBottom: '4px' }}>
                           {sender?.prenom} {sender?.nom}
                         </div>
                       )}
 
-                      {/* Display image with lightbox zoom */}
-                      {hasImage && imageUrl && (
-                        <div style={{ position: 'relative', marginBottom: '8px', overflow: 'hidden', borderRadius: '10px' }}>
-                          <img
-                            src={imageUrl}
-                            alt={t('chat.sentImageAlt')}
-                            onClick={() => setLightboxImageUrl(imageUrl)}
-                            style={{
-                              width: '100%',
-                              maxHeight: '260px',
-                              objectFit: 'cover',
+                      {msg.is_deleted ? (
+                        <div style={{ fontStyle: 'italic', opacity: 0.65, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Trash2 size={13} />
+                          {t('chat.deletedMessage')}
+                        </div>
+                      ) : (
+                        <>
+                          {/* Display image with lightbox zoom */}
+                          {hasImage && imageUrl && (
+                            <div style={{ position: 'relative', marginBottom: '8px', overflow: 'hidden', borderRadius: '10px' }}>
+                              <img
+                                src={imageUrl}
+                                alt={t('chat.sentImageAlt')}
+                                onClick={() => setLightboxImageUrl(imageUrl)}
+                                loading="lazy"
+                                decoding="async"
+                                style={{
+                                  width: '100%',
+                                  maxHeight: '320px',
+                                  objectFit: 'cover',
+                                  borderRadius: '10px',
+                                  cursor: 'zoom-in',
+                                  display: 'block',
+                                  border: isMe ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.1)'
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setLightboxImageUrl(imageUrl)}
+                                style={{
+                                  position: 'absolute',
+                                  bottom: '6px',
+                                  right: '6px',
+                                  background: 'rgba(0, 0, 0, 0.65)',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  padding: '4px 6px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '0.68rem'
+                                }}
+                                title={t('chat.viewFullscreenTitle')}
+                              >
+                                <Maximize2 size={12} />
+                                <span>{t('chat.fullscreen')}</span>
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Image payload still syncing in its dedicated row */}
+                          {hasImage && !imageUrl && (
+                            <div style={{
+                              padding: '10px',
                               borderRadius: '10px',
-                              cursor: 'pointer',
-                              display: 'block',
-                              transition: 'transform 0.2s ease',
-                              border: isMe ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.1)'
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setLightboxImageUrl(imageUrl)}
-                            style={{
-                              position: 'absolute',
-                              bottom: '6px',
-                              right: '6px',
-                              background: 'rgba(0, 0, 0, 0.65)',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '6px',
-                              padding: '4px 6px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '0.68rem'
-                            }}
-                            title={t('chat.viewFullscreenTitle')}
-                          >
-                            <Maximize2 size={12} />
-                            <span>{t('chat.fullscreen')}</span>
-                          </button>
-                        </div>
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              border: '1px dashed var(--border-color)',
+                              fontSize: '0.75rem',
+                              color: 'var(--text-muted)',
+                              marginBottom: msg.message ? '8px' : '0'
+                            }}>
+                              📷 {t('chat.unreadPreviewImage')}…
+                            </div>
+                          )}
+                          {msg.message && (
+                            <div style={{ whiteSpace: 'pre-wrap', fontWeight: isMe ? 500 : 400 }}>
+                              {msg.message}
+                            </div>
+                          )}
+                          {msg.is_edited && (
+                            <div style={{ fontSize: '0.64rem', opacity: 0.65, marginTop: '2px' }}>
+                              ({t('chat.editedLabel')})
+                            </div>
+                          )}
+                        </>
                       )}
 
-                      {/* Image payload still syncing in its dedicated row */}
-                      {hasImage && !imageUrl && (
-                        <div style={{
-                          padding: '10px',
-                          borderRadius: '10px',
-                          background: 'rgba(255, 255, 255, 0.06)',
-                          border: '1px dashed var(--border-color)',
-                          fontSize: '0.75rem',
-                          color: 'var(--text-muted)',
-                          marginBottom: msg.message ? '8px' : '0'
-                        }}>
-                          📷 {t('chat.unreadPreviewImage')}…
-                        </div>
-                      )}
-                      {msg.message && (
-                        <div style={{ whiteSpace: 'pre-wrap', fontWeight: isMe ? 500 : 400 }}>
-                          {msg.message}
-                        </div>
-                      )}
-
-                      {/* Footer time & read checkmark */}
+                      {/* Footer time & read checkmark + actions */}
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'flex-end',
-                        gap: '4px',
-                        fontSize: '0.65rem',
-                        color: isMe ? 'rgba(7, 13, 30, 0.7)' : 'var(--text-dim)',
+                        gap: '5px',
+                        fontSize: '0.66rem',
+                        color: isMe ? 'rgba(7, 13, 30, 0.72)' : 'var(--text-dim)',
                         marginTop: '4px'
                       }}>
                         <span>{msg.sent_at ? msg.sent_at.slice(-5) : ''}</span>
-                        {isMe && (
-                          <span
-                            title={msg.status === 'read' ? t('chat.readStatus') : t('chat.sentStatus')}
-                            style={{ display: 'inline-flex', alignItems: 'center' }}
-                          >
-                            {msg.status === 'read' ? <CheckCheck size={12} /> : <Check size={12} />}
+
+                        {isMe && !msg.is_deleted && (
+                          isGroupChannel ? (
+                            <span
+                              title={t('chat.readByCount', { count: readByOthers })}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                            >
+                              <CheckCheck size={13} />
+                              {readByOthers > 0 ? t('chat.readByCount', { count: readByOthers }) : t('chat.sentStatus')}
+                            </span>
+                          ) : (
+                            <span
+                              title={msg.status === 'read' ? t('chat.readStatus') : t('chat.sentStatus')}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                            >
+                              {msg.status === 'read' ? <CheckCheck size={13} /> : <Check size={13} />}
+                              <span>{msg.status === 'read' ? t('chat.readByYou') : t('chat.sentStatus')}</span>
+                            </span>
+                          )
+                        )}
+
+                        {isMe && !msg.is_deleted && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                            {msg.message && (
+                              <button
+                                type="button"
+                                title={t('chat.editMessageTitle')}
+                                onClick={() => {
+                                  setEditingMessage(msg);
+                                  setEditingText(msg.message || '');
+                                }}
+                                style={{
+                                  background: 'rgba(0,0,0,0.12)',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  padding: '2px',
+                                  cursor: 'pointer',
+                                  color: 'inherit',
+                                  display: 'inline-flex'
+                                }}
+                              >
+                                <Pencil size={12} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              title={t('chat.deleteMessageTitle')}
+                              onClick={() => {
+                                if (window.confirm(t('chat.confirmDeleteMessage'))) {
+                                  StorageService.deleteMessage(msg.id);
+                                  onRefreshMessages();
+                                }
+                              }}
+                              style={{
+                                background: 'rgba(0,0,0,0.12)',
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '2px',
+                                cursor: 'pointer',
+                                color: 'inherit',
+                                display: 'inline-flex'
+                              }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
                           </span>
                         )}
                       </div>
@@ -1066,6 +1219,246 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       </div>
 
+      {/* ===== MODALE : MODIFIER UN MESSAGE ===== */}
+      {editingMessage && (
+        <div
+          onClick={() => { setEditingMessage(null); setEditingText(''); }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 96,
+            background: 'rgba(0, 0, 0, 0.78)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+          }}
+        >
+          <form
+            onSubmit={(event) => { event.preventDefault(); void handleEditMessage(); }}
+            onClick={(event) => event.stopPropagation()}
+            className="glass-card"
+            style={{ width: 'min(460px, 100%)', padding: '20px', borderRadius: '18px' }}
+          >
+            <h3 style={{ margin: '0 0 12px', fontSize: '1.02rem' }}>{t('chat.editMessageTitle')}</h3>
+            <textarea
+              autoFocus
+              value={editingText}
+              onChange={(event) => setEditingText(event.target.value)}
+              className="form-input"
+              rows={3}
+              maxLength={2000}
+              style={{ resize: 'vertical', minHeight: '90px' }}
+            />
+            <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
+              <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={!editingText.trim()}>
+                {t('chat.editMessageSave')}
+              </button>
+              <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setEditingMessage(null); setEditingText(''); }}>
+                {t('common.cancel')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ===== MODALE : NOUVEAU GROUPE MESSENGER ===== */}
+      {showCreateGroup && (
+        <div
+          onClick={() => setShowCreateGroup(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 96,
+            background: 'rgba(0, 0, 0, 0.78)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+          }}
+        >
+          <form
+            onSubmit={(event) => { event.preventDefault(); void handleCreateMessengerGroup(); }}
+            onClick={(event) => event.stopPropagation()}
+            className="glass-card"
+            style={{ width: 'min(520px, 100%)', maxHeight: '88dvh', overflowY: 'auto', padding: '20px', borderRadius: '18px' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.05rem' }}>{t('chat.newGroupTitle')}</h3>
+              <button type="button" className="btn btn-ghost" style={{ padding: '6px' }} onClick={() => setShowCreateGroup(false)} title={t('common.close')}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              {t('chat.newGroupName')}
+            </label>
+            <input
+              type="text"
+              value={newGroupName}
+              onChange={(event) => setNewGroupName(event.target.value)}
+              className="form-input"
+              placeholder={t('chat.newGroupNamePlaceholder')}
+              maxLength={80}
+              style={{ marginTop: '6px', marginBottom: '16px' }}
+            />
+
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '8px' }}>
+              {t('chat.newGroupMembers')}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '320px', overflowY: 'auto' }}>
+              {allMembres
+                .filter((m) => m.id !== currentUser.id && m.is_approved !== false && !m.is_blocked)
+                .map((m) => {
+                  const checked = newGroupMemberIds.includes(m.id);
+                  return (
+                    <label
+                      key={m.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: '8px 10px', borderRadius: '10px', cursor: 'pointer',
+                        background: checked ? 'rgba(245, 158, 11, 0.14)' : 'transparent',
+                        border: `1px solid ${checked ? 'var(--border-gold)' : 'var(--border-color)'}`
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setNewGroupMemberIds((ids) =>
+                          ids.includes(m.id) ? ids.filter((id) => id !== m.id) : [...ids, m.id]
+                        )}
+                      />
+                      <img
+                        src={m.photo_url || DEFAULT_AVATAR_IMAGE}
+                        alt=""
+                        style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                      <span style={{ fontSize: '0.85rem', fontWeight: checked ? 700 : 500 }}>
+                        {m.prenom} {m.nom}
+                      </span>
+                    </label>
+                  );
+                })}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+                disabled={!newGroupName.trim() || newGroupMemberIds.length === 0}
+              >
+                <Plus size={16} />
+                {t('chat.newGroupCreate')}
+              </button>
+              <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowCreateGroup(false)}>
+                {t('common.cancel')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ===== MODALE : GÉRER UN GROUPE MESSENGER ===== */}
+      {manageGroupId && (
+        <div
+          onClick={() => setManageGroupId(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 96,
+            background: 'rgba(0, 0, 0, 0.78)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+          }}
+        >
+          <form
+            onSubmit={(event) => { event.preventDefault(); void handleManageGroup(); }}
+            onClick={(event) => event.stopPropagation()}
+            className="glass-card"
+            style={{ width: 'min(520px, 100%)', maxHeight: '88dvh', overflowY: 'auto', padding: '20px', borderRadius: '18px' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.05rem' }}>{t('chat.manageGroupTitle')}</h3>
+              <button type="button" className="btn btn-ghost" style={{ padding: '6px' }} onClick={() => setManageGroupId(null)} title={t('common.close')}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              {t('chat.newGroupName')}
+            </label>
+            <input
+              type="text"
+              value={manageName}
+              onChange={(event) => setManageName(event.target.value)}
+              className="form-input"
+              maxLength={80}
+              style={{ marginTop: '6px', marginBottom: '16px' }}
+            />
+
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '8px' }}>
+              {t('chat.newGroupMembers')}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '300px', overflowY: 'auto' }}>
+              {allMembres
+                .filter((m) => m.is_approved !== false && !m.is_blocked)
+                .map((m) => {
+                  const checked = manageMemberIds.includes(m.id) || m.id === currentUser.id;
+                  const locked = m.id === currentUser.id;
+                  return (
+                    <label
+                      key={m.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: '8px 10px', borderRadius: '10px',
+                        cursor: locked ? 'default' : 'pointer',
+                        opacity: locked ? 0.75 : 1,
+                        background: checked ? 'rgba(245, 158, 11, 0.14)' : 'transparent',
+                        border: `1px solid ${checked ? 'var(--border-gold)' : 'var(--border-color)'}`
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={locked}
+                        onChange={() => setManageMemberIds((ids) =>
+                          ids.includes(m.id) ? ids.filter((id) => id !== m.id) : [...ids, m.id]
+                        )}
+                      />
+                      <img
+                        src={m.photo_url || DEFAULT_AVATAR_IMAGE}
+                        alt=""
+                        style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                      <span style={{ fontSize: '0.85rem', fontWeight: checked ? 700 : 500 }}>
+                        {m.prenom} {m.nom}
+                      </span>
+                    </label>
+                  );
+                })}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+              <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={!manageName.trim()}>
+                {t('chat.saveGroup')}
+              </button>
+              <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setManageGroupId(null)}>
+                {t('common.cancel')}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-danger"
+              style={{ width: '100%', marginTop: '10px', background: '#dc2626', color: '#fff' }}
+              onClick={() => {
+                if (!window.confirm(t('chat.confirmDeleteGroup'))) return;
+                StorageService.deleteMessengerGroupe(manageGroupId);
+                setManageGroupId(null);
+                const fallback = visibleGroupes.find((g) => g.id !== manageGroupId);
+                setActiveChannelType(fallback ? 'group' : 'direct');
+                setActiveChannelId(fallback?.id || directFallbackId);
+                if (fallback) setIsMobileConversation(true);
+                else setIsMobileConversation(false);
+                onRefreshGroupes();
+                onRefreshMessages();
+              }}
+            >
+              <Trash2 size={16} />
+              {t('chat.deleteGroup')}
+            </button>
+          </form>
+        </div>
+      )}
+
       {/* LIGHTBOX MODAL FOR FULL SCREEN IMAGE VIEW */}
       {lightboxImageUrl && (
         <div 
@@ -1101,16 +1494,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
               alignItems: 'center',
               gap: '10px'
             }}>
-              <a
-                href={lightboxImageUrl}
-                download="image_chat_groupe.jpg"
+              <button
+                type="button"
+                onClick={() => downloadMedia(lightboxImageUrl, 'image_chat_groupe.jpg')}
                 className="btn btn-ghost"
                 style={{ padding: '6px 12px', fontSize: '0.78rem', color: '#ffffff' }}
                 title={t('chat.downloadImageTitle')}
               >
                 <Download size={16} />
                 <span>{t('common.download')}</span>
-              </a>
+              </button>
 
               <button
                 type="button"
@@ -1140,14 +1533,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
       )}
 
       <style>{`
+        .chat-bubble {
+          max-width: min(78%, 640px);
+        }
         .chat-back-btn {
           display: none !important;
         }
         @media (max-width: 768px) {
           .chat-container-wrapper {
-            height: calc(100dvh - 150px) !important;
+            height: calc(100dvh - 128px) !important;
             min-height: 420px !important;
             padding: 10px 8px !important;
+          }
+          .chat-bubble {
+            max-width: 88% !important;
           }
           .chat-sidebar {
             width: 100% !important;

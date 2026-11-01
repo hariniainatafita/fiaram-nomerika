@@ -33,6 +33,7 @@ interface SidebarProps {
   isMobileOpen: boolean;
   onCloseMobile: () => void;
   unreadCount: number;
+  publicationUnreadCount: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -42,7 +43,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   allMembres,
   isMobileOpen,
   onCloseMobile,
-  unreadCount
+  unreadCount,
+  publicationUnreadCount
 }) => {
   const { t } = useLanguage();
   const isAdminUser = isAdmin(currentUser);
@@ -56,7 +58,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navItems = [
     { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, hidden: !hasGroupAccess },
-    { id: 'publications', label: t('nav.publications'), icon: Camera },
+    { id: 'publications', label: t('nav.publications'), icon: Camera, badge: publicationUnreadCount },
     { id: 'members', label: t('nav.members'), icon: UsersRound },
     { id: 'presence', label: t('nav.presence'), icon: QrCode, hidden: !hasGroupAccess },
     { id: 'cotisations', label: t('nav.cotisations'), icon: Wallet, hidden: !hasGroupAccess },
