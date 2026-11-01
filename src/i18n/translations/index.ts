@@ -10,6 +10,7 @@ import { resources } from './resources';
 import { chat } from './chat';
 import { groups } from './groups';
 import { events } from './events';
+import { quiz } from './quiz';
 import { publications } from './publications';
 import { profile } from './profile';
 import { admin } from './admin';
@@ -29,6 +30,7 @@ export const translations: TranslationDictionary = {
   ...chat,
   ...groups,
   ...events,
+  ...quiz,
   ...publications,
   ...profile,
   ...admin,

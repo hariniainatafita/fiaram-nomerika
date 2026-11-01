@@ -21,6 +21,7 @@ import {
   Move
 } from 'lucide-react';
 import { StorageService } from '../utils/storage';
+import { fetchStoryImageIfMissing } from '../utils/supabaseSync';
 import { compressImage } from '../utils/imageCompressor';
 import { uploadDataUrl, downloadMedia } from '../utils/media';
 import { canViewPublication, getVisibleGroupIds, isAdmin } from '../utils/permissions';
@@ -260,6 +261,9 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
 
   // État local pour l'affichage instantané des stories
   const [localStories, setLocalStories] = useState<Story[]>(propsStories);
+  // Pictures of stories are stored in their own synced rows, so they are
+  // resolved here and shared by the story cards and the viewer.
+  const [storyImages, setStoryImages] = useState<Record<string, string>>({});
   useEffect(() => {
     setLocalStories(prev => {
       const newLocalStories = prev.filter(
@@ -291,7 +295,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const [storyImage, setStoryImage] = useState<StagedImage | null>(null);
   const [storyCaption, setStoryCaption] = useState('');
   const [storyOverlays, setStoryOverlays] = useState<StoryOverlay[]>([]);
-  const [isCompressingStory, setIsCompressingStory] = useState(false);
+  const [, setIsCompressingStory] = useState(false);
   const [isPublishingStory, setIsPublishingStory] = useState(false);
   const [storyViewer, setStoryViewer] = useState<StoryViewerState | null>(null);
 
@@ -397,6 +401,38 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     [activeStories, currentUser.id]
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    const resolveImages = async () => {
+      const updates: Record<string, string> = {};
+      for (const story of localStories) {
+        const ref = story.image_ref;
+        if (!ref || story.image_url || storyImages[ref]) continue;
+        const local = StorageService.getStoryImage(ref);
+        if (local) {
+          updates[ref] = local;
+          continue;
+        }
+        const remote = await fetchStoryImageIfMissing(ref);
+        if (remote) updates[ref] = remote;
+      }
+      if (!cancelled && Object.keys(updates).length > 0) {
+        setStoryImages((prev) => ({ ...prev, ...updates }));
+      }
+    };
+    void resolveImages();
+    return () => {
+      cancelled = true;
+    };
+  }, [localStories, storyImages]);
+
+  const getStoryImageSrc = (story?: Story): string | undefined => {
+    if (!story) return undefined;
+    if (story.image_url) return story.image_url;
+    if (story.image_ref) return storyImages[story.image_ref];
+    return undefined;
+  };
+
   const orderedStoryGroups = useMemo<StoryGroup[]>(() => {
     const map = new Map<string, Story[]>();
     activeStories.forEach((story) => {
@@ -495,7 +531,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
 
     setIsCompressingStory(true);
     try {
-      const dataUrl = await compressImage(file, 1080, 1920, 0.82);
+      const dataUrl = await compressImage(file, 900, 1600, 0.7);
       setStoryImage({
         dataUrl,
         fileName: file.name,
@@ -588,35 +624,16 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       const imageUrl = (await uploadDataUrl(storyImage.dataUrl, 'image')) ?? storyImage.dataUrl;
       const captionData = JSON.stringify({ text: storyCaption, overlays: storyOverlays });
 
-      const now = new Date();
-      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-      // Création locale
-      const newStory: Story = {
-        id: `temp-${Date.now()}`,
-        auteur_id: currentUser.id,
-        image_url: imageUrl,
-        caption: captionData,
-        created_at: now.toISOString(),
-        expires_at: tomorrow.toISOString(),
-        seen_by: []
-      };
-
-      // Affichage instantané
-      setLocalStories(prev => [newStory, ...prev]);
-      setStoryViewer({ stories: [newStory], index: 0 });
-      closeStoryComposer();
-
-      // Sauvegarde Supabase
-      try {
-        const savedStory = await StorageService.addStory(currentUser.id, imageUrl, captionData);
-        if (savedStory && savedStory.id) {
-          setLocalStories(prev => prev.map(s => s.id === newStory.id ? { ...newStory, id: savedStory.id } : s));
-        }
-      } catch (dbError) {
-        console.error("Erreur Supabase story:", dbError);
+      // Une seule sauvegarde locale: le même objet est affiché tout de suite
+      // et envoyé aux autres membres via la synchronisation Supabase.
+      const savedStory = StorageService.addStory(currentUser.id, imageUrl, captionData);
+      if (savedStory.image_ref) {
+        setStoryImages((prev) => ({ ...prev, [savedStory.image_ref!]: imageUrl }));
       }
 
+      setLocalStories(prev => [savedStory, ...prev.filter(s => s.id !== savedStory.id)]);
+      setStoryViewer({ stories: [savedStory], index: 0 });
+      closeStoryComposer();
       onRefreshStories();
       storiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       showTemporaryMessage(t('publications.success.published'));
@@ -671,11 +688,12 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   useEffect(() => {
     if (!storyViewer) return;
     const next = storyViewer.stories[storyViewer.index + 1];
-    if (next?.image_url) {
+    const nextImage = next?.image_url || (next?.image_ref ? storyImages[next.image_ref] : undefined);
+    if (nextImage) {
       const image = new window.Image();
-      image.src = next.image_url;
+      image.src = nextImage;
     }
-  }, [storyViewer]);
+  }, [storyViewer, storyImages]);
 
   useEffect(() => {
     if (!storyViewer) return;
@@ -790,7 +808,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
         const parsed = JSON.parse(story.caption);
         return { text: parsed.text || '', overlays: parsed.overlays || [] };
       }
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
     return { text: story.caption || '', overlays: [] };
   };
 
@@ -829,7 +847,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
             <StoryCard
               membre={currentUser}
               seen={false}
-              imageUrl={ownStories[ownStories.length - 1]?.image_url}
+              imageUrl={getStoryImageSrc(ownStories[ownStories.length - 1])}
               label={t('publications.stories.yourStory')}
               onClick={() => openStoryGroup(ownStories)}
             />
@@ -843,7 +861,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                 key={group.auteurId}
                 membre={author}
                 seen={seen}
-                imageUrl={group.stories[group.stories.length - 1]?.image_url}
+                imageUrl={getStoryImageSrc(group.stories[group.stories.length - 1])}
                 label={author ? author.prenom : t('common.member')}
                 onClick={() => openStoryGroup(group.stories)}
               />
@@ -1742,7 +1760,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
               </div>
 
               <img
-                src={currentStory.image_url || ''}
+                src={getStoryImageSrc(currentStory) || ''}
                 alt={t('publications.image.alt')}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000', display: 'block' }}
               />

@@ -14,7 +14,10 @@ export const STORAGE_KEYS = {
   EVENEMENTS: 'fiaram_evenements_v2',
   PUBLICATIONS: 'fiaram_publications_v1',
   PUBLICATIONS_SEEN: 'fiaram_publications_seen_v1',
+  STORIES_DELETED: 'fiaram_stories_deleted_v1',
   STORIES: 'fiaram_stories_v1',
+  QUIZZES: 'fiaram_quizzes_v1',
+  QUIZ_RESULTS: 'fiaram_quiz_results_v1',
   CATEGORIES_RESSOURCES: 'fiaram_ressource_categories_v1',
   ADMIN_SETTINGS: 'fiaram_admin_settings_v2',
   GROUP_READS: 'fiaram_group_reads_v1'
@@ -36,7 +39,10 @@ export const SYNCED_KEYS: string[] = [
   STORAGE_KEYS.PRESENCE_ONLINE,
   STORAGE_KEYS.EVENEMENTS,
   STORAGE_KEYS.PUBLICATIONS,
+  STORAGE_KEYS.STORIES_DELETED,
   STORAGE_KEYS.STORIES,
+  STORAGE_KEYS.QUIZZES,
+  STORAGE_KEYS.QUIZ_RESULTS,
   STORAGE_KEYS.CATEGORIES_RESSOURCES,
   STORAGE_KEYS.ADMIN_SETTINGS,
   STORAGE_KEYS.GROUP_READS
@@ -50,5 +56,16 @@ export const MESSAGE_IMAGE_PREFIX = 'fiaram_msgimg_';
 export const messageImageKey = (messageId: string): string =>
   `${MESSAGE_IMAGE_PREFIX}${messageId}`;
 
+// Story pictures are stored the same way: the STORIES collection only keeps
+// light metadata (id, author, dates) while each picture has its own synced
+// row. This keeps stories visible for every member even when the Supabase
+// media bucket is unavailable and the picture is kept as a base64 data URL.
+export const STORY_IMAGE_PREFIX = 'fiaram_storyimg_';
+
+export const storyImageKey = (storyId: string): string =>
+  `${STORY_IMAGE_PREFIX}${storyId}`;
+
 export const isSyncedKey = (key: string): boolean =>
-  SYNCED_KEYS.includes(key) || key.startsWith(MESSAGE_IMAGE_PREFIX);
+  SYNCED_KEYS.includes(key) ||
+  key.startsWith(MESSAGE_IMAGE_PREFIX) ||
+  key.startsWith(STORY_IMAGE_PREFIX);

@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { STORAGE_KEYS, SYNCED_KEYS, isSyncedKey, messageImageKey } from './storageKeys';
+import { STORAGE_KEYS, SYNCED_KEYS, isSyncedKey, messageImageKey, storyImageKey } from './storageKeys';
 
 const TABLE = 'app_state';
 const pushTimers: Record<string, number> = {};
@@ -26,13 +26,26 @@ function getLocalDeletedMemberIds(): AnyRecord {
   }
 }
 
+// Tombstoned (deleted or expired) story ids: { storyId: timestamp }
+function getLocalDeletedStoryIds(): AnyRecord {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.STORIES_DELETED);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return isPlainObject(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 // Fields used to restore chronological order after a merge, newest first.
 const SORT_FIELDS_DESC: Record<string, string> = {
   [STORAGE_KEYS.PRESENCES]: 'date_pointage',
   [STORAGE_KEYS.FINANCES]: 'date_operation',
   [STORAGE_KEYS.COTISATIONS]: 'date_paiement',
   [STORAGE_KEYS.PUBLICATIONS]: 'created_at',
-  [STORAGE_KEYS.STORIES]: 'created_at'
+  [STORAGE_KEYS.STORIES]: 'created_at',
+  [STORAGE_KEYS.QUIZZES]: 'created_at',
+  [STORAGE_KEYS.QUIZ_RESULTS]: 'completed_at'
 };
 
 // Chat messages must stay in strict chronological order (oldest first).
@@ -64,6 +77,16 @@ function mergeKeyValues(key: string, local: unknown, remote: unknown): unknown {
         (item) => { const id = itemId(item); return id === null || !(id in tombstones); }
       );
       remoteList = remote.filter(
+        (item) => { const id = itemId(item); return id === null || !(id in tombstones); }
+      );
+    }
+
+    if (key === STORAGE_KEYS.STORIES) {
+      const tombstones = getLocalDeletedStoryIds();
+      localList = localList.filter(
+        (item) => { const id = itemId(item); return id === null || !(id in tombstones); }
+      );
+      remoteList = remoteList.filter(
         (item) => { const id = itemId(item); return id === null || !(id in tombstones); }
       );
     }
@@ -113,6 +136,64 @@ function mergeKeyValues(key: string, local: unknown, remote: unknown): unknown {
   if (remote === undefined) return local;
   if (Array.isArray(local) || isPlainObject(local)) return local;
   return remote;
+}
+
+/**
+ * Merge used before pushing a local change to Supabase. Unlike the hydration
+ * merge (where the remote copy wins), the local copy wins on shared ids here:
+ * it is the change being pushed. Remote-only items are preserved so a device
+ * holding an older snapshot can never wipe stories/publications created on
+ * another device. This is what keeps a freshly published story visible for
+ * every member instead of being erased by the next stale push.
+ */
+function mergeKeyValuesForPush(key: string, local: unknown, remote: unknown): unknown {
+  if (Array.isArray(local) && Array.isArray(remote)) {
+    const tombstones = key === STORAGE_KEYS.MEMBRES
+      ? getLocalDeletedMemberIds()
+      : key === STORAGE_KEYS.STORIES
+        ? getLocalDeletedStoryIds()
+        : {};
+    const keep = (item: unknown): boolean => {
+      const id = itemId(item);
+      return id === null || !(id in tombstones);
+    };
+
+    const merged: unknown[] = [];
+    const seen = new Set<string>();
+    const pushUnique = (item: unknown) => {
+      const id = itemId(item);
+      if (id === null) {
+        merged.push(item);
+        return;
+      }
+      if (!seen.has(id)) {
+        seen.add(id);
+        merged.push(item);
+      }
+    };
+
+    // Local first: the device that triggers the push owns the latest change.
+    local.filter(keep).forEach(pushUnique);
+    remote.filter(keep).forEach(pushUnique);
+
+    const sortField = SORT_FIELDS_DESC[key];
+    if (sortField) {
+      merged.sort((a, b) => {
+        const valueA = isPlainObject(a) && typeof a[sortField] === 'string' ? a[sortField] as string : '';
+        const valueB = isPlainObject(b) && typeof b[sortField] === 'string' ? b[sortField] as string : '';
+        if (valueA !== valueB) return valueA < valueB ? 1 : -1;
+        return String(itemId(b) ?? '').localeCompare(String(itemId(a) ?? ''));
+      });
+    }
+    if (key === STORAGE_KEYS.MESSAGES) return sortMessagesAsc(merged);
+    return merged;
+  }
+
+  if (isPlainObject(local) && isPlainObject(remote)) {
+    return { ...remote, ...local };
+  }
+
+  return local;
 }
 
 /**
@@ -223,6 +304,58 @@ export async function fetchMessageImageIfMissing(messageId: string): Promise<str
   }
 }
 
+const storyImageInflight = new Set<string>();
+
+/**
+ * Story pictures also live in their own row (`fiaram_storyimg_<storyId>`).
+ * Members that only received the light STORIES metadata fetch the picture on
+ * demand, which works even when the Realtime payload was too large.
+ */
+export async function fetchStoryImageIfMissing(storyId: string): Promise<string | undefined> {
+  if (!isSupabaseConfigured || !supabase) return undefined;
+  const key = storyImageKey(storyId);
+  const raw = localStorage.getItem(key);
+  if (raw !== null) {
+    try {
+      return JSON.parse(raw) as string;
+    } catch {
+      /* fall through to refetch */
+    }
+  }
+  if (storyImageInflight.has(storyId)) return undefined;
+  storyImageInflight.add(storyId);
+  try {
+    // The story metadata can arrive before its picture row (two debounced
+    // pushes). Retry a few times so a member never keeps an empty story.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select('value')
+        .eq('key', key)
+        .maybeSingle();
+      if (!error && data) {
+        const value = normalizeRemoteValue((data as { value?: unknown }).value);
+        if (typeof value === 'string' && value) {
+          try {
+            localStorage.setItem(key, JSON.stringify(value));
+          } catch (err) {
+            console.error(`[Supabase] cannot store "${key}":`, err);
+          }
+          return value;
+        }
+      }
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      }
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  } finally {
+    storyImageInflight.delete(storyId);
+  }
+}
+
 function writeMerged(key: string, remoteValue: unknown): void {
   const localValue = readLocalStorage(key);
   if (localValue === undefined) {
@@ -259,13 +392,40 @@ async function upsertKey(key: string, value: unknown): Promise<void> {
   }
 }
 
-async function pushKeyNow(key: string): Promise<void> {
-  const raw = localStorage.getItem(key);
-  if (raw === null) return;
+async function pushKeyNow(key: string, fallbackValue?: unknown): Promise<void> {
+  if (!supabase) return;
+  const initial = readLocalStorage(key);
+  if (initial === undefined && fallbackValue === undefined) return;
+
   try {
-    await upsertKey(key, normalizeRemoteValue(JSON.parse(raw)));
+    // Read the current remote row first and merge, so items added by another
+    // device (stories, posts, messages...) are never overwritten by a stale
+    // local snapshot. Local values win on shared ids because they carry the
+    // change being pushed.
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('value')
+      .eq('key', key)
+      .maybeSingle();
+
+    // The local collection may have changed while the remote row was being
+    // fetched (a second story published right after the first one): always
+    // push the freshest local snapshot.
+    const current = readLocalStorage(key);
+    const localValue = current === undefined ? fallbackValue : current;
+    if (localValue === undefined) return;
+
+    if (error || !data) {
+      await upsertKey(key, localValue);
+      return;
+    }
+    const remoteValue = normalizeRemoteValue((data as { value?: unknown }).value);
+    const merged = mergeKeyValuesForPush(key, localValue, remoteValue);
+    await upsertKey(key, merged);
   } catch {
-    /* ignore malformed local value */
+    const current = readLocalStorage(key);
+    const localValue = current === undefined ? fallbackValue : current;
+    if (localValue !== undefined) await upsertKey(key, localValue);
   }
 }
 
@@ -309,7 +469,7 @@ export function pushKey(key: string, value: unknown): void {
   if (!isSyncedKey(key)) return;
   if (pushTimers[key]) window.clearTimeout(pushTimers[key]);
   pushTimers[key] = window.setTimeout(() => {
-    void upsertKey(key, value);
+    void pushKeyNow(key, value);
   }, 400);
 }
 

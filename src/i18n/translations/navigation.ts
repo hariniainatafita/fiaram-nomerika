@@ -10,6 +10,7 @@ export const navigation: TranslationDictionary = {
   'nav.chat': { mg: 'Hafatra & Resaka', fr: 'Messages & Discussions', en: 'Messages & Discussions' },
   'nav.groups': { mg: 'Vondrona & Ekipa', fr: 'Groupes & Équipes', en: 'Groups & Teams' },
   'nav.events': { mg: 'Hetsika & Tetikasa', fr: 'Événements & Projets', en: 'Events & Projects' },
+  'nav.quiz': { mg: 'Lalao QCM', fr: 'Jeu QCM', en: 'Quiz game' },
   'nav.members': { mg: 'Ireo mpikambana', fr: 'Répertoire des membres', en: 'Members directory' },
   'nav.profile': { mg: 'Mombamomba ahy', fr: 'Mon profil', en: 'My profile' },
   'nav.admin': { mg: 'Fandrindrana & Sceptre', fr: 'Administration & Sceptre', en: 'Administration & Sceptre' },
@@ -23,6 +24,7 @@ export const navigation: TranslationDictionary = {
   'nav.short.resources': { mg: 'Loharano', fr: 'Ressources', en: 'Resources' },
   'nav.short.chat': { mg: 'Hafatra', fr: 'Messages', en: 'Chat' },
   'nav.short.members': { mg: 'Mpikambana', fr: 'Membres', en: 'Members' },
+  'nav.short.quiz': { mg: 'QCM', fr: 'QCM', en: 'Quiz' },
   'nav.menu': { mg: 'Sokafy ny menio', fr: 'Ouvrir le menu', en: 'Open menu' },
   'nav.closeMenu': { mg: 'Hidio ny menio', fr: 'Fermer le menu', en: 'Close menu' },
   'nav.active': { mg: 'Sehatra mavitrika', fr: 'Plateforme active', en: 'Platform online' },
@@ -44,9 +46,9 @@ export const navigation: TranslationDictionary = {
   },
   'nav.search': { mg: 'Hikaroka', fr: 'Rechercher', en: 'Search' },
   'nav.searchPlaceholder': {
-    mg: 'Hikaroka mpikambana, vondrona, hetsika, lahatsoratra, hira...',
-    fr: 'Rechercher un membre, groupe, événement, publication, chanson...',
-    en: 'Search a member, group, event, post, song...'
+    mg: 'Hikaroka mpikambana, vondrona, hetsika, lahatsoratra, hira, QCM...',
+    fr: 'Rechercher un membre, groupe, événement, publication, chanson, QCM...',
+    en: 'Search a member, group, event, post, song, quiz...'
   },
   'nav.searchEmpty': {
     mg: 'Tsy misy valiny mifanaraka amin’ny fikarohana.',

@@ -151,6 +151,16 @@ export const dashboard: TranslationDictionary = {
     fr: 'Photos, likes & commentaires',
     en: 'Photos, likes & comments'
   },
+  'dashboard.shortcuts.quizTitle': {
+    mg: 'Lalao QCM',
+    fr: 'Jeu QCM',
+    en: 'Quiz game'
+  },
+  'dashboard.shortcuts.quizSubtitle': {
+    mg: 'Valio ny fanontaniana & miakara amin’ny laharana',
+    fr: 'Répondez aux questions & grimpez au classement',
+    en: 'Answer questions & climb the ranking'
+  },
   'dashboard.shortcuts.checkinTitle': {
     mg: 'Fanoratana QR',
     fr: 'Pointage QR',

@@ -15,7 +15,8 @@ import {
   ShieldAlert,
   Users,
   Camera,
-  BadgeCheck
+  BadgeCheck,
+  BrainCircuit
 } from 'lucide-react';
 import { useLanguage } from '../i18n';
 import { canViewEvenement, getManagedGroupIds, getMemberGroup, isAdmin } from '../utils/permissions';
@@ -387,6 +388,36 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div>
               <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('dashboard.shortcuts.publicationsTitle')}</div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('dashboard.shortcuts.publicationsSubtitle')}</div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => onSelectView('quiz')}
+            className="btn glass-card"
+            style={{
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '10px',
+              textAlign: 'center'
+            }}
+          >
+            <div style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '12px',
+              background: 'rgba(139, 92, 246, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#a78bfa'
+            }}>
+              <BrainCircuit size={24} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('dashboard.shortcuts.quizTitle')}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('dashboard.shortcuts.quizSubtitle')}</div>
             </div>
           </button>
 

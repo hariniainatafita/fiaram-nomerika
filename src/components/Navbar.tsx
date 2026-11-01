@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Chanson, Evenement, Groupe, Membre, Publication, Role } from '../types';
+import { Chanson, Evenement, Groupe, Membre, Publication, Quiz, Role } from '../types';
 import {
   Sun,
   Moon,
@@ -36,6 +36,7 @@ interface NavbarProps {
   allEvenements: Evenement[];
   allPublications: Publication[];
   allChansons: Chanson[];
+  allQuizzes: Quiz[];
   onLogout: () => void;
 }
 
@@ -64,6 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   allEvenements,
   allPublications,
   allChansons,
+  allQuizzes,
   onLogout
 }) => {
   const { t } = useLanguage();
@@ -148,8 +150,21 @@ export const Navbar: React.FC<NavbarProps> = ({
         sub: song.auteur || t('nav.resources')
       }));
 
+    allQuizzes
+      .filter((quiz) =>
+        quiz.is_published &&
+        (quiz.titre.toLowerCase().includes(term) || quiz.categorie.toLowerCase().includes(term))
+      )
+      .slice(0, 3)
+      .forEach((quiz) => push({
+        id: `quiz-${quiz.id}`,
+        view: 'quiz',
+        label: quiz.titre,
+        sub: quiz.categorie
+      }));
+
     return results.slice(0, 10);
-  }, [query, currentUser, allMembres, allGroupes, allEvenements, allPublications, allChansons, visibleGroupIds, t]);
+  }, [query, currentUser, allMembres, allGroupes, allEvenements, allPublications, allChansons, allQuizzes, visibleGroupIds, t]);
 
   const closeSearch = () => {
     setSearchOpen(false);

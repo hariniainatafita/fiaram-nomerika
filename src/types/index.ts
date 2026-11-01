@@ -232,9 +232,51 @@ export interface Story {
   auteur_id: string;
   caption?: string;
   image_url?: string;
+  // Story pictures saved as base64 live in their own synced row (see
+  // storyImageKey) so the STORIES collection always stays small.
+  image_ref?: string;
   created_at: string;
   expires_at: string;
   seen_by: string[];
+}
+
+// ==================== QCM (JEU-CONCOURS) ====================
+export type QuizDifficulty = 'facile' | 'moyen' | 'difficile';
+
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correct_index: number;
+}
+
+export interface Quiz {
+  id: string;
+  titre: string;
+  categorie: string;
+  difficulte: QuizDifficulty;
+  duree_secondes: number;
+  questions: QuizQuestion[];
+  createur_id: string;
+  is_published: boolean;
+  created_at: string;
+}
+
+export interface QuizAnswer {
+  question_id: string;
+  selected_index: number | null;
+  is_correct: boolean;
+}
+
+export interface QuizResult {
+  id: string;
+  quiz_id: string;
+  membre_id: string;
+  score: number;
+  total: number;
+  duree_utilisee: number;
+  answers: QuizAnswer[];
+  completed_at: string;
 }
 
 // ==================== EVENEMENT ====================

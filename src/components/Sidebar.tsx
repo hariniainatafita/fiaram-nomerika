@@ -16,7 +16,8 @@ import {
   Camera,
   X,
   Settings,
-  UsersRound
+  UsersRound,
+  BrainCircuit
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
@@ -59,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = [
     { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, hidden: !hasGroupAccess },
     { id: 'publications', label: t('nav.publications'), icon: Camera, badge: publicationUnreadCount },
+    { id: 'quiz', label: t('nav.quiz'), icon: BrainCircuit },
     { id: 'members', label: t('nav.members'), icon: UsersRound },
     { id: 'presence', label: t('nav.presence'), icon: QrCode, hidden: !hasGroupAccess },
     { id: 'cotisations', label: t('nav.cotisations'), icon: Wallet, hidden: !hasGroupAccess },

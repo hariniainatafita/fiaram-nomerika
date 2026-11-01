@@ -1,4 +1,4 @@
-import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, AdminSettings, RegistrationQuestion, BadgeStyle, BadgeColors, Publication, PublicationComment, CategorieChanson, Story } from '../types';
+import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, AdminSettings, RegistrationQuestion, BadgeStyle, BadgeColors, Publication, PublicationComment, CategorieChanson, Story, Quiz, QuizResult } from '../types';
 import {
   INITIAL_MEMBRES,
   INITIAL_GROUPES,
@@ -10,7 +10,7 @@ import {
   INITIAL_EVENEMENTS,
   INITIAL_PUBLICATIONS
 } from '../data/mockData';
-import { STORAGE_KEYS, MESSAGE_IMAGE_PREFIX, messageImageKey } from './storageKeys';
+import { STORAGE_KEYS, MESSAGE_IMAGE_PREFIX, messageImageKey, STORY_IMAGE_PREFIX, storyImageKey } from './storageKeys';
 import { pushKey, deleteKey } from './supabaseSync';
 
 const DEFAULT_RESSOURCE_CATEGORIES: CategorieChanson[] = [
@@ -111,6 +111,37 @@ function saveMessageImageRow(messageId: string, dataUrl: string): void {
   } catch (e) {
     console.error(`Error saving message image ${messageId}:`, e);
   }
+}
+
+function saveStoryImageRow(storyId: string, dataUrl: string): boolean {
+  try {
+    const key = storyImageKey(storyId);
+    localStorage.setItem(key, JSON.stringify(dataUrl));
+    pushKey(key, dataUrl);
+    return true;
+  } catch (e) {
+    console.error(`Error saving story image ${storyId}:`, e);
+    return false;
+  }
+}
+
+function getStoryTombstones(): Record<string, number> {
+  return getStoredItem<Record<string, number>>(STORAGE_KEYS.STORIES_DELETED, {});
+}
+
+function markStoriesDeleted(storyIds: string[]): void {
+  if (storyIds.length === 0) return;
+  const tombstones = getStoryTombstones();
+  const now = Date.now();
+  storyIds.forEach((id) => {
+    tombstones[id] = now;
+  });
+  // Stories live 24h: tombstones older than 48h can be safely forgotten.
+  const cutoff = now - 48 * 60 * 60 * 1000;
+  Object.keys(tombstones).forEach((id) => {
+    if (tombstones[id] < cutoff) delete tombstones[id];
+  });
+  setStoredItem(STORAGE_KEYS.STORIES_DELETED, tombstones);
 }
 
 function removeStoredItem(key: string): void {
@@ -1084,35 +1115,65 @@ export const StorageService = {
   // ==================== STORIES (24h, style Facebook) ====================
   getStories(): Story[] {
     const now = Date.now();
-    return getStoredItem<Story[]>(STORAGE_KEYS.STORIES, [])
-      .filter((story) => {
-        const expires = story.expires_at ? new Date(story.expires_at).getTime() : NaN;
-        return !Number.isNaN(expires) && expires > now;
-      })
+    const tombstones = getStoryTombstones();
+    const all = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, [])
+      .filter((story) => !(story.id in tombstones));
+    const active = all.filter((story) => {
+      const expires = story.expires_at ? new Date(story.expires_at).getTime() : NaN;
+      return !Number.isNaN(expires) && expires > now;
+    });
+    const expired = all.filter((story) => !active.includes(story));
+    if (expired.length > 0) {
+      // Free the space taken by pictures of stories that just expired.
+      expired.forEach((story) => {
+        if (story.image_ref) removeStoredItem(storyImageKey(story.image_ref));
+      });
+      markStoriesDeleted(expired.map((story) => story.id));
+      setStoredItem(STORAGE_KEYS.STORIES, active);
+    }
+    return active
+      .slice()
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   },
   saveStories(stories: Story[]): void {
     setStoredItem(STORAGE_KEYS.STORIES, stories);
   },
+  getStoryImage(storyId: string): string | undefined {
+    return getStoredItem<string | undefined>(storyImageKey(storyId), undefined);
+  },
   addStory(auteur_id: string, image_url: string, caption?: string): Story {
     const list = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []);
     const now = new Date();
+    const storyId = 'story_' + now.getTime() + '_' + Math.random().toString(36).slice(2, 6);
     const story: Story = {
-      id: 'story_' + now.getTime() + '_' + Math.random().toString(36).slice(2, 6),
+      id: storyId,
       auteur_id,
       caption: caption?.trim() || undefined,
-      image_url,
       created_at: now.toISOString(),
       expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
       seen_by: []
     };
+
+    if (image_url.startsWith('data:')) {
+      // Keep the STORIES collection small enough for Supabase Realtime and
+      // for the localStorage quota: the picture gets its own synced row.
+      if (saveStoryImageRow(storyId, image_url)) {
+        story.image_ref = storyId;
+      }
+    } else {
+      story.image_url = image_url;
+    }
+
     list.unshift(story);
     this.saveStories(list);
     return story;
   },
   deleteStory(storyId: string): void {
-    const list = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []).filter((s) => s.id !== storyId);
-    this.saveStories(list);
+    const all = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []);
+    const story = all.find((s) => s.id === storyId);
+    if (story?.image_ref) removeStoredItem(storyImageKey(story.image_ref));
+    markStoriesDeleted([storyId]);
+    this.saveStories(all.filter((s) => s.id !== storyId));
   },
   markStorySeen(storyId: string, membreId: string): void {
     const list = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []);
@@ -1121,6 +1182,66 @@ export const StorageService = {
       story.seen_by = [...story.seen_by, membreId];
       this.saveStories(list);
     }
+  },
+
+  // ==================== QCM / JEU-CONCOURS ====================
+  getQuizzes(): Quiz[] {
+    return getStoredItem<Quiz[]>(STORAGE_KEYS.QUIZZES, [])
+      .slice()
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+  saveQuizzes(quizzes: Quiz[]): void {
+    setStoredItem(STORAGE_KEYS.QUIZZES, quizzes);
+  },
+  createQuiz(data: Omit<Quiz, 'id' | 'created_at'>): Quiz {
+    const list = getStoredItem<Quiz[]>(STORAGE_KEYS.QUIZZES, []);
+    const quiz: Quiz = {
+      ...data,
+      id: 'quiz_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      created_at: new Date().toISOString()
+    };
+    list.unshift(quiz);
+    this.saveQuizzes(list);
+    return quiz;
+  },
+  setQuizPublished(quizId: string, published: boolean): void {
+    const list = getStoredItem<Quiz[]>(STORAGE_KEYS.QUIZZES, []);
+    const quiz = list.find((q) => q.id === quizId);
+    if (quiz) {
+      quiz.is_published = published;
+      this.saveQuizzes(list);
+    }
+  },
+  deleteQuiz(quizId: string): void {
+    this.saveQuizzes(getStoredItem<Quiz[]>(STORAGE_KEYS.QUIZZES, []).filter((q) => q.id !== quizId));
+    this.saveQuizResults(
+      getStoredItem<QuizResult[]>(STORAGE_KEYS.QUIZ_RESULTS, []).filter((r) => r.quiz_id !== quizId)
+    );
+  },
+  getQuizResults(): QuizResult[] {
+    return getStoredItem<QuizResult[]>(STORAGE_KEYS.QUIZ_RESULTS, [])
+      .slice()
+      .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
+  },
+  saveQuizResults(results: QuizResult[]): void {
+    setStoredItem(STORAGE_KEYS.QUIZ_RESULTS, results);
+  },
+  getQuizResult(quizId: string, membreId: string): QuizResult | undefined {
+    return getStoredItem<QuizResult[]>(STORAGE_KEYS.QUIZ_RESULTS, [])
+      .find((r) => r.quiz_id === quizId && r.membre_id === membreId);
+  },
+  addQuizResult(data: Omit<QuizResult, 'id' | 'completed_at'>): QuizResult {
+    const list = getStoredItem<QuizResult[]>(STORAGE_KEYS.QUIZ_RESULTS, []);
+    const existing = list.find((r) => r.quiz_id === data.quiz_id && r.membre_id === data.membre_id);
+    if (existing) return existing;
+    const result: QuizResult = {
+      ...data,
+      id: 'qr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      completed_at: new Date().toISOString()
+    };
+    list.unshift(result);
+    this.saveQuizResults(list);
+    return result;
   },
 
   // ==================== PDF RECEIPT GENERATION ====================
@@ -1203,17 +1324,26 @@ export const StorageService = {
 
   // Full Reset to Clean Manual State
   resetToCleanState(): void {
-    // Chat images live in their own per-message rows: wipe them as well
+    // Chat and story pictures live in their own per-item rows: wipe them too
     const localKeys: string[] = [];
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
-      if (key && key.startsWith(MESSAGE_IMAGE_PREFIX)) localKeys.push(key);
+      if (key && (key.startsWith(MESSAGE_IMAGE_PREFIX) || key.startsWith(STORY_IMAGE_PREFIX))) {
+        localKeys.push(key);
+      }
     }
     const messageIds = getStoredItem<Message[]>(STORAGE_KEYS.MESSAGES, [])
       .map((msg) => `${msg.image_ref || ''}`)
       .filter((ref) => ref.startsWith('msg_') && ref.length > 4);
     for (const msgId of new Set([...messageIds])) {
       const key = messageImageKey(msgId);
+      if (!localKeys.includes(key)) localKeys.push(key);
+    }
+    const storyIds = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, [])
+      .map((story) => `${story.image_ref || ''}`)
+      .filter((ref) => ref.length > 0);
+    for (const storyId of new Set([...storyIds])) {
+      const key = storyImageKey(storyId);
       if (!localKeys.includes(key)) localKeys.push(key);
     }
     localKeys.forEach((key) => {
@@ -1232,7 +1362,10 @@ export const StorageService = {
       STORAGE_KEYS.MESSAGES,
       STORAGE_KEYS.EVENEMENTS,
       STORAGE_KEYS.PUBLICATIONS,
+      STORAGE_KEYS.STORIES_DELETED,
       STORAGE_KEYS.STORIES,
+      STORAGE_KEYS.QUIZZES,
+      STORAGE_KEYS.QUIZ_RESULTS,
       STORAGE_KEYS.CATEGORIES_RESSOURCES,
       STORAGE_KEYS.ADMIN_SETTINGS,
       STORAGE_KEYS.GROUP_READS

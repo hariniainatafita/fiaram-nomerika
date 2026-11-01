@@ -5,7 +5,7 @@ import { subscribeToSupabase, hydrateFromSupabase } from './utils/supabaseSync';
 import { usePresence } from './utils/presence';
 import { canAccessGroupData, canAccessView, canViewPublication } from './utils/permissions';
 import { STORAGE_KEYS } from './utils/storageKeys';
-import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication, Story } from './types';
+import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication, Story, Quiz, QuizResult } from './types';
 import {useLanguage} from './i18n';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
@@ -29,6 +29,7 @@ import { SongsView } from './views/SongsView';
 import { ChatView } from './views/ChatView';
 import { GroupsView } from './views/GroupsView';
 import { EventsView } from './views/EventsView';
+import { QuizView } from './views/QuizView';
 import { PublicationsView } from './views/PublicationsView';
 import { MembersView } from './views/MembersView';
 import { ProfileView } from './views/ProfileView';
@@ -78,6 +79,8 @@ export function App() {
   const [allEvenements, setAllEvenements] = useState<Evenement[]>(() => StorageService.getEvenements());
   const [allPublications, setAllPublications] = useState<Publication[]>(() => StorageService.getPublications());
 const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getStories());
+  const [allQuizzes, setAllQuizzes] = useState<Quiz[]>(() => StorageService.getQuizzes());
+  const [allQuizResults, setAllQuizResults] = useState<QuizResult[]>(() => StorageService.getQuizResults());
 
   // Live presence: only members with a recent heartbeat are shown online
   const presenceMap = usePresence(currentUser?.id);
@@ -190,6 +193,14 @@ const refreshStories = () => {
     setAllStories(StorageService.getStories());
   };
 
+  const refreshQuizzes = () => {
+    setAllQuizzes(StorageService.getQuizzes());
+  };
+
+  const refreshQuizResults = () => {
+    setAllQuizResults(StorageService.getQuizResults());
+  };
+
   // Live sync: when another device updates shared data, refresh every store.
   useEffect(() => {
     const refreshAll = () => {
@@ -203,6 +214,8 @@ const refreshStories = () => {
       setAllEvenements(StorageService.getEvenements());
       setAllPublications(StorageService.getPublications());
       setAllStories(StorageService.getStories());
+      setAllQuizzes(StorageService.getQuizzes());
+      setAllQuizResults(StorageService.getQuizResults());
       setCurrentUser((prev) => {
         if (!prev) return prev;
         return StorageService.getMembres().find((m) => m.id === prev.id) ?? null;
@@ -530,6 +543,7 @@ const refreshStories = () => {
           allEvenements={allEvenements}
           allPublications={allPublications}
           allChansons={allChansons}
+          allQuizzes={allQuizzes}
           onLogout={() => {
             setConfirmLogout(true);
           }}
@@ -647,6 +661,17 @@ const refreshStories = () => {
               allGroupes={allGroupes}
               evenements={allEvenements}
               onRefreshEvents={refreshEvenements}
+            />
+          )}
+
+          {allowedView === 'quiz' && (
+            <QuizView
+              currentUser={currentUser}
+              allMembres={allMembres}
+              quizzes={allQuizzes}
+              results={allQuizResults}
+              onRefreshQuizzes={refreshQuizzes}
+              onRefreshResults={refreshQuizResults}
             />
           )}
 

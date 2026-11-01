@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, QrCode, Wallet, Music, MessageSquare, Camera, UsersRound } from 'lucide-react';
+import { LayoutDashboard, QrCode, Wallet, Music, MessageSquare, Camera, UsersRound, BrainCircuit } from 'lucide-react';
 import { Membre } from '../types';
 import { canAccessGroupData } from '../utils/permissions';
 import { useLanguage } from '../i18n';
@@ -30,6 +30,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         ]
       : [{ id: 'songs', label: t('nav.short.resources'), icon: Music }]),
     { id: 'publications', label: t('nav.short.publications'), icon: Camera, badge: publicationUnreadCount },
+    { id: 'quiz', label: t('nav.short.quiz'), icon: BrainCircuit },
     { id: 'members', label: t('nav.short.members'), icon: UsersRound },
     { id: 'chat', label: t('nav.short.chat'), icon: MessageSquare, badge: unreadCount }
   ];

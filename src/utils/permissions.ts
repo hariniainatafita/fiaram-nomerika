@@ -64,6 +64,10 @@ export function canCreateEvenement(user?: Membre | null): boolean {
   return isAdmin(user) || isSuperChef(user) || user?.role === 'chef';
 }
 
+export function canCreateQuiz(user?: Membre | null): boolean {
+  return isAdmin(user) || isSuperChef(user);
+}
+
 export function canAccessAdminPanel(user?: Membre | null): boolean {
   if (!user) return false;
   if (isAdmin(user)) return true;
