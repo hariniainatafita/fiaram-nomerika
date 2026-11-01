@@ -57,7 +57,10 @@ export function App() {
   // Publications, comme sur Facebook quand de nouvelles publications arrivent.
   const [publicationSeenAt, setPublicationSeenAt] = useState<number>(() => {
     const stored = window.localStorage.getItem(STORAGE_KEYS.PUBLICATIONS_SEEN);
-    return stored ? Number(stored) || 0 : Date.now();
+    if (stored) return Number(stored) || 0;
+    const baseline = Date.now();
+    window.localStorage.setItem(STORAGE_KEYS.PUBLICATIONS_SEEN, String(baseline));
+    return baseline;
   });
 
   // Confirmation before logging out
