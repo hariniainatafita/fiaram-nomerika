@@ -1052,7 +1052,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
           <div className="glass-card" style={{ maxWidth: '520px', width: '100%', padding: '26px' }}>
             <h3 style={{ fontSize: '1.25rem', marginBottom: '16px' }}>{t('admin.addMember')}</h3>
 
-            <form onSubmit={handleAddMemberSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div onClick={() => setShowAddModal(false)} style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+              padding: '20px',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              background: 'rgba(0, 0, 0, 0.5)'
+            }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
@@ -1098,81 +1106,88 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    {t('admin.emailLabel')}
-                  </label>
-                  <input
-                    type="email"
-                    placeholder={t('admin.emailPlaceholder')}
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    className="form-input"
-                  />
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                      {t('admin.emailLabel')}
+                    </label>
+                    <input
+                      type="email"
+                      placeholder={t('admin.emailPlaceholder')}
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                      {t('admin.phoneLabel')}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={t('admin.phonePlaceholder')}
+                      value={newTel}
+                      onChange={(e) => setNewTel(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    {t('admin.phoneLabel')}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder={t('admin.phonePlaceholder')}
-                    value={newTel}
-                    onChange={(e) => setNewTel(e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-              </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                      {t('admin.groupVoiceLabel')}
+                    </label>
+                    <select
+                      value={newGroupeId}
+                      onChange={(e) => setNewGroupeId(e.target.value)}
+                      className="form-select"
+                    >
+                      {allGroupes.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.nom_groupe}
+                        </option>
+                      </select>
+                    </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    {t('admin.groupVoiceLabel')}
-                  </label>
-                  <select
-                    value={newGroupeId}
-                    onChange={(e) => setNewGroupeId(e.target.value)}
-                    className="form-select"
-                  >
-                    {allGroupes.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.nom_groupe}
-                      </option>
-                    ))}
-                  </select>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                        {t('admin.roleLabel')}
+                      </label>
+                      <select
+                        value={newRole}
+                        onChange={(e) => setNewRole(e.target.value as Role)}
+                        className="form-select"
+                      >
+                        <option value="membre">{t('common.role.member')}</option>
+                        <option value="chef">{t('common.role.chef')}</option>
+                        <option value="super_chef">{t('common.role.superChef')}</option>
+                        <option value="admin">{t('common.role.admin')}</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    {t('admin.roleLabel')}
-                  </label>
-                  <select
-                    value={newRole}
-                    onChange={(e) => setNewRole(e.target.value as Role)}
-                    className="form-select"
-                  >
-                    <option value="membre">{t('common.role.member')}</option>
-                    <option value="chef">{t('common.role.chef')}</option>
-                    <option value="super_chef">{t('common.role.superChef')}</option>
-                    <option value="admin">{t('common.role.admin')}</option>
-                  </select>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddModal(false);
+                      handleAddMemberSubmit();
+                    }}
+                    className="btn btn-primary"
+                    style={{ flex: 1, padding: '8px 12px' }}>
+                    {t('admin.addAndGenerateBadge')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="btn btn-ghost"
+                    style={{ padding: '6px' }}>
+                    <X size={18} /> {t('common.cancel')}
+                  </button>
                 </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                  {t('admin.addAndGenerateBadge')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="btn btn-ghost"
-                >
-                  {t('common.cancel')}
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
