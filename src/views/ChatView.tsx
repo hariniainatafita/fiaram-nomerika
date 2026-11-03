@@ -691,22 +691,22 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     marginBottom: '2px'
                   }}
                 >
-                  <div style={{ position: 'relative', flexShrink: 0 }}>
-                    <img
-                      src={m.photo_url || DEFAULT_AVATAR_IMAGE}
-                      alt={m.prenom}
-                      style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover' }}
-                    />
-                    <div style={{
-                      position: 'absolute',
-                      bottom: '0',
-                      right: '0',
-                      width: '9px',
-                      height: '9px',
-                      borderRadius: '50%',
-                      background: online ? '#10b981' : '#6b7280',
-                      border: '2px solid var(--bg-secondary)'
-                    }} title={online ? t('chat.onlineStatus') : t('chat.offlineStatus')} />
+<div style={{ position: 'relative', flexShrink: 0 }}>
+                      <img
+                        src={m.photo_url || DEFAULT_AVATAR_IMAGE}
+                        alt={m.prenom}
+                        style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #ffffff' }}
+                      />
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '0',
+                        right: '0',
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: online ? '#10b981' : '#6b7280',
+                        border: '2px solid var(--bg-secondary)'
+                      }} title={online ? t('chat.onlineStatus') : t('chat.offlineStatus')} />
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -894,18 +894,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       className="chat-bubble"
                       style={{
                         minWidth: '120px',
-                        padding: '11px 15px',
+                        padding: '10px 14px',
                         borderRadius: '16px',
                         borderBottomRightRadius: isMe ? '3px' : '16px',
                         borderBottomLeftRadius: !isMe ? '3px' : '16px',
                         background: isMe
-                          ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                          ? '#10b981'
                           : 'rgba(255, 255, 255, 0.08)',
-                        color: isMe ? '#070d1e' : 'var(--text-main)',
+                        color: isMe ? '#ffffff' : 'var(--text-main)',
                         fontSize: 'clamp(0.9rem, 2.5vw, 1rem)',
                         lineHeight: 1.5,
                         boxShadow: 'var(--shadow-sm)',
-                        wordBreak: 'break-word'
+                        wordBreak: 'break-word',
+                        maxWidth: '80%',
+                        marginBottom: '4px'
                       }}
                     >
                       {!isMe && (

@@ -79,7 +79,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [newNom, setNewNom] = useState('');
   const [newPrenom, setNewPrenom] = useState('');
   const [newUsername, setNewUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('123456');
   const [newEmail, setNewEmail] = useState('');
   const [newTel, setNewTel] = useState('');
   const [newRole, setNewRole] = useState<Role>('membre');
@@ -238,7 +237,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
       nom: newNom.toUpperCase().trim(),
       prenom: newPrenom.trim(),
       username: newUsername.toLowerCase().trim() || undefined,
-      password: newPassword || '123456',
       email: newEmail.trim().toLowerCase(),
       telephone: newTel.trim() || undefined,
       role: newRole,
@@ -258,7 +256,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
     setNewNom('');
     setNewPrenom('');
     setNewUsername('');
-    setNewPassword('123456');
     setNewEmail('');
     setNewTel('');
 
@@ -1100,22 +1097,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   />
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    {t('admin.passwordLabel')}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder={t('admin.passwordPlaceholder')}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
                     {t('admin.emailLabel')}

@@ -12,6 +12,8 @@ import {
 } from '../data/mockData';
 import { STORAGE_KEYS, MESSAGE_IMAGE_PREFIX, messageImageKey, STORY_IMAGE_PREFIX, storyImageKey } from './storageKeys';
 import { pushKey, deleteKey } from './supabaseSync';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { hashPassword } from '../utils/crypto';
 
 const DEFAULT_RESSOURCE_CATEGORIES: CategorieChanson[] = [
   { id: 'cat_doc', nom: 'Documents' },
@@ -20,6 +22,18 @@ const DEFAULT_RESSOURCE_CATEGORIES: CategorieChanson[] = [
   { id: 'cat_annonce', nom: 'Annonces' },
   { id: 'cat_autre', nom: 'Autres' }
 ];
+
+// ClÃ© dÃ©diÃ©e au stockage des hachages SHA-256 des mots de passe.
+// Jamais stockÃ© en clair, jamais envoyÃ© Ã Supabase (key/value miroir local uniquement).
+const PASSWORD_HASHES_KEY = 'fiaram_password_hashes_v1';
+
+function getPasswordHashes(): Record<string, string> {
+  return getStoredItem<Record<string, string>>(PASSWORD_HASHES_KEY, {});
+}
+
+function setPasswordHashes(hashes: Record<string, string>): void {
+  setStoredItem(PASSWORD_HASHES_KEY, hashes);
+}
 
 const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   chorale_nom: 'Groupe',
@@ -201,7 +215,68 @@ function migrateLegacyDemoData(): void {
   }
 }
 
-migrateLegacyDemoData();
+function ensureInitData(): void {
+  // Ensure default data exists in localStorage for offline first experience
+  // This runs once on app startup to guarantee navbar/sidebar have data
+  try {
+    const keys = [
+      STORAGE_KEYS.MEMBRES,
+      STORAGE_KEYS.GROUPES,
+      STORAGE_KEYS.ADMIN_SETTINGS,
+    ];
+    let changed = false;
+    for (const key of keys) {
+      const exists = localStorage.getItem(key);
+      if (!exists) {
+        // Store default data based on key type
+        if (key === STORAGE_KEYS.MEMBRES) {
+          setStoredItem(STORAGE_KEYS.MEMBRES, INITIAL_MEMBRES);
+          changed = true;
+        } else if (key === STORAGE_KEYS.GROUPES) {
+          setStoredItem(STORAGE_KEYS.GROUPES, INITIAL_GROUPES);
+          changed = true;
+        } else if (key === STORAGE_KEYS.ADMIN_SETTINGS) {
+          setStoredItem(STORAGE_KEYS.ADMIN_SETTINGS, JSON.stringify(DEFAULT_ADMIN_SETTINGS));
+          changed = true;
+        }
+      }
+    }
+    if (changed) console.log('Initial data ensured in localStorage');
+  } catch (e) {
+    console.error('Failed to ensure initial data:', e);
+  }
+}
+
+ensureInitData();
+
+/**
+ * Seme les hachages SHA-256 des mots de passe par dÃ©faut pour les comptes
+ * dÃ©mo existants (admin / tafita, ancien mot de passe 'admin') afin qu'ils
+ * puissent toujours se connecter aprÃ©s la suppression du champ en clair.
+ * Ne jamais Ã©craser un hachage dÃ©jÃ dÃ©fini par l'utilisateur.
+ */
+async function ensureDemoPasswordHashes(): Promise<void> {
+  try {
+    const membres = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
+    const targetCodes = new Set(['GRP-ADM-001', 'GRP-MBR-007']);
+    const toHash = membres.filter((m) => targetCodes.has(m.code_unique));
+    if (toHash.length === 0) return;
+
+    const hashes = getPasswordHashes();
+    let changed = false;
+    const defaultHash = await hashPassword('admin');
+    for (const m of toHash) {
+      if (!hashes[m.id]) {
+        hashes[m.id] = defaultHash;
+        changed = true;
+      }
+    }
+    if (changed) setPasswordHashes(hashes);
+  } catch {
+    // Ignore les Ã©checs de semis : l'utilisateur pourra rÃ©initialiser son
+    // mot de passe via l'Ã©cran de profil.
+  }
+}
 
 function sanitizePhotoUrl(url?: string): string | undefined {
   if (!url) return undefined;
@@ -264,7 +339,7 @@ export const StorageService = {
     return found || null;
   },
 
-  login(identifier: string, password: string): { success: boolean; message: string; user?: Membre } {
+  async login(identifier: string, password: string): Promise<{ success: boolean; message: string; user?: Membre }> {
     const membres = this.getMembres();
     const term = identifier.trim().toLowerCase();
 
@@ -283,10 +358,37 @@ export const StorageService = {
       return { success: false, message: "Tsy misy kaonty mifandraika amin'io mailaka na laharana findraman-telefaona io." };
     }
 
-    // Check password (default fallback to 'admin' for master or exact match).
-    // Among the accounts sharing the identifier only the one whose password
-    // matches is used, so duplicated emails/phones stay separate accounts.
-    const user = matches.find((m) => password === (m.password || 'admin'));
+    // 1) Supabase Auth (primary, when configured).
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const emailCandidates = matches
+          .map((m) => m.email)
+          .filter(Boolean);
+        const email = emailCandidates[0] || term;
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        if (!error && data.user) {
+          const user = matches.find((m) => m.id === data.user.id) || matches[0];
+          if (user.is_blocked) {
+            return { success: false, message: "Voasakana (bloqué) ity kaonty ity. Mifandraisa amin'ny Mpandrindra." };
+          }
+          if (!user.is_active) {
+            return { success: false, message: "Matoantoka (désactivé) ity kaonty ity. Mifandraisa amin'ny Mpandrindra." };
+          }
+          localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.id);
+          return { success: true, message: `Tongasoa, ${user.prenom}!`, user };
+        }
+      } catch {
+        // Fall through to local hash verification below.
+      }
+    }
+
+    // 2) Local fallback: SHA-256 hash comparison (never plaintext).
+    const hash = await hashPassword(password);
+    const hashes = getPasswordHashes();
+    const user = matches.find((m) => hashes[m.id] === hash);
 
     if (!user) {
       return { success: false, message: "Diso ny tenimiafina nampidirinao." };
@@ -306,7 +408,7 @@ export const StorageService = {
     return { success: true, message: `Tongasoa, ${user.prenom}!`, user };
   },
 
-  register(data: {
+  async register(data: {
     nom: string;
     prenom: string;
     email?: string;
@@ -315,7 +417,7 @@ export const StorageService = {
     username?: string;
     groupe_id?: string;
     registration_answers?: { question: string; answer: string }[];
-  }): { success: boolean; message: string; user?: Membre } {
+  }): Promise<{ success: boolean; message: string; user?: Membre }> {
     const list = this.getMembres();
 
     const email = data.email?.toLowerCase().trim() || '';
@@ -343,7 +445,6 @@ export const StorageService = {
       nom: data.nom.toUpperCase().trim(),
       prenom: data.prenom.trim(),
       email,
-      password: data.password,
       telephone: phone || undefined,
       groupe_id: data.groupe_id,
       role: 'membre',
@@ -365,6 +466,28 @@ export const StorageService = {
     list.push(newMembre);
     this.saveMembres(list);
 
+    // Store the SHA-256 hash (never plaintext) keyed by member id.
+    try {
+      const hash = await hashPassword(data.password);
+      const hashes = getPasswordHashes();
+      hashes[newMembre.id] = hash;
+      setPasswordHashes(hashes);
+    } catch (e) {
+      console.error('Erreur hachage mot de passe:', e);
+    }
+
+    // Supabase Auth sign-up (primary authentication provider).
+    if (isSupabaseConfigured && supabase && email) {
+      try {
+        await supabase.auth.signUp({
+          email,
+          password: data.password
+        });
+      } catch (e) {
+        console.warn('Supabase sign-up non critique (auth locale utilisÃ©e):', e);
+      }
+    }
+
     // No approval probation: the account is usable immediately.
 
     return { 
@@ -376,6 +499,9 @@ export const StorageService = {
 
   logout(): void {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    if (isSupabaseConfigured && supabase) {
+      void supabase.auth.signOut();
+    }
   },
 
   setCurrentUser(id: string): Membre | null {
@@ -394,7 +520,10 @@ export const StorageService = {
     const list = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, INITIAL_MEMBRES);
     return list
       .filter((m) => !(m.id in deleted))
-      .map((m, index) => ({
+      // Supprime tout champ `password` rÃ©siduel en localStorage (nettoyage
+      // rÃ©tro-compatible : aucun membre n'est effacÃ©, seul le mot de passe
+      // en clair est retirÃ© des donnÃ©es chargÃ©es en mÃ©moire).
+      .map(({ password: _pw, ...m }, index) => ({
       ...m,
       photo_url: sanitizePhotoUrl(m.photo_url),
       is_approved: m.is_approved !== undefined ? m.is_approved : true, // Existing members are approved
@@ -411,14 +540,16 @@ export const StorageService = {
     const list = this.getMembres();
     const index = list.findIndex((m) => m.id === updated.id);
     if (index !== -1) {
-      list[index] = updated;
+      const { password: _pw, ...clean } = updated;
+      list[index] = clean as Membre;
       this.saveMembres(list);
     }
   },
   addMembre(nouveau: Omit<Membre, 'id' | 'created_at'>): Membre {
     const list = this.getMembres();
+    const { password: _pw, ...clean } = nouveau as Membre & { password?: string };
     const newMembre: Membre = {
-      ...nouveau,
+      ...clean,
       id: 'm_' + Date.now(),
       created_at: new Date().toISOString().split('T')[0]
     };
@@ -570,11 +701,11 @@ export const StorageService = {
     this.saveMembres(membres);
   },
   setMembreGroupe(membreId: string, groupeId?: string): void {
-    const membres = this.getMembres();
-    const index = membres.findIndex((m) => m.id === membreId);
+    const raw = this.getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
+    const index = raw.findIndex((m) => m.id === membreId);
     if (index !== -1) {
-      membres[index].groupe_id = groupeId;
-      this.saveMembres(membres);
+      raw[index].groupe_id = groupeId;
+      this.setStoredItem(STORAGE_KEYS.MEMBRES, raw);
     }
   },
 

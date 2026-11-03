@@ -49,11 +49,11 @@ export const LoginView: React.FC<LoginViewProps> = ({
   // Developer credit popup (collapsed behind a small avatar icon)
   const [devCreditOpen, setDevCreditOpen] = useState(false);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
-    const res = StorageService.login(loginIdentifier, loginPassword);
+    const res = await StorageService.login(loginIdentifier, loginPassword);
     if (!res.success) {
       setErrorMsg(res.message);
     } else if (res.user) {
@@ -61,7 +61,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
     }
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
@@ -88,7 +88,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
       answer: regAnswers[q.id] || ''
     })).filter(a => a.answer.trim());
 
-    const res = StorageService.register({
+    const res = await StorageService.register({
       nom: regNom,
       prenom: regPrenom,
       email: regEmail,

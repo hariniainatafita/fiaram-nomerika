@@ -82,6 +82,14 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
   const [allQuizzes, setAllQuizzes] = useState<Quiz[]>(() => StorageService.getQuizzes());
   const [allQuizResults, setAllQuizResults] = useState<QuizResult[]>(() => StorageService.getQuizResults());
 
+  // Unread counts for navigation badges
+  const quizUnreadCount = React.useMemo(() => {
+    // Count published quizzes as potential notification source
+    return allQuizzes.filter((q) => q.is_published).length;
+  }, [allQuizzes]);
+
+  const feedUnreadCount = publicationUnreadCount;
+
   // Live presence: only members with a recent heartbeat are shown online
   const presenceMap = usePresence(currentUser?.id);
 
@@ -117,6 +125,9 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
     setChatFocus(null);
     if (view === 'chat') setChatListNonce((nonce) => nonce + 1);
     setActiveView(view);
+    if (view === 'publications') {
+      refreshPublications();
+    }
   };
 
   // Refresh functions
@@ -526,6 +537,8 @@ const refreshStories = () => {
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         unreadCount={unreadCount}
         publicationUnreadCount={publicationUnreadCount}
+        quizUnreadCount={quizUnreadCount}
+        feedUnreadCount={feedUnreadCount}
       />
 
       {/* Main Content Area */}

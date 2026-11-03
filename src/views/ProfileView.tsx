@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { canManageBadges } from '../utils/permissions';
 import { MemberBadgeModal } from '../components/MemberBadgeModal';
 import { compressImage } from '../utils/imageCompressor';
@@ -189,17 +190,26 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   // Change password
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       alert(t('profile.password.mismatch'));
       return;
     }
-    const updated: Membre = {
-      ...currentUser,
-      password: newPassword
-    };
-    StorageService.updateMembre(updated);
+    if (!currentUser?.email) {
+      alert("Aucune adresse e-mail associÃ©e Ã  ce compte.");
+      return;
+    }
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        alert("Impossible de modifier le mot de passe : " + error.message);
+        return;
+      }
+    } else {
+      alert("Supabase Auth n'est pas configurÃ©. Mot de passe non modifiÃ©.");
+      return;
+    }
     onRefreshUser();
     setPwSuccessMsg(true);
     setOldPassword('');

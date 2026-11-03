@@ -35,6 +35,8 @@ interface SidebarProps {
   onCloseMobile: () => void;
   unreadCount: number;
   publicationUnreadCount: number;
+  quizUnreadCount: number;
+  feedUnreadCount: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -57,11 +59,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showSettings, setShowSettings] = useState(false);
   const [showQrScanner, setShowQrScanner] = useState(false);
 
-  const navItems = [
+const navItems = [
     { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, hidden: !hasGroupAccess },
     { id: 'publications', label: t('nav.publications'), icon: Camera, badge: publicationUnreadCount },
-    { id: 'quiz', label: t('nav.quiz'), icon: BrainCircuit },
-    { id: 'members', label: t('nav.members'), icon: UsersRound },
+    { id: 'quiz', label: t('nav.quiz'), icon: BrainCircuit, badge: quizUnreadCount },
+    { id: 'members', label: t('nav.members'), icon: UsersRound, hidden: !hasGroupAccess },
     { id: 'presence', label: t('nav.presence'), icon: QrCode, hidden: !hasGroupAccess },
     { id: 'cotisations', label: t('nav.cotisations'), icon: Wallet, hidden: !hasGroupAccess },
     { id: 'finance', label: t('nav.finance'), icon: CircleDollarSign, hidden: !canSeeFinance },

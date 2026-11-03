@@ -915,7 +915,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
         </span>
       </button>
 
-      {newPostsCount > 0 && (
+      {activeView === 'publications' && (
         <div style={{
           position: 'sticky',
           top: '74px',
@@ -1015,7 +1015,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
               {publication.image_url && (
                 <button
                   type="button"
-                  onClick={() => publication.image_url && openPreview(publication.image_url)}
+                  onClick={() => openPreview(publication.image_url)}
                   style={{
                     display: 'block',
                     width: '100%',
@@ -1040,6 +1040,21 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                     }}
                   />
                 </button>
+              )}
+              {!publication.image_url && publication.contenu && (
+                <div style={{
+                  padding: '16px 18px',
+                  border: '2px dashed var(--border-color)',
+                  borderRadius: '12px',
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  margin: '16px 0',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📷</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    {t('publications.noImage')}
+                  </div>
+                </div>
               )}
 
               {(likeCount > 0 || commentCount > 0 || publication.partages > 0) && (
