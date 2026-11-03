@@ -4,6 +4,13 @@ import { STORAGE_KEYS, SYNCED_KEYS, isSyncedKey, messageImageKey, storyImageKey,
 const TABLE = 'app_state';
 const pushTimers: Record<string, number> = {};
 
+// Pushes stay disabled until the first successful hydration. Otherwise the
+// default data seeded at boot (admin/admin, default names/photos) would be
+// uploaded before the remote copy is merged and would overwrite the real
+// profile edited by the user on another device.
+let hydrationReady = false;
+const queuedPushes = new Map<string, unknown>();
+
 type AnyRecord = Record<string, unknown>;
 
 function isPlainObject(value: unknown): value is AnyRecord {
@@ -60,6 +67,56 @@ function sortMessagesAsc(list: unknown[]): unknown[] {
   });
 }
 
+function memberUpdatedAt(item: unknown): number {
+  if (!isPlainObject(item) || typeof item.updated_at !== 'string') return 0;
+  const time = Date.parse(item.updated_at);
+  return Number.isFinite(time) ? time : 0;
+}
+
+/**
+ * Members need a date-aware merge: the account name, phone and profile photo
+ * are edited by the user, so the most recently updated copy must win. A phone
+ * that still holds the seeded default record (no `updated_at`) can therefore
+ * never erase the real profile. When both copies have the same date, the
+ * caller decides (remote wins on hydration, local wins when pushing).
+ */
+function mergeMemberLists(localList: unknown[], remoteList: unknown[], preferLocalOnTie: boolean): unknown[] {
+  const tombstones = getLocalDeletedMemberIds();
+  const keep = (item: unknown): boolean => {
+    const id = itemId(item);
+    return id === null || !(id in tombstones);
+  };
+
+  const byId = new Map<string, unknown>();
+  const extras: unknown[] = [];
+
+  for (const item of remoteList.filter(keep)) {
+    const id = itemId(item);
+    if (id === null) extras.push(item);
+    else byId.set(id, item);
+  }
+
+  for (const item of localList.filter(keep)) {
+    const id = itemId(item);
+    if (id === null) {
+      extras.push(item);
+      continue;
+    }
+    const remote = byId.get(id);
+    if (remote === undefined) {
+      byId.set(id, item);
+      continue;
+    }
+    const localTime = memberUpdatedAt(item);
+    const remoteTime = memberUpdatedAt(remote);
+    if (localTime > remoteTime || (localTime === remoteTime && preferLocalOnTie)) {
+      byId.set(id, item);
+    }
+  }
+
+  return [...byId.values(), ...extras];
+}
+
 /**
  * Union-merge two collections so that members / messages added on ANY device
  * are never wiped by a device that still holds an older snapshot.
@@ -68,18 +125,12 @@ function sortMessagesAsc(list: unknown[]): unknown[] {
  */
 function mergeKeyValues(key: string, local: unknown, remote: unknown): unknown {
   if (Array.isArray(local) && Array.isArray(remote)) {
+    if (key === STORAGE_KEYS.MEMBRES) {
+      return mergeMemberLists(local, remote, false);
+    }
+
     let localList: unknown[] = local;
     let remoteList: unknown[] = remote;
-
-    if (key === STORAGE_KEYS.MEMBRES) {
-      const tombstones = getLocalDeletedMemberIds();
-      localList = local.filter(
-        (item) => { const id = itemId(item); return id === null || !(id in tombstones); }
-      );
-      remoteList = remote.filter(
-        (item) => { const id = itemId(item); return id === null || !(id in tombstones); }
-      );
-    }
 
     if (key === STORAGE_KEYS.STORIES) {
       const tombstones = getLocalDeletedStoryIds();
@@ -148,11 +199,13 @@ function mergeKeyValues(key: string, local: unknown, remote: unknown): unknown {
  */
 function mergeKeyValuesForPush(key: string, local: unknown, remote: unknown): unknown {
   if (Array.isArray(local) && Array.isArray(remote)) {
-    const tombstones = key === STORAGE_KEYS.MEMBRES
-      ? getLocalDeletedMemberIds()
-      : key === STORAGE_KEYS.STORIES
-        ? getLocalDeletedStoryIds()
-        : {};
+    if (key === STORAGE_KEYS.MEMBRES) {
+      return mergeMemberLists(local, remote, true);
+    }
+
+    const tombstones = key === STORAGE_KEYS.STORIES
+      ? getLocalDeletedStoryIds()
+      : {};
     const keep = (item: unknown): boolean => {
       const id = itemId(item);
       return id === null || !(id in tombstones);
@@ -487,7 +540,11 @@ async function pushKeyNow(key: string, fallbackValue?: unknown): Promise<void> {
  * If a shared key does not exist remotely but exists locally, seed it up.
  */
 export async function hydrateFromSupabase(): Promise<void> {
-  if (!isSupabaseConfigured || !supabase) return;
+  if (!isSupabaseConfigured || !supabase) {
+    hydrationReady = true;
+    queuedPushes.clear();
+    return;
+  }
   try {
     // Only fetch the light shared collections. Per-item picture rows can be
     // huge (base64) and are resolved on demand, so downloading them at boot
@@ -519,7 +576,17 @@ export async function hydrateFromSupabase(): Promise<void> {
         await pushKeyNow(key);
       }
     }
+
+    // Hydration succeeded: it is now safe to write the changes that happened
+    // while the app was booting (they were merged with the remote copy above).
+    hydrationReady = true;
+    for (const [key, value] of queuedPushes) {
+      pushKey(key, value);
+    }
+    queuedPushes.clear();
   } catch (err) {
+    // Keep pushes disabled: the next successful hydration (on resume/online)
+    // will merge the real remote data before anything is overwritten.
     console.warn('[Supabase] hydrate error:', err);
   }
 }
@@ -530,6 +597,11 @@ export async function hydrateFromSupabase(): Promise<void> {
 export function pushKey(key: string, value: unknown): void {
   if (!isSupabaseConfigured || !supabase) return;
   if (!isSyncedKey(key)) return;
+  if (!hydrationReady) {
+    // Never upload before the real remote data has been merged at boot.
+    queuedPushes.set(key, value);
+    return;
+  }
   if (pushTimers[key]) window.clearTimeout(pushTimers[key]);
   pushTimers[key] = window.setTimeout(() => {
     void pushKeyNow(key, value);

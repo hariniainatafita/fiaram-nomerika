@@ -509,6 +509,7 @@ export const StorageService = {
       theme: 'dark',
       fingerprint_registered: false,
       created_at: new Date().toISOString().split('T')[0],
+      updated_at: new Date().toISOString(),
       registration_answers: data.registration_answers || []
     };
     if (username) {
@@ -656,7 +657,7 @@ export const StorageService = {
     const index = list.findIndex((m) => m.id === updated.id);
     if (index !== -1) {
       const { password: _pw, ...clean } = updated;
-      list[index] = clean as Membre;
+      list[index] = { ...clean, updated_at: new Date().toISOString() } as Membre;
       this.saveMembres(list);
     }
   },
@@ -666,7 +667,8 @@ export const StorageService = {
     const newMembre: Membre = {
       ...clean,
       id: 'm_' + Date.now(),
-      created_at: new Date().toISOString().split('T')[0]
+      created_at: new Date().toISOString().split('T')[0],
+      updated_at: new Date().toISOString()
     };
     list.push(newMembre);
     this.saveMembres(list);
@@ -711,6 +713,7 @@ export const StorageService = {
     const index = list.findIndex((m) => m.id === id);
     if (index !== -1) {
       list[index].dossier_verified = true;
+      list[index].updated_at = new Date().toISOString();
       this.saveMembres(list);
     }
   },
@@ -719,6 +722,7 @@ export const StorageService = {
     const index = list.findIndex((m) => m.id === id);
     if (index !== -1) {
       list[index].dossier_verified = false;
+      list[index].updated_at = new Date().toISOString();
       this.saveMembres(list);
     }
   },
@@ -737,6 +741,7 @@ export const StorageService = {
     if (index !== -1) {
       list[index].is_blocked = true;
       list[index].is_active = false;
+      list[index].updated_at = new Date().toISOString();
       this.saveMembres(list);
     }
   },
@@ -746,6 +751,7 @@ export const StorageService = {
     if (index !== -1) {
       list[index].is_blocked = false;
       list[index].is_active = true;
+      list[index].updated_at = new Date().toISOString();
       this.saveMembres(list);
     }
   },
@@ -820,6 +826,7 @@ export const StorageService = {
     const index = raw.findIndex((m) => m.id === membreId);
     if (index !== -1) {
       raw[index].groupe_id = groupeId;
+      raw[index].updated_at = new Date().toISOString();
       setStoredItem(STORAGE_KEYS.MEMBRES, raw);
     }
   },

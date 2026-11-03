@@ -23,6 +23,10 @@ export interface Membre {
   groupe_id?: string;
   derniere_connexion?: string;
   created_at: string;
+  // Date of the last profile/role change. Used to resolve sync conflicts so a
+  // device that still holds the default admin record can never overwrite a
+  // newer name, phone or profile photo edited on another device.
+  updated_at?: string;
   groupe?: Groupe;
   cin?: string;
   profession?: string;
