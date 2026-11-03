@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { StorageService } from './utils/storage';
 import { subscribeToSupabase, hydrateFromSupabase } from './utils/supabaseSync';
@@ -95,6 +95,65 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
   const [allQuizzes, setAllQuizzes] = useState<Quiz[]>(() => StorageService.getQuizzes());
   const [allQuizResults, setAllQuizResults] = useState<QuizResult[]>(() => StorageService.getQuizResults());
 
+  // Android hardware back / browser back: walk through the app views instead of
+  // closing the app. Each view change becomes a history entry, and an open
+  // member profile is its own entry so back closes the profile first.
+  const viewHistoryRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!currentUser) {
+      viewHistoryRef.current = null;
+      return;
+    }
+    if (viewHistoryRef.current === null) {
+      window.history.replaceState(
+        { ...window.history.state, fiaramApp: true, fiaramView: activeView },
+        ''
+      );
+      viewHistoryRef.current = activeView;
+      return;
+    }
+    if (viewHistoryRef.current !== activeView) {
+      window.history.pushState(
+        { fiaramApp: true, fiaramView: activeView },
+        ''
+      );
+      viewHistoryRef.current = activeView;
+    }
+  }, [currentUser, activeView]);
+
+  useEffect(() => {
+    if (!currentUser || !viewedMemberId) return;
+    const state = window.history.state as { fiaramModal?: string } | null;
+    if (state?.fiaramModal) return;
+    window.history.pushState(
+      { fiaramApp: true, fiaramView: viewHistoryRef.current ?? activeView, fiaramModal: 'member' },
+      ''
+    );
+  }, [currentUser, viewedMemberId, activeView]);
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state as { fiaramView?: string; fiaramModal?: string } | null;
+      if (!state?.fiaramModal) setViewedMemberId(null);
+      if (state?.fiaramView) {
+        viewHistoryRef.current = state.fiaramView;
+        setActiveView(state.fiaramView);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const closeMemberProfile = () => {
+    const state = window.history.state as { fiaramModal?: string } | null;
+    if (state?.fiaramModal) {
+      window.history.back();
+    } else {
+      setViewedMemberId(null);
+    }
+  };
+
   // Unread counts for navigation badges
   const quizUnreadCount = React.useMemo(() => {
     // Count published quizzes as potential notification source
@@ -145,6 +204,18 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
   const openChatWithMember = (membreId: string) => {
     setChatFocus({ peerId: membreId, nonce: Date.now() });
     setActiveView('chat');
+  };
+
+  // Leaving a member profile to write a message replaces the profile history
+  // entry, so "back" returns to the view that opened the profile.
+  const openChatFromMemberProfile = (membreId: string) => {
+    const state = window.history.state as { fiaramModal?: string } | null;
+    if (state?.fiaramModal) {
+      window.history.replaceState({ fiaramApp: true, fiaramView: 'chat' }, '');
+      viewHistoryRef.current = 'chat';
+    }
+    setViewedMemberId(null);
+    openChatWithMember(membreId);
   };
 
   // Clic sur une bulle : va directement dans la conversation concernée.
@@ -745,8 +816,8 @@ const refreshStories = () => {
             currentUser={currentUser}
             publications={allPublications}
             stories={allStories}
-            onClose={() => setViewedMemberId(null)}
-            onOpenChat={openChatWithMember}
+            onClose={closeMemberProfile}
+            onOpenChat={openChatFromMemberProfile}
           />
         )}
 
