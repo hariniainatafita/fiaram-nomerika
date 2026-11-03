@@ -335,7 +335,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
     try {
       setIsProcessingImage(true);
-      const compressedDataUrl = await compressImage(file, 900, 900, 0.8);
+      const compressedDataUrl = await compressImage(file, 800, 800, 0.75);
       const sizeKb = Math.round(compressedDataUrl.length / 1024);
 
       setStagedImage({

@@ -10,8 +10,21 @@ import {
   INITIAL_EVENEMENTS,
   INITIAL_PUBLICATIONS
 } from '../data/mockData';
-import { STORAGE_KEYS, MESSAGE_IMAGE_PREFIX, messageImageKey, STORY_IMAGE_PREFIX, storyImageKey, PUBLICATION_IMAGE_PREFIX, publicationImageKey } from './storageKeys';
-import { pushKey, deleteKey } from './supabaseSync';
+import {
+  STORAGE_KEYS,
+  MESSAGE_IMAGE_PREFIX,
+  messageImageKey,
+  STORY_IMAGE_PREFIX,
+  storyImageKey,
+  PUBLICATION_IMAGE_PREFIX,
+  publicationImageKey,
+  MEMBER_IMAGE_PREFIX,
+  MEMBER_AVATAR_REF,
+  MEMBER_COVER_REF,
+  memberAvatarKey,
+  memberCoverKey
+} from './storageKeys';
+import { pushKey, deleteKey, fetchMemberImageIfMissing } from './supabaseSync';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { createPasswordHash, verifyPassword } from '../utils/crypto';
 
@@ -118,13 +131,59 @@ function getStoredItem<T>(key: string, defaultValue: T): T {
   }
 }
 
-function setStoredItem<T>(key: string, value: T): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-    pushKey(key, value);
-  } catch (e) {
-    console.error(`Error saving key ${key}:`, e);
+// Feed image rows are the only expendable large values in localStorage: when
+// the quota is reached, drop the oldest cached pictures (they can always be
+// re-fetched from Supabase) instead of losing the small metadata write
+// (members, posts...). Member avatars are kept because the whole UI shows them.
+function collectImageCacheKeys(): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (
+      key.startsWith(MESSAGE_IMAGE_PREFIX) ||
+      key.startsWith(STORY_IMAGE_PREFIX) ||
+      key.startsWith(PUBLICATION_IMAGE_PREFIX)
+    )) {
+      keys.push(key);
+    }
   }
+  return keys;
+}
+
+function pruneImageCache(keepKey?: string): number {
+  const keys = collectImageCacheKeys().filter((key) => key !== keepKey);
+  if (keys.length === 0) return 0;
+  // Drop half of the cached pictures, oldest insertions first.
+  const removeCount = Math.max(1, Math.ceil(keys.length / 2));
+  keys.slice(0, removeCount).forEach((key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  });
+  return removeCount;
+}
+
+function writeLocalStorageJSON(key: string, value: unknown): boolean {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (e) {
+      if (attempt === 0 && pruneImageCache(key) > 0) continue;
+      console.error(`Error saving key ${key}:`, e);
+      return false;
+    }
+  }
+  return false;
+}
+
+function setStoredItem<T>(key: string, value: T): void {
+  writeLocalStorageJSON(key, value);
+  // Always mirror to Supabase, even when the local cache is saturated: the
+  // remote copy is what makes a change survive a refresh or a logout.
+  pushKey(key, value);
 }
 
 /**
@@ -134,11 +193,14 @@ function setStoredItem<T>(key: string, value: T): void {
  */
 function storeImageRow(key: string, dataUrl: string, label: string): boolean {
   let localOk = false;
-  try {
-    localStorage.setItem(key, JSON.stringify(dataUrl));
-    localOk = true;
-  } catch (e) {
-    console.warn(`[image] cache local saturé pour ${label}, envoi direct au serveur:`, e);
+  for (let attempt = 0; attempt < 2 && !localOk; attempt++) {
+    try {
+      localStorage.setItem(key, JSON.stringify(dataUrl));
+      localOk = true;
+    } catch (e) {
+      if (attempt === 0 && pruneImageCache(key) > 0) continue;
+      console.warn(`[image] cache local saturé pour ${label}, envoi direct au serveur:`, e);
+    }
   }
   pushKey(key, dataUrl);
   return localOk || (isSupabaseConfigured && Boolean(supabase));
@@ -300,6 +362,75 @@ function sanitizePhotoUrl(url?: string): string | undefined {
   if (!url) return undefined;
   if (/images\.unsplash\.com\/photo-\d+[?/]/.test(url)) return undefined;
   return url;
+}
+
+// Cache decoded base64 pictures in memory: the members list is rebuilt often
+// (realtime events, navigation) and re-parsing megabytes each time is slow.
+const memberImageCache = new Map<string, string>();
+
+function readMemberImageRow(key: string): string | undefined {
+  const cached = memberImageCache.get(key);
+  if (cached !== undefined) return cached;
+  const value = getStoredItem<string | undefined>(key, undefined);
+  if (typeof value === 'string' && value) memberImageCache.set(key, value);
+  return value;
+}
+
+function writeMemberImageRow(key: string, value: string): boolean {
+  if (!writeLocalStorageJSON(key, value)) return false;
+  memberImageCache.set(key, value);
+  return true;
+}
+
+function memberImageRowKey(memberId: string, kind: 'avatar' | 'cover'): string {
+  return kind === 'avatar' ? memberAvatarKey(memberId) : memberCoverKey(memberId);
+}
+
+function memberImageRef(kind: 'avatar' | 'cover'): string {
+  return kind === 'avatar' ? MEMBER_AVATAR_REF : MEMBER_COVER_REF;
+}
+
+/**
+ * The member record only stores a tiny reference for pictures that live in
+ * their own rows. Reading resolves it from the local cache so every component
+ * still receives a usable image URL.
+ */
+function resolveMemberImage(
+  memberId: string,
+  value: string | undefined,
+  kind: 'avatar' | 'cover'
+): string | undefined {
+  if (value !== memberImageRef(kind)) return value;
+  return readMemberImageRow(memberImageRowKey(memberId, kind));
+}
+
+/**
+ * Writing the members collection moves inline base64 photos into their own
+ * row. This keeps the shared row light: a profile edit then uploads a few KB
+ * instead of several MB, so it survives a refresh and reaches other phones.
+ */
+function compactMemberImage(
+  memberId: string,
+  value: string | undefined,
+  kind: 'avatar' | 'cover',
+  rawValue?: string
+): string | undefined {
+  const key = memberImageRowKey(memberId, kind);
+  const ref = memberImageRef(kind);
+  // The raw record still holds the reference and this copy has no cached image
+  // (fresh device): never wipe the reference while other fields are edited.
+  if (rawValue === ref && (!value || readMemberImageRow(key) === value)) {
+    return ref;
+  }
+  if (!value || !value.startsWith('data:')) return value;
+  // Unchanged pictures were already resolved from their row: keep the light
+  // reference without re-uploading every member photo on each save.
+  if (readMemberImageRow(key) === value) {
+    return ref;
+  }
+  if (!writeMemberImageRow(key, value)) return value;
+  pushKey(key, value);
+  return ref;
 }
 
 export const StorageService = {
@@ -641,7 +772,8 @@ export const StorageService = {
       // en clair est retirÃ© des donnÃ©es chargÃ©es en mÃ©moire).
       .map(({ password: _pw, ...m }, index) => ({
       ...m,
-      photo_url: sanitizePhotoUrl(m.photo_url),
+      photo_url: resolveMemberImage(m.id, sanitizePhotoUrl(m.photo_url), 'avatar'),
+      cover_url: resolveMemberImage(m.id, m.cover_url, 'cover'),
       is_approved: m.is_approved !== undefined ? m.is_approved : true, // Existing members are approved
       is_blocked: m.is_blocked || false,
       numero_badge: m.numero_badge || (m.code_unique ? m.code_unique.replace(/\D/g, '').slice(-3).padStart(3, '0') : (index + 1).toString().padStart(3, '0')),
@@ -650,7 +782,76 @@ export const StorageService = {
     }));
   },
   saveMembres(membres: Membre[]): void {
-    setStoredItem(STORAGE_KEYS.MEMBRES, membres);
+    const raw = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
+    const rawById = new Map(raw.map((member) => [member.id, member]));
+    const compact = membres.map((m) => {
+      const rawMember = rawById.get(m.id);
+      return {
+        ...m,
+        photo_url: compactMemberImage(m.id, m.photo_url, 'avatar', rawMember?.photo_url),
+        cover_url: compactMemberImage(m.id, m.cover_url, 'cover', rawMember?.cover_url)
+      };
+    });
+    setStoredItem(STORAGE_KEYS.MEMBRES, compact);
+  },
+  /**
+   * Move legacy inline base64 profile pictures out of the members collection.
+   * Runs once at boot (and after a hydration that received an old copy).
+   */
+  compactMemberImages(): void {
+    const raw = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
+    const hasInline = raw.some(
+      (m) => m.photo_url?.startsWith('data:') || m.cover_url?.startsWith('data:')
+    );
+    if (!hasInline) return;
+    this.saveMembres(raw);
+  },
+  /** Pictures referenced by a member record but not present in local cache. */
+  getPendingMemberImages(): Array<{ id: string; kind: 'avatar' | 'cover' }> {
+    const raw = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
+    const pending: Array<{ id: string; kind: 'avatar' | 'cover' }> = [];
+    for (const member of raw) {
+      if (member.photo_url === MEMBER_AVATAR_REF
+        && !readMemberImageRow(memberAvatarKey(member.id))) {
+        pending.push({ id: member.id, kind: 'avatar' });
+      }
+      if (member.cover_url === MEMBER_COVER_REF
+        && !readMemberImageRow(memberCoverKey(member.id))) {
+        pending.push({ id: member.id, kind: 'cover' });
+      }
+    }
+    return pending;
+  },
+  /** Keep the in-memory picture cache in sync after a remote row change. */
+  refreshMemberImageCache(key?: string): void {
+    if (!key || !key.startsWith(MEMBER_IMAGE_PREFIX)) return;
+    const raw = localStorage.getItem(key);
+    if (raw === null) {
+      memberImageCache.delete(key);
+      return;
+    }
+    try {
+      const value = JSON.parse(raw);
+      if (typeof value === 'string' && value) memberImageCache.set(key, value);
+    } catch {
+      memberImageCache.delete(key);
+    }
+  },
+  /** Download missing profile/cover photos in parallel (limited concurrency). */
+  async hydrateMemberImages(): Promise<boolean> {
+    const queue = this.getPendingMemberImages();
+    if (queue.length === 0) return false;
+    let fetched = false;
+    const worker = async () => {
+      for (let item = queue.shift(); item; item = queue.shift()) {
+        const value = await fetchMemberImageIfMissing(item.id, item.kind);
+        if (value) fetched = true;
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(4, queue.length) }, () => worker())
+    );
+    return fetched;
   },
   updateMembre(updated: Membre): void {
     const list = this.getMembres();
@@ -677,6 +878,10 @@ export const StorageService = {
   deleteMembre(id: string): void {
     const list = this.getMembres().filter((m) => m.id !== id);
     this.saveMembres(list);
+    removeStoredItem(memberAvatarKey(id));
+    removeStoredItem(memberCoverKey(id));
+    memberImageCache.delete(memberAvatarKey(id));
+    memberImageCache.delete(memberCoverKey(id));
     // Remember the deletion so that the union-merge sync never resurrects it.
     this.markMemberDeleted(id);
   },
@@ -1648,7 +1853,8 @@ export const StorageService = {
       if (key && (
         key.startsWith(MESSAGE_IMAGE_PREFIX) ||
         key.startsWith(STORY_IMAGE_PREFIX) ||
-        key.startsWith(PUBLICATION_IMAGE_PREFIX)
+        key.startsWith(PUBLICATION_IMAGE_PREFIX) ||
+        key.startsWith(MEMBER_IMAGE_PREFIX)
       )) {
         localKeys.push(key);
       }

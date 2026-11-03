@@ -1,3 +1,5 @@
+export const PENDING_IMAGE_UPLOADS = 'fiaram_pending_image_uploads_v1';
+
 export const STORAGE_KEYS = {
   DATA_VERSION: 'fiaram_v2_clean',
   CURRENT_USER_ID: 'fiaram_current_user_id',
@@ -78,8 +80,25 @@ export const PUBLICATION_IMAGE_PREFIX = 'fiaram_pubimg_';
 export const publicationImageKey = (publicationId: string): string =>
   `${PUBLICATION_IMAGE_PREFIX}${publicationId}`;
 
-export const isSyncedKey = (key: string): boolean =>
-  SYNCED_KEYS.includes(key) ||
+// Profile and cover photos used to be inlined in the members collection, which
+// made that single row grow to several megabytes and slow every profile edit.
+// They now live in their own rows; the member record keeps a tiny reference.
+export const MEMBER_IMAGE_PREFIX = 'fiaram_memberimg_';
+
+export const MEMBER_AVATAR_REF = 'fiaram-image-ref:avatar';
+export const MEMBER_COVER_REF = 'fiaram-image-ref:cover';
+
+export const memberAvatarKey = (memberId: string): string =>
+  `${MEMBER_IMAGE_PREFIX}${memberId}_avatar`;
+
+export const memberCoverKey = (memberId: string): string =>
+  `${MEMBER_IMAGE_PREFIX}${memberId}_cover`;
+
+export const isImageKey = (key: string): boolean =>
   key.startsWith(MESSAGE_IMAGE_PREFIX) ||
   key.startsWith(STORY_IMAGE_PREFIX) ||
-  key.startsWith(PUBLICATION_IMAGE_PREFIX);
+  key.startsWith(PUBLICATION_IMAGE_PREFIX) ||
+  key.startsWith(MEMBER_IMAGE_PREFIX);
+
+export const isSyncedKey = (key: string): boolean =>
+  SYNCED_KEYS.includes(key) || isImageKey(key);

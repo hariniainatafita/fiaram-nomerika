@@ -318,7 +318,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
     try {
       setIsCompressing(true);
-      const compressedBase64 = await compressImage(file, 900, 900, 0.9);
+      const compressedBase64 = await compressImage(file, 512, 512, 0.82);
       setTempPhotoUrl(compressedBase64);
     } catch (err) {
       console.error('Error compressing avatar image:', err);
@@ -358,7 +358,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     if (!file) return;
     try {
       setIsCompressingCover(true);
-      const compressed = await compressImage(file, 1600, 700, 0.85);
+      const compressed = await compressImage(file, 1200, 450, 0.75);
       setTempCoverUrl(compressed);
     } catch (err) {
       console.error('Error compressing cover image:', err);

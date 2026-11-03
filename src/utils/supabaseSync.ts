@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { STORAGE_KEYS, SYNCED_KEYS, isSyncedKey, messageImageKey, storyImageKey, publicationImageKey } from './storageKeys';
+import { STORAGE_KEYS, SYNCED_KEYS, PENDING_IMAGE_UPLOADS, isSyncedKey, isImageKey, messageImageKey, storyImageKey, publicationImageKey, memberAvatarKey, memberCoverKey } from './storageKeys';
 
 const TABLE = 'app_state';
 const pushTimers: Record<string, number> = {};
@@ -359,6 +359,13 @@ export async function fetchMessageImageIfMissing(messageId: string): Promise<str
 
 const storyImageInflight = new Set<string>();
 
+// A picture row is pushed a few hundred milliseconds after its metadata, and
+// large base64 rows can take longer on mobile data. Keep retrying for about a
+// minute so the viewer never waits for an unrelated event to show the picture.
+const IMAGE_FETCH_DELAYS = [300, 700, 1500, 3000, 5000, 8000, 12000, 15000, 20000];
+
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 /**
  * Story pictures also live in their own row (`fiaram_storyimg_<storyId>`).
  * Members that only received the light STORIES metadata fetch the picture on
@@ -379,7 +386,60 @@ export async function fetchStoryImageIfMissing(storyId: string): Promise<string 
   storyImageInflight.add(storyId);
   try {
     // The story metadata can arrive before its picture row (two debounced
-    // pushes). Retry a few times so a member never keeps an empty story.
+    // pushes). Retry with backoff so a member never keeps an empty story.
+    for (let attempt = 0; attempt <= IMAGE_FETCH_DELAYS.length; attempt++) {
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select('value')
+        .eq('key', key)
+        .maybeSingle();
+      if (!error && data) {
+        const value = normalizeRemoteValue((data as { value?: unknown }).value);
+        if (typeof value === 'string' && value) {
+          try {
+            localStorage.setItem(key, JSON.stringify(value));
+          } catch (err) {
+            console.error(`[Supabase] cannot store "${key}":`, err);
+          }
+          return value;
+        }
+      }
+      if (attempt < IMAGE_FETCH_DELAYS.length) {
+        await wait(IMAGE_FETCH_DELAYS[attempt]);
+      }
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  } finally {
+    storyImageInflight.delete(storyId);
+  }
+}
+
+const memberImageInflight = new Set<string>();
+
+/**
+ * Profile / cover photos live in their own rows (`fiaram_memberimg_...`), so a
+ * device can rebuild them on demand without downloading the whole members list
+ * with inline base64 data.
+ */
+export async function fetchMemberImageIfMissing(
+  memberId: string,
+  kind: 'avatar' | 'cover'
+): Promise<string | undefined> {
+  if (!isSupabaseConfigured || !supabase) return undefined;
+  const key = kind === 'avatar' ? memberAvatarKey(memberId) : memberCoverKey(memberId);
+  const raw = localStorage.getItem(key);
+  if (raw !== null) {
+    try {
+      return JSON.parse(raw) as string;
+    } catch {
+      /* fall through to refetch */
+    }
+  }
+  if (memberImageInflight.has(key)) return undefined;
+  memberImageInflight.add(key);
+  try {
     for (let attempt = 0; attempt < 3; attempt++) {
       const { data, error } = await supabase
         .from(TABLE)
@@ -397,15 +457,13 @@ export async function fetchStoryImageIfMissing(storyId: string): Promise<string 
           return value;
         }
       }
-      if (attempt < 2) {
-        await new Promise((resolve) => setTimeout(resolve, 700));
-      }
+      if (attempt < 2) await wait(700);
     }
     return undefined;
   } catch {
     return undefined;
   } finally {
-    storyImageInflight.delete(storyId);
+    memberImageInflight.delete(key);
   }
 }
 
@@ -431,7 +489,7 @@ export async function fetchPublicationImageIfMissing(publicationId: string): Pro
   if (publicationImageInflight.has(publicationId)) return undefined;
   publicationImageInflight.add(publicationId);
   try {
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt <= IMAGE_FETCH_DELAYS.length; attempt++) {
       const { data, error } = await supabase
         .from(TABLE)
         .select('value')
@@ -448,8 +506,8 @@ export async function fetchPublicationImageIfMissing(publicationId: string): Pro
           return value;
         }
       }
-      if (attempt < 2) {
-        await new Promise((resolve) => setTimeout(resolve, 700));
+      if (attempt < IMAGE_FETCH_DELAYS.length) {
+        await wait(IMAGE_FETCH_DELAYS[attempt]);
       }
     }
     return undefined;
@@ -485,14 +543,41 @@ function writeMerged(key: string, remoteValue: unknown): void {
   }
 }
 
-async function upsertKey(key: string, value: unknown): Promise<void> {
-  if (!supabase) return;
+async function upsertKey(key: string, value: unknown): Promise<boolean> {
+  if (!supabase) return false;
   const { error } = await supabase.from(TABLE).upsert(
     { key, value, updated_at: new Date().toISOString() },
     { onConflict: 'key' }
   );
   if (error) {
     console.warn(`[Supabase] push failed for "${key}":`, error.message);
+    return false;
+  }
+  return true;
+}
+
+// Pictures written by the user are remembered until Supabase confirms the
+// upload. If the app is refreshed/closed during a slow upload (or the network
+// drops), the picture is retried on the next launch instead of being lost.
+function readPendingImageKeys(): string[] {
+  try {
+    const raw = localStorage.getItem(PENDING_IMAGE_UPLOADS);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function setImagePending(key: string, pending: boolean): void {
+  try {
+    const current = new Set(readPendingImageKeys());
+    if (pending) current.add(key);
+    else current.delete(key);
+    if (current.size === 0) localStorage.removeItem(PENDING_IMAGE_UPLOADS);
+    else localStorage.setItem(PENDING_IMAGE_UPLOADS, JSON.stringify([...current]));
+  } catch {
+    /* ignore */
   }
 }
 
@@ -500,6 +585,21 @@ async function pushKeyNow(key: string, fallbackValue?: unknown): Promise<void> {
   if (!supabase) return;
   const initial = readLocalStorage(key);
   if (initial === undefined && fallbackValue === undefined) return;
+
+  // Pictures are standalone rows: no merge is needed, and skipping the extra
+  // SELECT halves the upload latency (and avoids downloading the previous
+  // base64 before overwriting it).
+  if (isImageKey(key)) {
+    const value = initial === undefined ? fallbackValue : initial;
+    if (value === undefined) return;
+    setImagePending(key, true);
+    try {
+      if (await upsertKey(key, value)) setImagePending(key, false);
+    } catch {
+      /* stays pending for the next launch */
+    }
+    return;
+  }
 
   try {
     // Read the current remote row first and merge, so items added by another
@@ -530,6 +630,24 @@ async function pushKeyNow(key: string, fallbackValue?: unknown): Promise<void> {
     const current = readLocalStorage(key);
     const localValue = current === undefined ? fallbackValue : current;
     if (localValue !== undefined) await upsertKey(key, localValue);
+  }
+}
+
+function retryPendingImageUploads(): void {
+  for (const key of readPendingImageKeys()) {
+    let value: unknown;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw === null) {
+        setImagePending(key, false);
+        continue;
+      }
+      value = JSON.parse(raw);
+    } catch {
+      setImagePending(key, false);
+      continue;
+    }
+    pushKey(key, value);
   }
 }
 
@@ -584,6 +702,7 @@ export async function hydrateFromSupabase(): Promise<void> {
       pushKey(key, value);
     }
     queuedPushes.clear();
+    retryPendingImageUploads();
   } catch (err) {
     // Keep pushes disabled: the next successful hydration (on resume/online)
     // will merge the real remote data before anything is overwritten.
@@ -600,6 +719,13 @@ export function pushKey(key: string, value: unknown): void {
   if (!hydrationReady) {
     // Never upload before the real remote data has been merged at boot.
     queuedPushes.set(key, value);
+    return;
+  }
+  // Pictures start uploading immediately: a base64 row takes long enough
+  // already, and waiting for a debounce makes it easy to lose the upload by
+  // refreshing the page or closing the app.
+  if (isImageKey(key)) {
+    void pushKeyNow(key, value);
     return;
   }
   if (pushTimers[key]) window.clearTimeout(pushTimers[key]);

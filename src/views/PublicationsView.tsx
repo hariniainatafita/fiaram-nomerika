@@ -406,28 +406,25 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   );
 
   useEffect(() => {
-    let cancelled = false;
     const resolveImages = async () => {
-      const updates: Record<string, string> = {};
-      for (const story of localStories) {
-        const ref = story.image_ref;
-        if (!ref || storyImages[ref]) continue;
+      const refs = Array.from(new Set(
+        localStories.map((story) => story.image_ref).filter((ref): ref is string => Boolean(ref))
+      ));
+      // Parallel fetches: one slow picture never blocks the others.
+      await Promise.all(refs.map(async (ref) => {
+        if (storyImages[ref]) return;
         const local = StorageService.getStoryImage(ref);
         if (local) {
-          updates[ref] = local;
-          continue;
+          setStoryImages((prev) => (prev[ref] ? prev : { ...prev, [ref]: local }));
+          return;
         }
         const remote = await fetchStoryImageIfMissing(ref);
-        if (remote) updates[ref] = remote;
-      }
-      if (!cancelled && Object.keys(updates).length > 0) {
-        setStoryImages((prev) => ({ ...prev, ...updates }));
-      }
+        if (remote) {
+          setStoryImages((prev) => (prev[ref] ? prev : { ...prev, [ref]: remote }));
+        }
+      }));
     };
     void resolveImages();
-    return () => {
-      cancelled = true;
-    };
   }, [localStories, storyImages]);
 
   const getStoryImageSrc = (story?: Story): string | undefined => {
@@ -444,28 +441,25 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   };
 
   useEffect(() => {
-    let cancelled = false;
     const resolveImages = async () => {
-      const updates: Record<string, string> = {};
-      for (const publication of publications) {
-        const ref = publication.image_ref;
-        if (!ref || publicationImages[ref]) continue;
+      const refs = Array.from(new Set(
+        publications.map((publication) => publication.image_ref).filter((ref): ref is string => Boolean(ref))
+      ));
+      // Parallel fetches: one slow picture never blocks the others.
+      await Promise.all(refs.map(async (ref) => {
+        if (publicationImages[ref]) return;
         const local = StorageService.getPublicationImage(ref);
         if (local) {
-          updates[ref] = local;
-          continue;
+          setPublicationImages((prev) => (prev[ref] ? prev : { ...prev, [ref]: local }));
+          return;
         }
         const remote = await fetchPublicationImageIfMissing(ref);
-        if (remote) updates[ref] = remote;
-      }
-      if (!cancelled && Object.keys(updates).length > 0) {
-        setPublicationImages((prev) => ({ ...prev, ...updates }));
-      }
+        if (remote) {
+          setPublicationImages((prev) => (prev[ref] ? prev : { ...prev, [ref]: remote }));
+        }
+      }));
     };
     void resolveImages();
-    return () => {
-      cancelled = true;
-    };
   }, [publications, publicationImages]);
 
   const getPublicationImageSrc = (publication: Publication): string | undefined => {
@@ -553,7 +547,9 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
 
     setIsCompressing(true);
     try {
-      const dataUrl = await compressImage(file, 1200, 1200, 0.78);
+      // Keep uploads light: the picture is sent as base64 in a synced row and
+      // a smaller JPEG reaches other phones in seconds instead of minutes.
+      const dataUrl = await compressImage(file, 900, 900, 0.7);
       setStagedImage({
         dataUrl,
         fileName: file.name,
@@ -579,7 +575,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
 
     setIsCompressingStory(true);
     try {
-      const dataUrl = await compressImage(file, 900, 1600, 0.7);
+      const dataUrl = await compressImage(file, 720, 1280, 0.65);
       setStoryImage({
         dataUrl,
         fileName: file.name,
@@ -1111,6 +1107,24 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                     }}
                   />
                 </button>
+              )}
+
+              {!imageSrc && publication.image_ref && (
+                <div style={{
+                  width: '100%',
+                  minHeight: '200px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.82rem'
+                }}>
+                  <Loader2 size={26} className="animate-pulse-glow" />
+                  <span>{t('publications.image.loading')}</span>
+                </div>
               )}
 
               {(likeCount > 0 || commentCount > 0 || publication.partages > 0) && (

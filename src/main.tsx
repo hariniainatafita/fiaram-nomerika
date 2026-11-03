@@ -16,6 +16,9 @@ async function bootstrap() {
   ])
   StorageService.removeLegacyAutoReplies()
   StorageService.upgradePendingMembers()
+  // Shrink legacy members rows that still contain inline base64 profile
+  // pictures, so later edits upload a few KB instead of several megabytes.
+  StorageService.compactMemberImages()
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

@@ -296,7 +296,8 @@ const refreshStories = () => {
 
   // Live sync: when another device updates shared data, refresh every store.
   useEffect(() => {
-    const refreshAll = () => {
+    const refreshAll = (changedKey?: string) => {
+      StorageService.refreshMemberImageCache(changedKey);
       setAllMembres(StorageService.getMembres());
       setAllGroupes(StorageService.getGroupes());
       setAllPresences(StorageService.getPresences());
@@ -316,12 +317,26 @@ const refreshStories = () => {
     };
     const unsubscribe = subscribeToSupabase(refreshAll);
 
+    // Profile/cover photos have their own rows: download the ones that are not
+    // cached yet, then refresh the avatars across the app.
+    const loadMemberPhotos = () => {
+      void StorageService.hydrateMemberImages().then((fetched) => {
+        if (fetched) refreshAll();
+      });
+    };
+    loadMemberPhotos();
+
     // Smartphones: realtime socket drops while the app sleeps in background
     // and missed (non-queued) events never replay. On resume / focus / network
     // up, re-hydrate from Supabase so new messages and unread badges appear.
     const onResume = () => {
       if (document.visibilityState !== 'visible') return;
-      void hydrateFromSupabase().then(refreshAll);
+      void hydrateFromSupabase()
+        .then(() => {
+          StorageService.compactMemberImages();
+          return StorageService.hydrateMemberImages();
+        })
+        .then(() => refreshAll());
     };
     document.addEventListener('visibilitychange', onResume);
     window.addEventListener('focus', onResume);
