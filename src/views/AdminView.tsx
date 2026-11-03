@@ -1147,8 +1147,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
                         <option key={g.id} value={g.id}>
                           {g.nom_groupe}
                         </option>
-                      </select>
-                    </div>
+                      ))}
+                    </select>
+                  </div>
 
                     <div>
                       <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
