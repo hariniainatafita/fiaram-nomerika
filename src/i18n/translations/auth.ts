@@ -214,5 +214,25 @@ export const auth: TranslationDictionary = {
     mg: '4',
     fr: 'Étape 4 : Récapitulatif & validation',
     en: 'Step 4: Summary & validation'
+  },
+  'auth.forgotPassword': {
+    mg: 'Tenimiafina hadino / fanokafana voalohany ?',
+    fr: 'Mot de passe oublié / première connexion ?',
+    en: 'Forgot password / first sign-in?'
+  },
+  'auth.recoveryHint': {
+    mg: 'Ampidiro ny laharana findraman-telefaona (na ny mailaka) ampidirinao ambony sy ny kaody mpikambana, dia mamorona tenimiafina vaovao.',
+    fr: 'Entrez le téléphone (ou l’email) saisi ci-dessus, votre code membre, puis choisissez un nouveau mot de passe.',
+    en: 'Enter the phone (or email) typed above, your member code, then choose a new password.'
+  },
+  'auth.recoverySubmit': {
+    mg: 'Amboary ny tenimiafina',
+    fr: 'Définir le mot de passe',
+    en: 'Set the password'
+  },
+  'auth.recoverySuccess': {
+    mg: 'Voatahiry ny tenimiafina vaovao! Ampidiro izao hangiditra.',
+    fr: 'Nouveau mot de passe enregistré ! Connectez-vous maintenant.',
+    en: 'New password saved! Sign in now.'
   }
 };

@@ -25,6 +25,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
+  // First sign-in / forgotten password (phone + member code)
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState('');
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [recoveryConfirm, setRecoveryConfirm] = useState('');
+
   // Register form state
   const [regNom, setRegNom] = useState('');
   const [regPrenom, setRegPrenom] = useState('');
@@ -59,6 +65,30 @@ export const LoginView: React.FC<LoginViewProps> = ({
     } else if (res.user) {
       onLoginSuccess(res.user);
     }
+  };
+
+  const handleRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    if (recoveryPassword !== recoveryConfirm) {
+      setErrorMsg(t('auth.passwordMismatchError'));
+      return;
+    }
+    const res = await StorageService.resetPasswordWithCode(
+      loginIdentifier,
+      recoveryCode,
+      recoveryPassword
+    );
+    if (!res.success) {
+      setErrorMsg(res.message);
+      return;
+    }
+    setRecoveryOpen(false);
+    setRecoveryCode('');
+    setRecoveryPassword('');
+    setRecoveryConfirm('');
+    setLoginPassword('');
+    alert(t('auth.recoverySuccess'));
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -345,6 +375,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
         {!isRegisterMode ? (
           /* LOGIN FORM */
+          <>
           <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '6px' }}>
@@ -412,7 +443,102 @@ export const LoginView: React.FC<LoginViewProps> = ({
               <span>{t('auth.loginButton')}</span>
               <ArrowRight size={16} />
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setRecoveryOpen((v) => !v);
+                setErrorMsg(null);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--accent-gold)',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                margin: '0 auto'
+              }}
+            >
+              <HelpCircle size={14} />
+              {t('auth.forgotPassword')}
+            </button>
           </form>
+
+          {recoveryOpen && (
+            <form onSubmit={handleRecoverySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '6px' }}>
+              <div style={{
+                padding: '10px 12px',
+                borderRadius: '8px',
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                color: 'var(--accent-gold)',
+                fontSize: '0.8rem'
+              }}>
+                {t('auth.recoveryHint')}
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '6px' }}>
+                  {t('auth.memberCodeLabel')}
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoComplete="off"
+                  placeholder="GRP-2026-001"
+                  value={recoveryCode}
+                  onChange={(e) => setRecoveryCode(e.target.value)}
+                  className="form-input"
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '6px' }}>
+                  {t('profile.password.new')}:
+                </label>
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  placeholder={t('auth.createPasswordPlaceholder')}
+                  value={recoveryPassword}
+                  onChange={(e) => setRecoveryPassword(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '6px' }}>
+                  {t('auth.confirmPasswordLabel')}:
+                </label>
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  placeholder={t('auth.confirmPasswordPlaceholder')}
+                  value={recoveryConfirm}
+                  onChange={(e) => setRecoveryConfirm(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-success"
+                style={{ width: '100%', padding: '11px', fontSize: '0.92rem' }}
+              >
+                <span>{t('auth.recoverySubmit')}</span>
+                <CheckCircle2 size={16} />
+              </button>
+            </form>
+          )}
+          </>
         ) : (
           /* REGISTRATION WIZARD */
           <div>

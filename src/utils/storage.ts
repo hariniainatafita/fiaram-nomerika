@@ -548,6 +548,46 @@ export const StorageService = {
     };
   },
 
+  /**
+   * First sign-in / forgotten password: a member proves ownership with the
+   * phone (or email) AND the unique member code printed on the badge, then
+   * chooses a new password. This unblocks accounts created before passwords
+   * existed without giving anyone else access.
+   */
+  async resetPasswordWithCode(
+    identifier: string,
+    code: string,
+    newPassword: string
+  ): Promise<{ success: boolean; message: string }> {
+    const term = identifier.trim().toLowerCase();
+    const codeTerm = code.trim().toLowerCase();
+    if (newPassword.trim().length < 4) {
+      return { success: false, message: "Tokony ho 4 litera farafahakeliny ny tenimiafina vaovao." };
+    }
+    if (!term || !codeTerm) {
+      return { success: false, message: "Fenoy ny laharana/mailaka sy ny kaody mpikambana." };
+    }
+    const matches = this.getMembres().filter(
+      (m) =>
+        m.email.toLowerCase() === term ||
+        (m.username && m.username.toLowerCase() === term) ||
+        phonesMatch(m.telephone, term) ||
+        m.code_unique.toLowerCase() === term
+    );
+    const target = matches.find((m) => m.code_unique.toLowerCase() === codeTerm);
+    if (!target) {
+      return { success: false, message: "Tsy mifanaraka ny laharana/mailaka sy ny kaody mpikambana." };
+    }
+    if (target.is_blocked || !target.is_active) {
+      return { success: false, message: "Mifandraisa amin'ny Mpandrindra: voasakana na matoatoa ity kaonty ity." };
+    }
+    await this.setPasswordHash(target.id, newPassword);
+    return {
+      success: true,
+      message: `Voatahiry ny tenimiafina vaovao. Tongasoa, ${target.prenom}!`
+    };
+  },
+
   async setPasswordHash(membreId: string, password: string): Promise<void> {
     const hash = await createPasswordHash(password);
     const hashes = getPasswordHashes();
