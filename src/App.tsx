@@ -33,6 +33,8 @@ import { QuizView } from './views/QuizView';
 import { PublicationsView } from './views/PublicationsView';
 import { MembersView } from './views/MembersView';
 import { ProfileView } from './views/ProfileView';
+import { MemberProfileModal } from './components/MemberProfileModal';
+import { OPEN_MEMBER_PROFILE_EVENT } from './utils/memberProfileNav';
 import { AdminView } from './views/AdminView';
 import { LoginView } from './views/LoginView';
 
@@ -44,6 +46,17 @@ export function App() {
 
   // Active view state
   const [activeView, setActiveView] = useState<string>('dashboard');
+  const [viewedMemberId, setViewedMemberId] = useState<string | null>(null);
+
+  // Any view can ask to open a member profile (feed, comments, chat, directory).
+  useEffect(() => {
+    const handleOpenMember = (event: Event) => {
+      const detail = (event as CustomEvent<{ memberId?: string }>).detail;
+      if (detail?.memberId) setViewedMemberId(detail.memberId);
+    };
+    window.addEventListener(OPEN_MEMBER_PROFILE_EVENT, handleOpenMember);
+    return () => window.removeEventListener(OPEN_MEMBER_PROFILE_EVENT, handleOpenMember);
+  }, []);
 
   // Mobile sidebar state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
@@ -525,6 +538,9 @@ const refreshStories = () => {
 
   const defaultView = canAccessGroupData(currentUser) ? 'dashboard' : 'publications';
   const allowedView = canAccessView(currentUser, activeView) ? activeView : defaultView;
+  const viewedMember = viewedMemberId
+    ? allMembres.find((membre) => membre.id === viewedMemberId) || null
+    : null;
 
   return (
     <div className="app-container">
@@ -693,7 +709,10 @@ const refreshStories = () => {
             <ProfileView
               currentUser={currentUser}
               allGroupes={allGroupes}
+              publications={allPublications}
+              stories={allStories}
               onRefreshUser={refreshMembres}
+              onRefreshPublications={refreshPublications}
             />
           )}
 
@@ -718,6 +737,18 @@ const refreshStories = () => {
 
         {/* Bulles de notification des nouveaux messages */}
         <MessageToastList toasts={messageToasts} onOpen={openToastChat} onClose={closeToast} />
+
+        {/* Profil public d'un membre (comme Facebook) */}
+        {viewedMember && (
+          <MemberProfileModal
+            membre={viewedMember}
+            currentUser={currentUser}
+            publications={allPublications}
+            stories={allStories}
+            onClose={() => setViewedMemberId(null)}
+            onOpenChat={openChatWithMember}
+          />
+        )}
 
         {/* Demande d'autorisation des notifications système (une seule fois) */}
         {notifPermission !== 'granted' && notifPermission !== 'unsupported' && !permissionBannerDismissed && (

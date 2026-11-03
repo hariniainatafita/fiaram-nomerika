@@ -15,6 +15,7 @@ export interface Membre {
   dossier_verified?: boolean; // Admin reviewed the registration file
   is_blocked?: boolean;       // Admin can block an account
   photo_url?: string;
+  cover_url?: string;
   code_unique: string;
   telephone?: string;
   solde: number;

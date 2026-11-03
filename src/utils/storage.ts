@@ -1363,6 +1363,13 @@ export const StorageService = {
   getPublicationImage(publicationId: string): string | undefined {
     return getStoredItem<string | undefined>(publicationImageKey(publicationId), undefined);
   },
+  updatePublication(publicationId: string, contenu: string): void {
+    const list = this.getPublications();
+    const publication = list.find((p) => p.id === publicationId);
+    if (!publication) return;
+    publication.contenu = contenu.trim();
+    this.savePublications(list);
+  },
   togglePublicationLike(publicationId: string, membreId: string): void {
     const list = this.getPublications();
     const publication = list.find((p) => p.id === publicationId);

@@ -25,6 +25,7 @@ import { fetchStoryImageIfMissing, fetchPublicationImageIfMissing } from '../uti
 import { compressImage } from '../utils/imageCompressor';
 import { uploadDataUrl, downloadMedia } from '../utils/media';
 import { canViewPublication, getVisibleGroupIds, isAdmin } from '../utils/permissions';
+import { openMemberProfile } from '../utils/memberProfileNav';
 import { useLanguage } from '../i18n';
 
 interface PublicationsViewProps {
@@ -1021,10 +1022,20 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
               style={{ overflow: 'hidden' }}
             >
               <div style={{ padding: '18px 18px 14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <MemberAvatar membre={author} size={46} />
+                <button
+                  type="button"
+                  onClick={() => author && openMemberProfile(author.id)}
+                  style={{ border: 'none', background: 'none', padding: 0, cursor: author ? 'pointer' : 'default', flexShrink: 0 }}
+                  title={author ? t('profile.viewProfile') : undefined}
+                >
+                  <MemberAvatar membre={author} size={46} />
+                </button>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <strong style={{ fontSize: '0.94rem' }}>
+                    <strong
+                      onClick={() => author && openMemberProfile(author.id)}
+                      style={{ fontSize: '0.94rem', cursor: author ? 'pointer' : 'default' }}
+                    >
                       {author ? `${author.prenom} ${author.nom}` : t('publications.deletedMember')}
                     </strong>
                     {author && (
@@ -1204,7 +1215,14 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                       const commentAuthor = getAuthor(comment.auteur_id);
                       return (
                         <div key={comment.id} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                          <MemberAvatar membre={commentAuthor} size={34} />
+                          <button
+                            type="button"
+                            onClick={() => commentAuthor && openMemberProfile(commentAuthor.id)}
+                            style={{ border: 'none', background: 'none', padding: 0, cursor: commentAuthor ? 'pointer' : 'default', flexShrink: 0 }}
+                            title={commentAuthor ? t('profile.viewProfile') : undefined}
+                          >
+                            <MemberAvatar membre={commentAuthor} size={34} />
+                          </button>
                           <div style={{
                             flex: 1,
                             minWidth: 0,
@@ -1214,7 +1232,10 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                             padding: '10px 12px'
                           }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                              <strong style={{ fontSize: '0.8rem' }}>
+                              <strong
+                                onClick={() => commentAuthor && openMemberProfile(commentAuthor.id)}
+                                style={{ fontSize: '0.8rem', cursor: commentAuthor ? 'pointer' : 'default' }}
+                              >
                                 {commentAuthor ? `${commentAuthor.prenom} ${commentAuthor.nom}` : t('common.member')}
                               </strong>
                               <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>
@@ -1788,13 +1809,22 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                 gap: '10px',
                 zIndex: 2
               }}>
-                <MemberAvatar membre={author} size={36} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {author ? `${author.prenom} ${author.nom}` : t('common.member')}
-                  </div>
-                  <div style={{ fontSize: '0.68rem', color: 'rgba(255, 255, 255, 0.75)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <Clock size={11} /> {formatRelativeDate(currentStory.created_at)}
+                <div
+                  onClick={(event) => {
+                    if (!author) return;
+                    event.stopPropagation();
+                    openMemberProfile(author.id);
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0, cursor: author ? 'pointer' : 'default' }}
+                >
+                  <MemberAvatar membre={author} size={36} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {author ? `${author.prenom} ${author.nom}` : t('common.member')}
+                    </div>
+                    <div style={{ fontSize: '0.68rem', color: 'rgba(255, 255, 255, 0.75)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Clock size={11} /> {formatRelativeDate(currentStory.created_at)}
+                    </div>
                   </div>
                 </div>
                 {isOwn && (

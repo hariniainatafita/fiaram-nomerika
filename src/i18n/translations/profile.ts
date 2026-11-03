@@ -190,5 +190,165 @@ export const profile: TranslationDictionary = {
     mg: 'Tsy afaka nitahiry ny tenimiafina vaovao.',
     fr: 'Impossible d’enregistrer le nouveau mot de passe.',
     en: 'Could not save the new password.'
+  },
+  'profile.tabs.posts': {
+    mg: 'Lahatsoratra',
+    fr: 'Publications',
+    en: 'Posts'
+  },
+  'profile.tabs.activity': {
+    mg: 'Asa natao',
+    fr: 'Activité',
+    en: 'Activity'
+  },
+  'profile.tabs.about': {
+    mg: 'Momba ahy',
+    fr: 'À propos',
+    en: 'About'
+  },
+  'profile.cover.alt': {
+    mg: 'Sarin-takelaka',
+    fr: 'Photo de couverture',
+    en: 'Cover photo'
+  },
+  'profile.cover.change': {
+    mg: 'Hanova ny takelaka',
+    fr: 'Modifier la couverture',
+    en: 'Edit cover'
+  },
+  'profile.cover.modalTitle': {
+    mg: 'Hanova ny Sarin-takelaka',
+    fr: 'Modifier la photo de couverture',
+    en: 'Change cover photo'
+  },
+  'profile.cover.saved': {
+    mg: 'Voatahiry ny sarin-takelaka vaovao!',
+    fr: 'Nouvelle couverture enregistrée !',
+    en: 'New cover photo saved!'
+  },
+  'profile.cover.selectedAlt': {
+    mg: 'Sarin-takelaka voafidy',
+    fr: 'Couverture sélectionnée',
+    en: 'Selected cover'
+  },
+  'profile.cover.upload': {
+    mg: "Hampiditra Sary avy amin'ny Fitaovana",
+    fr: "Importer une image depuis l'appareil",
+    en: 'Upload image from device'
+  },
+  'profile.cover.urlLabel': {
+    mg: 'Na ampidiro ny rohy (URL) manokana:',
+    fr: 'Ou saisissez une URL personnalisée :',
+    en: 'Or enter a custom URL:'
+  },
+  'profile.cover.urlPlaceholder': {
+    mg: 'https://...',
+    fr: 'https://...',
+    en: 'https://...'
+  },
+  'profile.cover.save': {
+    mg: 'Tehirizo ny Takelaka',
+    fr: 'Enregistrer la couverture',
+    en: 'Save cover'
+  },
+  'profile.cover.compressError': {
+    mg: "Nisy olana teo am-panitsiana ny sary. Andramo indray.",
+    fr: "Une erreur est survenue lors de la compression de l'image. Réessayez.",
+    en: 'An error occurred while compressing the image. Please try again.'
+  },
+  'profile.posts.count': {
+    mg: 'Lahatsoratra {count}',
+    fr: '{count} publication(s)',
+    en: '{count} post(s)'
+  },
+  'profile.posts.emptyTitle': {
+    mg: 'Tsy mbola manana lahatsoratra ianao',
+    fr: "Vous n'avez pas encore de publication",
+    en: "You don't have any posts yet"
+  },
+  'profile.posts.emptyHint': {
+    mg: "Ny lahatsoratra rehetra navoakanao dia hiseho eto.",
+    fr: 'Toutes vos publications apparaîtront ici.',
+    en: 'All your posts will appear here.'
+  },
+  'profile.posts.groupPost': {
+    mg: 'ao amin’ny vondrona',
+    fr: 'dans un groupe',
+    en: 'in a group'
+  },
+  'profile.posts.imageAlt': {
+    mg: 'Sary ao amin’ny lahatsoratra',
+    fr: 'Image de la publication',
+    en: 'Post image'
+  },
+  'profile.activity.you': {
+    mg: 'Hianao',
+    fr: 'Vous',
+    en: 'You'
+  },
+  'profile.activity.posted': {
+    mg: 'nanao lahatsoratra',
+    fr: 'avez publié une publication',
+    en: 'published a post'
+  },
+  'profile.activity.commented': {
+    mg: 'nanao fanehoan-kevitra',
+    fr: 'avez commenté une publication',
+    en: 'commented on a post'
+  },
+  'profile.activity.liked': {
+    mg: 'nankasitraka lahatsoratra',
+    fr: 'avez aimé une publication',
+    en: 'liked a post'
+  },
+  'profile.activity.story': {
+    mg: 'nandefa story',
+    fr: 'avez publié une story',
+    en: 'posted a story'
+  },
+  'profile.activity.emptyTitle': {
+    mg: 'Tsy mbola misy asa voarakitra',
+    fr: "Aucune activité pour l'instant",
+    en: 'No activity yet'
+  },
+  'profile.activity.emptyHint': {
+    mg: "Ny zavatra rehetra ataonao (lahatsoratra, fanehoan-kevitra, story...) dia hiseho eto.",
+    fr: 'Tout ce que vous faites (publications, commentaires, stories...) apparaîtra ici.',
+    en: 'Everything you do (posts, comments, stories...) will appear here.'
+  },
+  'profile.autoPost.profilePhoto': {
+    mg: 'Nanova ny sariny ho profil aho.',
+    fr: 'J’ai changé ma photo de profil.',
+    en: 'I changed my profile photo.'
+  },
+  'profile.autoPost.coverPhoto': {
+    mg: 'Nanova ny sarin-takelany aho.',
+    fr: 'J’ai changé ma photo de couverture.',
+    en: 'I changed my cover photo.'
+  },
+  'profile.viewProfile': {
+    mg: 'Hijery ny mombamomba',
+    fr: 'Voir le profil',
+    en: 'View profile'
+  },
+  'profile.posts.captionLabel': {
+    mg: 'Lahatsoratra (azo ovaina):',
+    fr: 'Légende (modifiable) :',
+    en: 'Caption (editable):'
+  },
+  'profile.posts.captionPlaceholder': {
+    mg: 'Soraty ny lahatsoratra...',
+    fr: 'Écrivez votre légende...',
+    en: 'Write your caption...'
+  },
+  'profile.posts.editCaption': {
+    mg: 'Hanova ny lahatsoratra',
+    fr: 'Modifier la légende',
+    en: 'Edit caption'
+  },
+  'profile.posts.editCaptionSave': {
+    mg: 'Tehirizo',
+    fr: 'Enregistrer',
+    en: 'Save'
   }
 };

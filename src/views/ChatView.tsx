@@ -25,6 +25,7 @@ import { isMemberOnline, PresenceMap } from '../utils/presence';
 import { useLanguage } from '../i18n';
 import { getVisibleGroupIds, isAdmin } from '../utils/permissions';
 import { fetchMessageImageIfMissing } from '../utils/supabaseSync';
+import { openMemberProfile } from '../utils/memberProfileNav';
 
 interface ChatViewProps {
   currentUser: Membre;
@@ -792,11 +793,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <img
                   src={activePeer?.photo_url || DEFAULT_AVATAR_IMAGE}
                   alt=""
-                  style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                  onClick={() => activePeer && openMemberProfile(activePeer.id)}
+                  style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, cursor: 'pointer' }}
                 />
               )}
 
-              <div style={{ minWidth: 0 }}>
+              <div
+                onClick={() => activeChannelType === 'direct' && activePeer && openMemberProfile(activePeer.id)}
+                style={{ minWidth: 0, cursor: activeChannelType === 'direct' ? 'pointer' : 'default' }}
+              >
                 <div style={{ fontSize: '0.98rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {activeChannelType === 'group' ? activeGroup?.nom_groupe : `${activePeer?.prenom} ${activePeer?.nom}`}
                 </div>
@@ -886,7 +891,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <img
                         src={sender?.photo_url || DEFAULT_AVATAR_IMAGE}
                         alt=""
-                        style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover', marginBottom: '4px', flexShrink: 0 }}
+                        onClick={() => sender && openMemberProfile(sender.id)}
+                        style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover', marginBottom: '4px', flexShrink: 0, cursor: 'pointer' }}
                       />
                     )}
 
@@ -911,7 +917,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       }}
                     >
                       {!isMe && (
-                        <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--accent-gold)', marginBottom: '4px' }}>
+                        <div
+                          onClick={() => sender && openMemberProfile(sender.id)}
+                          style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--accent-gold)', marginBottom: '4px', cursor: 'pointer' }}
+                        >
                           {sender?.prenom} {sender?.nom}
                         </div>
                       )}

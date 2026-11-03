@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Membre, Groupe } from '../types';
-import { Search, UsersRound, Phone, BadgeCheck, User, MessageCircle, Mail, X, UserCircle2 } from 'lucide-react';
+import { Search, UsersRound, Phone, BadgeCheck, User, MessageCircle, UserCircle2 } from 'lucide-react';
 import { PresenceMap, isMemberOnline } from '../utils/presence';
 import { useLanguage } from '../i18n';
-import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
+import { openMemberProfile } from '../utils/memberProfileNav';
 
 interface MembersViewProps {
   currentUser: Membre;
@@ -32,7 +32,6 @@ export const MembersView: React.FC<MembersViewProps> = ({
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState('all');
-  const [selectedMembreId, setSelectedMembreId] = useState<string | null>(null);
 
   const directoryMembres = useMemo(
     () => allMembres.filter((m) => m.is_approved !== false && !m.is_blocked),
@@ -67,9 +66,13 @@ export const MembersView: React.FC<MembersViewProps> = ({
     return allGroupes.find((g) => g.chef_id === membre.id)?.nom_groupe || t('members.noGroup');
   };
 
-  const selectedMembre = selectedMembreId
-    ? directoryMembres.find((m) => m.id === selectedMembreId) || null
-    : null;
+  const openProfile = (membre: Membre) => {
+    if (membre.id === currentUser.id) {
+      onOpenOwnProfile();
+    } else {
+      openMemberProfile(membre.id);
+    }
+  };
 
   return (
     <div className="animate-fade-in" style={{ padding: '24px 20px', maxWidth: '1100px', margin: '0 auto' }}>
@@ -156,11 +159,11 @@ export const MembersView: React.FC<MembersViewProps> = ({
                 key={membre.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => setSelectedMembreId(membre.id)}
+                onClick={() => openProfile(membre)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    setSelectedMembreId(membre.id);
+                    openProfile(membre);
                   }
                 }}
                 className="glass-card"
@@ -292,129 +295,6 @@ export const MembersView: React.FC<MembersViewProps> = ({
         </div>
       )}
 
-      {/* MEMBER DETAIL MODAL */}
-      {selectedMembre && (
-        <div
-          onClick={() => setSelectedMembreId(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(6px)',
-            zIndex: 60,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-          }}
-        >
-          <div
-            className="glass-card"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '460px', width: '100%', padding: '26px', maxHeight: '85vh', overflowY: 'auto' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <h3 style={{ fontSize: '1.1rem', margin: 0 }}>{t('members.profileTitle')}</h3>
-              <button
-                onClick={() => setSelectedMembreId(null)}
-                className="btn btn-ghost"
-                style={{ padding: '6px', borderRadius: '50%' }}
-                title={t('common.close')}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
-              <img
-                src={selectedMembre.photo_url || DEFAULT_AVATAR_IMAGE}
-                alt={`${selectedMembre.prenom} ${selectedMembre.nom}`}
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  border: '2px solid var(--border-gold)'
-                }}
-              />
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>
-                  {selectedMembre.prenom} {selectedMembre.nom}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
-                  <span className="badge badge-purple" style={{ fontSize: '0.64rem' }}>
-                    {t(ROLE_TRANSLATION_KEYS[selectedMembre.role])}
-                  </span>
-                  <span className="badge badge-blue" style={{ fontSize: '0.64rem' }}>
-                    {selectedMembre.code_unique}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '18px' }}>
-              {[
-                { label: t('common.group'), value: groupName(selectedMembre) },
-                {
-                  label: t('common.phone'),
-                  value: selectedMembre.telephone || '—',
-                  href: selectedMembre.telephone ? `tel:${selectedMembre.telephone}` : undefined
-                },
-                { label: t('common.email'), value: selectedMembre.email },
-                { label: t('admin.fieldJob'), value: selectedMembre.profession || '—' },
-                { label: t('members.memberSince'), value: selectedMembre.created_at }
-              ].map((item, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(255,255,255,0.02)',
-                    borderBottom: '1px solid var(--border-color)',
-                    fontSize: '0.84rem'
-                  }}
-                >
-                  <span style={{ color: 'var(--text-dim)', flexShrink: 0 }}>{item.label}</span>
-                  {item.href ? (
-                    <a href={item.href} style={{ fontWeight: 600, color: 'var(--accent-gold)', textDecoration: 'none' }}>
-                      {item.value}
-                    </a>
-                  ) : (
-                    <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.value}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => {
-                setSelectedMembreId(null);
-                if (selectedMembre.id === currentUser.id) {
-                  onOpenOwnProfile();
-                } else {
-                  onOpenChat(selectedMembre.id);
-                }
-              }}
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-            >
-              {selectedMembre.id === currentUser.id ? <UserCircle2 size={16} /> : <MessageCircle size={16} />}
-              <span>
-                {selectedMembre.id === currentUser.id ? t('members.ownProfile') : t('members.sendMessage')}
-              </span>
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '12px', color: 'var(--text-dim)', fontSize: '0.74rem' }}>
-              <Mail size={13} />
-              <span>{t('members.contactHint')}</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
