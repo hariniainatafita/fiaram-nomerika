@@ -84,6 +84,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [newRole, setNewRole] = useState<Role>('membre');
   const [newGroupeId, setNewGroupeId] = useState(allGroupes[0]?.id || 'g1');
   const [newPassword, setNewPassword] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
 
   // Registration Questions State
   const [adminSettings, setAdminSettings] = useState(() => StorageService.getAdminSettings());
@@ -132,6 +134,25 @@ export const AdminView: React.FC<AdminViewProps> = ({
     const updated: Membre = { ...membre, is_active: !membre.is_active };
     StorageService.updateMembre(updated);
     onRefreshMembres();
+  };
+
+  // Reset a member's password (admin only). Useful for accounts created
+  // before the password field existed, which otherwise cannot sign in.
+  const handleResetPassword = async (membre: Membre) => {
+    if (!isAdminUser) return;
+    const value = resetPassword.trim();
+    if (value.length < 4) {
+      alert(t('admin.passwordTooShort'));
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await StorageService.setPasswordHash(membre.id, value);
+      setResetPassword('');
+      alert(t('admin.passwordResetDone', { name: membre.prenom }));
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   // Verify dossier (admin only)
@@ -882,7 +903,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 <FileText size={20} style={{ color: '#8b5cf6' }} />
                 {t('admin.dossierTitle')}
               </h3>
-              <button onClick={() => setDossierMembre(null)} className="btn btn-ghost" style={{ padding: '6px', borderRadius: '50%' }}>✕</button>
+              <button onClick={() => { setDossierMembre(null); setResetPassword(''); }} className="btn btn-ghost" style={{ padding: '6px', borderRadius: '50%' }}>✕</button>
             </div>
 
             {/* Photo & name */}
@@ -942,6 +963,34 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     <div style={{ fontWeight: 600, color: 'var(--text-main)', paddingLeft: '8px' }}>→ {a.answer}</div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Password reset (admin only) */}
+            {isAdminUser && (
+              <div style={{ marginTop: '18px', padding: '14px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, marginBottom: '8px' }}>
+                  {t('profile.password.new')}
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="••••••"
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    className="form-input"
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    onClick={() => handleResetPassword(dossierMembre)}
+                    className="btn btn-primary"
+                    disabled={savingPassword || resetPassword.trim().length < 4}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    {t('common.save')}
+                  </button>
+                </div>
               </div>
             )}
 

@@ -436,6 +436,16 @@ export const admin: TranslationDictionary = {
     fr: 'Mot de passe :',
     en: 'Password:'
   },
+  'admin.passwordTooShort': {
+    mg: 'Tokony ho 4 litera farafahakeliny ny tenimiafina.',
+    fr: 'Le mot de passe doit contenir au moins 4 caractères.',
+    en: 'The password must be at least 4 characters long.'
+  },
+  'admin.passwordResetDone': {
+    mg: 'Voatahiry ny tenimiafin’i {name}. Afaka miditra izy amin’izao.',
+    fr: 'Le mot de passe de {name} a été enregistré. Il/elle peut maintenant se connecter.',
+    en: 'The password for {name} has been saved. They can now sign in.'
+  },
   'admin.emailLabel': {
     mg: 'Adiresy Mailaka (Email):',
     fr: 'Adresse email :',

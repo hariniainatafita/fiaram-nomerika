@@ -20,7 +20,8 @@ export const STORAGE_KEYS = {
   QUIZ_RESULTS: 'fiaram_quiz_results_v1',
   CATEGORIES_RESSOURCES: 'fiaram_ressource_categories_v1',
   ADMIN_SETTINGS: 'fiaram_admin_settings_v2',
-  GROUP_READS: 'fiaram_group_reads_v1'
+  GROUP_READS: 'fiaram_group_reads_v1',
+  PASSWORD_HASHES: 'fiaram_password_hashes_v1'
 };
 
 // Keys that must be shared/synchronised between every device.
@@ -45,7 +46,10 @@ export const SYNCED_KEYS: string[] = [
   STORAGE_KEYS.QUIZ_RESULTS,
   STORAGE_KEYS.CATEGORIES_RESSOURCES,
   STORAGE_KEYS.ADMIN_SETTINGS,
-  STORAGE_KEYS.GROUP_READS
+  STORAGE_KEYS.GROUP_READS,
+  // Password hashes (PBKDF2, salted) are synced so a member can sign in from
+  // any phone, not only the device where the account was created.
+  STORAGE_KEYS.PASSWORD_HASHES
 ];
 
 // Inline chat images are synced too, but each message gets its own row

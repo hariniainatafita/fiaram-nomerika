@@ -13,7 +13,7 @@ import {
 import { STORAGE_KEYS, MESSAGE_IMAGE_PREFIX, messageImageKey, STORY_IMAGE_PREFIX, storyImageKey, PUBLICATION_IMAGE_PREFIX, publicationImageKey } from './storageKeys';
 import { pushKey, deleteKey } from './supabaseSync';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { hashPassword } from '../utils/crypto';
+import { createPasswordHash, verifyPassword } from '../utils/crypto';
 
 const DEFAULT_RESSOURCE_CATEGORIES: CategorieChanson[] = [
   { id: 'cat_doc', nom: 'Documents' },
@@ -23,9 +23,10 @@ const DEFAULT_RESSOURCE_CATEGORIES: CategorieChanson[] = [
   { id: 'cat_autre', nom: 'Autres' }
 ];
 
-// ClÃ© dÃ©diÃ©e au stockage des hachages SHA-256 des mots de passe.
-// Jamais stockÃ© en clair, jamais envoyÃ© Ã Supabase (key/value miroir local uniquement).
-const PASSWORD_HASHES_KEY = 'fiaram_password_hashes_v1';
+// Hachages PBKDF2 salés des mots de passe (jamais en clair). Cette clé est
+// synchronisée via Supabase pour qu'un membre puisse se connecter depuis
+// n'importe quel téléphone, pas seulement celui où le compte a été créé.
+const PASSWORD_HASHES_KEY = STORAGE_KEYS.PASSWORD_HASHES;
 
 function getPasswordHashes(): Record<string, string> {
   return getStoredItem<Record<string, string>>(PASSWORD_HASHES_KEY, {});
@@ -286,7 +287,7 @@ async function ensureDemoPasswordHashes(): Promise<void> {
 
     const hashes = getPasswordHashes();
     let changed = false;
-    const defaultHash = await hashPassword('admin');
+    const defaultHash = await createPasswordHash('admin');
     for (const m of toHash) {
       if (!hashes[m.id]) {
         hashes[m.id] = defaultHash;
@@ -382,9 +383,20 @@ export const StorageService = {
 
     // 1) Local verification first: instant, works offline and never waits on
     // the network (this is what made the login screen feel slow before).
-    const hash = await hashPassword(password);
     const hashes = getPasswordHashes();
-    let user = matches.find((m) => hashes[m.id] === hash);
+    let user: Membre | undefined;
+
+    for (const candidate of matches) {
+      if (await verifyPassword(password, hashes[candidate.id])) {
+        user = candidate;
+        // Upgrade old SHA-256 hashes to the synced PBKDF2 format.
+        if (!hashes[candidate.id].startsWith('pbkdf2$')) {
+          hashes[candidate.id] = await createPasswordHash(password);
+          setPasswordHashes(hashes);
+        }
+        break;
+      }
+    }
 
     // 2) Legacy accounts: the password may still live in the raw stored array
     // from before hashing. Accept it once, then persist the hash.
@@ -395,7 +407,7 @@ export const StorageService = {
         return Boolean(stored && stored.password && stored.password === password);
       });
       if (legacy) {
-        hashes[legacy.id] = hash;
+        hashes[legacy.id] = await createPasswordHash(password);
         setPasswordHashes(hashes);
         user = legacy;
       }
@@ -415,7 +427,7 @@ export const StorageService = {
             user = matches.find((m) => m.email.toLowerCase() === email.toLowerCase()) || matches[0];
             if (user) {
               const latest = getPasswordHashes();
-              latest[user.id] = hash;
+              latest[user.id] = await createPasswordHash(password);
               setPasswordHashes(latest);
             }
           }
@@ -503,7 +515,7 @@ export const StorageService = {
 
     // Store the SHA-256 hash (never plaintext) keyed by member id.
     try {
-      const hash = await hashPassword(data.password);
+      const hash = await createPasswordHash(data.password);
       const hashes = getPasswordHashes();
       hashes[newMembre.id] = hash;
       setPasswordHashes(hashes);
@@ -532,7 +544,7 @@ export const StorageService = {
   },
 
   async setPasswordHash(membreId: string, password: string): Promise<void> {
-    const hash = await hashPassword(password);
+    const hash = await createPasswordHash(password);
     const hashes = getPasswordHashes();
     hashes[membreId] = hash;
     setPasswordHashes(hashes);
@@ -1606,7 +1618,8 @@ export const StorageService = {
       STORAGE_KEYS.QUIZ_RESULTS,
       STORAGE_KEYS.CATEGORIES_RESSOURCES,
       STORAGE_KEYS.ADMIN_SETTINGS,
-      STORAGE_KEYS.GROUP_READS
+      STORAGE_KEYS.GROUP_READS,
+      STORAGE_KEYS.PASSWORD_HASHES
     ];
     sharedKeys.forEach((key) => {
       localStorage.removeItem(key);

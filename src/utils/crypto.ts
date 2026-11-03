@@ -41,6 +41,71 @@ export async function hashPassword(password: string): Promise<string> {
   return encodeHex(new Uint8Array(hash));
 }
 
+const PBKDF2_HASH_ITERATIONS = 100_000;
+const PBKDF2_PREFIX = 'pbkdf2';
+
+/**
+ * Hachage robuste et portable : PBKDF2-SHA256 avec un sel propre Ã  chaque
+ * compte. Le rÃ©sultat (`pbkdf2$iterations$sel$empreinte`) peut Ãªtre
+ * synchronisÃ© entre appareils sans jamais exposer le mot de passe en clair.
+ */
+export async function createPasswordHash(password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: PBKDF2_HASH_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    256
+  );
+  return `${PBKDF2_PREFIX}$${PBKDF2_HASH_ITERATIONS}$${encodeHex(salt)}$${encodeHex(new Uint8Array(bits))}`;
+}
+
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+/**
+ * VÃ©rifie un mot de passe contre un hachage stockÃ©. Accepte le nouveau
+ * format PBKDF2 et l'ancien SHA-256 (migration transparente des comptes).
+ */
+export async function verifyPassword(password: string, stored?: string): Promise<boolean> {
+  if (!stored) return false;
+  if (stored.startsWith(`${PBKDF2_PREFIX}$`)) {
+    const [, iterationsRaw, saltHex, hashHex] = stored.split('$');
+    const iterations = Number(iterationsRaw);
+    if (!iterations || !saltHex || !hashHex) return false;
+    try {
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(password),
+        'PBKDF2',
+        false,
+        ['deriveBits']
+      );
+      const bits = await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', salt: decodeHex(saltHex), iterations, hash: 'SHA-256' },
+        keyMaterial,
+        256
+      );
+      return safeEqual(encodeHex(new Uint8Array(bits)), hashHex);
+    } catch {
+      return false;
+    }
+  }
+  return safeEqual(await hashPassword(password), stored);
+}
+
 /* -------------------------------------------------------------------------- */
 /*  AES-256-GCM : chiffrement symÃ©trique de donnÃ©es sensibles au repos      */
 /* -------------------------------------------------------------------------- */
