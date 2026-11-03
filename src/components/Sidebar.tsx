@@ -47,7 +47,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen,
   onCloseMobile,
   unreadCount,
-  publicationUnreadCount
+  publicationUnreadCount,
+  quizUnreadCount,
+  feedUnreadCount
 }) => {
   const { t } = useLanguage();
   const isAdminUser = isAdmin(currentUser);
@@ -61,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
 const navItems = [
     { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, hidden: !hasGroupAccess },
-    { id: 'publications', label: t('nav.publications'), icon: Camera, badge: publicationUnreadCount },
+    { id: 'publications', label: t('nav.publications'), icon: Camera, badge: feedUnreadCount },
     { id: 'quiz', label: t('nav.quiz'), icon: BrainCircuit, badge: quizUnreadCount },
     { id: 'members', label: t('nav.members'), icon: UsersRound, hidden: !hasGroupAccess },
     { id: 'presence', label: t('nav.presence'), icon: QrCode, hidden: !hasGroupAccess },

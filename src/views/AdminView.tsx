@@ -224,8 +224,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
   };
 
   // Add Member Submit
-  const handleAddMemberSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddMemberSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!isAdminUser) return;
     if (!newNom.trim() || !newPrenom.trim()) return;
     if (!newTel.trim() && !newEmail.trim()) return; // Phone or email is required to sign in

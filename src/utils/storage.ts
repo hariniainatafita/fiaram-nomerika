@@ -10,7 +10,7 @@ import {
   INITIAL_EVENEMENTS,
   INITIAL_PUBLICATIONS
 } from '../data/mockData';
-import { STORAGE_KEYS, MESSAGE_IMAGE_PREFIX, messageImageKey, STORY_IMAGE_PREFIX, storyImageKey } from './storageKeys';
+import { STORAGE_KEYS, MESSAGE_IMAGE_PREFIX, messageImageKey, STORY_IMAGE_PREFIX, storyImageKey, PUBLICATION_IMAGE_PREFIX, publicationImageKey } from './storageKeys';
 import { pushKey, deleteKey } from './supabaseSync';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { hashPassword } from '../utils/crypto';
@@ -135,6 +135,18 @@ function saveStoryImageRow(storyId: string, dataUrl: string): boolean {
     return true;
   } catch (e) {
     console.error(`Error saving story image ${storyId}:`, e);
+    return false;
+  }
+}
+
+function savePublicationImageRow(publicationId: string, dataUrl: string): boolean {
+  try {
+    const key = publicationImageKey(publicationId);
+    localStorage.setItem(key, JSON.stringify(dataUrl));
+    pushKey(key, dataUrl);
+    return true;
+  } catch (e) {
+    console.error(`Error saving publication image ${publicationId}:`, e);
     return false;
   }
 }
@@ -701,11 +713,11 @@ export const StorageService = {
     this.saveMembres(membres);
   },
   setMembreGroupe(membreId: string, groupeId?: string): void {
-    const raw = this.getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
+    const raw = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
     const index = raw.findIndex((m) => m.id === membreId);
     if (index !== -1) {
       raw[index].groupe_id = groupeId;
-      this.setStoredItem(STORAGE_KEYS.MEMBRES, raw);
+      setStoredItem(STORAGE_KEYS.MEMBRES, raw);
     }
   },
 
@@ -1185,14 +1197,15 @@ export const StorageService = {
     contenu: string,
     image_url?: string,
     audience: 'all' | 'group' = 'all',
-    groupe_id?: string
+    groupe_id?: string,
+    localDataUrl?: string
   ): Publication {
     const list = this.getPublications();
+    const publicationId = 'pub_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
     const newPublication: Publication = {
-      id: 'pub_' + Date.now(),
+      id: publicationId,
       auteur_id,
       contenu: contenu.trim(),
-      image_url,
       audience: audience === 'group' ? 'group' : 'all',
       groupe_id: audience === 'group' ? groupe_id : undefined,
       created_at: new Date().toISOString(),
@@ -1200,9 +1213,25 @@ export const StorageService = {
       commentaires: [],
       partages: 0
     };
+
+    // Keep the feed light: the picture gets its own synced row so every device
+    // receives it, even when the Supabase media bucket is missing or broken.
+    const localCopy = localDataUrl || (image_url?.startsWith('data:') ? image_url : undefined);
+    if (localCopy && savePublicationImageRow(publicationId, localCopy)) {
+      newPublication.image_ref = publicationId;
+    }
+    if (image_url && !image_url.startsWith('data:')) {
+      newPublication.image_url = image_url;
+    } else if (image_url && !newPublication.image_ref) {
+      newPublication.image_url = image_url;
+    }
+
     list.unshift(newPublication);
     this.savePublications(list);
     return newPublication;
+  },
+  getPublicationImage(publicationId: string): string | undefined {
+    return getStoredItem<string | undefined>(publicationImageKey(publicationId), undefined);
   },
   togglePublicationLike(publicationId: string, membreId: string): void {
     const list = this.getPublications();
@@ -1239,8 +1268,12 @@ export const StorageService = {
     }
   },
   deletePublication(publicationId: string): void {
-    const list = this.getPublications().filter((publication) => publication.id !== publicationId);
-    this.savePublications(list);
+    const all = this.getPublications();
+    const publication = all.find((p) => p.id === publicationId);
+    if (publication?.image_ref) {
+      removeStoredItem(publicationImageKey(publication.image_ref));
+    }
+    this.savePublications(all.filter((p) => p.id !== publicationId));
   },
 
   // ==================== STORIES (24h, style Facebook) ====================
@@ -1272,7 +1305,7 @@ export const StorageService = {
   getStoryImage(storyId: string): string | undefined {
     return getStoredItem<string | undefined>(storyImageKey(storyId), undefined);
   },
-  addStory(auteur_id: string, image_url: string, caption?: string): Story {
+  addStory(auteur_id: string, image_url: string, caption?: string, localDataUrl?: string): Story {
     const list = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []);
     const now = new Date();
     const storyId = 'story_' + now.getTime() + '_' + Math.random().toString(36).slice(2, 6);
@@ -1285,13 +1318,17 @@ export const StorageService = {
       seen_by: []
     };
 
-    if (image_url.startsWith('data:')) {
-      // Keep the STORIES collection small enough for Supabase Realtime and
-      // for the localStorage quota: the picture gets its own synced row.
-      if (saveStoryImageRow(storyId, image_url)) {
-        story.image_ref = storyId;
-      }
-    } else {
+    // Keep the STORIES collection small enough for Supabase Realtime and for
+    // the localStorage quota: the picture gets its own synced row. The row is
+    // always written (even when a remote URL exists) so every device keeps a
+    // working copy if the media bucket is unavailable.
+    const localCopy = localDataUrl || (image_url.startsWith('data:') ? image_url : undefined);
+    if (localCopy && saveStoryImageRow(storyId, localCopy)) {
+      story.image_ref = storyId;
+    }
+    if (!image_url.startsWith('data:')) {
+      story.image_url = image_url;
+    } else if (!story.image_ref) {
       story.image_url = image_url;
     }
 
@@ -1459,7 +1496,11 @@ export const StorageService = {
     const localKeys: string[] = [];
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith(MESSAGE_IMAGE_PREFIX) || key.startsWith(STORY_IMAGE_PREFIX))) {
+      if (key && (
+        key.startsWith(MESSAGE_IMAGE_PREFIX) ||
+        key.startsWith(STORY_IMAGE_PREFIX) ||
+        key.startsWith(PUBLICATION_IMAGE_PREFIX)
+      )) {
         localKeys.push(key);
       }
     }
@@ -1475,6 +1516,13 @@ export const StorageService = {
       .filter((ref) => ref.length > 0);
     for (const storyId of new Set([...storyIds])) {
       const key = storyImageKey(storyId);
+      if (!localKeys.includes(key)) localKeys.push(key);
+    }
+    const publicationIds = getStoredItem<Publication[]>(STORAGE_KEYS.PUBLICATIONS, [])
+      .map((publication) => `${publication.image_ref || ''}`)
+      .filter((ref) => ref.length > 0);
+    for (const publicationId of new Set([...publicationIds])) {
+      const key = publicationImageKey(publicationId);
       if (!localKeys.includes(key)) localKeys.push(key);
     }
     localKeys.forEach((key) => {

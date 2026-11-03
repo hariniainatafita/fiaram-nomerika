@@ -65,7 +65,17 @@ export const STORY_IMAGE_PREFIX = 'fiaram_storyimg_';
 export const storyImageKey = (storyId: string): string =>
   `${STORY_IMAGE_PREFIX}${storyId}`;
 
+// Publication pictures follow the same pattern: the PUBLICATIONS collection
+// only keeps light metadata (author, text, dates) while each picture has its
+// own synced row. This keeps the feed small enough for Supabase Realtime and
+// lets pictures reach every device even without the media bucket.
+export const PUBLICATION_IMAGE_PREFIX = 'fiaram_pubimg_';
+
+export const publicationImageKey = (publicationId: string): string =>
+  `${PUBLICATION_IMAGE_PREFIX}${publicationId}`;
+
 export const isSyncedKey = (key: string): boolean =>
   SYNCED_KEYS.includes(key) ||
   key.startsWith(MESSAGE_IMAGE_PREFIX) ||
-  key.startsWith(STORY_IMAGE_PREFIX);
+  key.startsWith(STORY_IMAGE_PREFIX) ||
+  key.startsWith(PUBLICATION_IMAGE_PREFIX);

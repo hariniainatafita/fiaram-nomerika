@@ -88,8 +88,6 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
     return allQuizzes.filter((q) => q.is_published).length;
   }, [allQuizzes]);
 
-  const feedUnreadCount = publicationUnreadCount;
-
   // Live presence: only members with a recent heartbeat are shown online
   const presenceMap = usePresence(currentUser?.id);
 
@@ -289,6 +287,9 @@ const refreshStories = () => {
         canViewPublication(currentUser, publication, allGroupes)
     ).length;
   }, [allPublications, allGroupes, currentUser, publicationSeenAt]);
+
+  // Badge du fil d'actualité (même source que Publications).
+  const feedUnreadCount = publicationUnreadCount;
 
   // Ouvrir le fil marque les publications comme vues (le badge disparaît).
   useEffect(() => {

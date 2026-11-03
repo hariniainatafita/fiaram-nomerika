@@ -21,7 +21,7 @@ import {
   Move
 } from 'lucide-react';
 import { StorageService } from '../utils/storage';
-import { fetchStoryImageIfMissing } from '../utils/supabaseSync';
+import { fetchStoryImageIfMissing, fetchPublicationImageIfMissing } from '../utils/supabaseSync';
 import { compressImage } from '../utils/imageCompressor';
 import { uploadDataUrl, downloadMedia } from '../utils/media';
 import { canViewPublication, getVisibleGroupIds, isAdmin } from '../utils/permissions';
@@ -264,6 +264,9 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   // Pictures of stories are stored in their own synced rows, so they are
   // resolved here and shared by the story cards and the viewer.
   const [storyImages, setStoryImages] = useState<Record<string, string>>({});
+  // Same scheme for publications: metadata in PUBLICATIONS, picture in its
+  // own synced row, resolved here so it appears on every device.
+  const [publicationImages, setPublicationImages] = useState<Record<string, string>>({});
   useEffect(() => {
     setLocalStories(prev => {
       const newLocalStories = prev.filter(
@@ -407,7 +410,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       const updates: Record<string, string> = {};
       for (const story of localStories) {
         const ref = story.image_ref;
-        if (!ref || story.image_url || storyImages[ref]) continue;
+        if (!ref || storyImages[ref]) continue;
         const local = StorageService.getStoryImage(ref);
         if (local) {
           updates[ref] = local;
@@ -428,8 +431,43 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
 
   const getStoryImageSrc = (story?: Story): string | undefined => {
     if (!story) return undefined;
+    if (story.image_ref && storyImages[story.image_ref]) return storyImages[story.image_ref];
     if (story.image_url) return story.image_url;
     if (story.image_ref) return storyImages[story.image_ref];
+    return undefined;
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const resolveImages = async () => {
+      const updates: Record<string, string> = {};
+      for (const publication of publications) {
+        const ref = publication.image_ref;
+        if (!ref || publicationImages[ref]) continue;
+        const local = StorageService.getPublicationImage(ref);
+        if (local) {
+          updates[ref] = local;
+          continue;
+        }
+        const remote = await fetchPublicationImageIfMissing(ref);
+        if (remote) updates[ref] = remote;
+      }
+      if (!cancelled && Object.keys(updates).length > 0) {
+        setPublicationImages((prev) => ({ ...prev, ...updates }));
+      }
+    };
+    void resolveImages();
+    return () => {
+      cancelled = true;
+    };
+  }, [publications, publicationImages]);
+
+  const getPublicationImageSrc = (publication: Publication): string | undefined => {
+    if (publication.image_ref && publicationImages[publication.image_ref]) {
+      return publicationImages[publication.image_ref];
+    }
+    if (publication.image_url) return publication.image_url;
+    if (publication.image_ref) return publicationImages[publication.image_ref];
     return undefined;
   };
 
@@ -626,9 +664,14 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
 
       // Une seule sauvegarde locale: le même objet est affiché tout de suite
       // et envoyé aux autres membres via la synchronisation Supabase.
-      const savedStory = StorageService.addStory(currentUser.id, imageUrl, captionData);
+      const savedStory = StorageService.addStory(
+        currentUser.id,
+        imageUrl,
+        captionData,
+        storyImage.dataUrl
+      );
       if (savedStory.image_ref) {
-        setStoryImages((prev) => ({ ...prev, [savedStory.image_ref!]: imageUrl }));
+        setStoryImages((prev) => ({ ...prev, [savedStory.image_ref!]: storyImage.dataUrl }));
       }
 
       setLocalStories(prev => [savedStory, ...prev.filter(s => s.id !== savedStory.id)]);
@@ -717,13 +760,20 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       const imageUrl = stagedImage
         ? (await uploadDataUrl(stagedImage.dataUrl, 'image') ?? stagedImage.dataUrl)
         : undefined;
-      StorageService.createPublication(
+      const savedPublication = StorageService.createPublication(
         currentUser.id,
         content,
         imageUrl,
         publicationAudience,
-        targetGroupeId || undefined
+        targetGroupeId || undefined,
+        stagedImage?.dataUrl
       );
+      if (savedPublication.image_ref && stagedImage) {
+        setPublicationImages((prev) => ({
+          ...prev,
+          [savedPublication.image_ref as string]: stagedImage.dataUrl
+        }));
+      }
       setNewContent('');
       setStagedImage(null);
       setComposerOpen(false);
@@ -915,7 +965,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
         </span>
       </button>
 
-      {activeView === 'publications' && (
+      {newPostsCount > 0 && (
         <div style={{
           position: 'sticky',
           top: '74px',
@@ -952,6 +1002,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
           const likeCount = publication.liked_by.length;
           const commentCount = publication.commentaires.length;
           const canDelete = publication.auteur_id === currentUser.id || isAdmin(currentUser);
+          const imageSrc = getPublicationImageSrc(publication);
 
           return (
             <article
@@ -1012,10 +1063,10 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                 </div>
               )}
 
-              {publication.image_url && (
+              {imageSrc && (
                 <button
                   type="button"
-                  onClick={() => openPreview(publication.image_url)}
+                  onClick={() => openPreview(imageSrc)}
                   style={{
                     display: 'block',
                     width: '100%',
@@ -1029,7 +1080,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                   title={t('publications.image.enlarge')}
                 >
                   <img
-                    src={publication.image_url}
+                    src={imageSrc}
                     alt={t('publications.image.alt')}
                     loading="lazy"
                     decoding="async"
@@ -1040,21 +1091,6 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                     }}
                   />
                 </button>
-              )}
-              {!publication.image_url && publication.contenu && (
-                <div style={{
-                  padding: '16px 18px',
-                  border: '2px dashed var(--border-color)',
-                  borderRadius: '12px',
-                  background: 'rgba(245, 158, 11, 0.08)',
-                  margin: '16px 0',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📷</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                    {t('publications.noImage')}
-                  </div>
-                </div>
               )}
 
               {(likeCount > 0 || commentCount > 0 || publication.partages > 0) && (

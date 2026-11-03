@@ -218,6 +218,9 @@ export interface PublicationComment {
   auteur_id: string;
   contenu: string;
   image_url?: string;
+  // Base64 pictures live in their own synced row (see publicationImageKey)
+  // so the PUBLICATIONS collection stays small enough for realtime.
+  image_ref?: string;
   audience?: 'all' | 'group';
   groupe_id?: string;
   created_at: string;

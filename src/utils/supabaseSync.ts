@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { STORAGE_KEYS, SYNCED_KEYS, isSyncedKey, messageImageKey, storyImageKey } from './storageKeys';
+import { STORAGE_KEYS, SYNCED_KEYS, isSyncedKey, messageImageKey, storyImageKey, publicationImageKey } from './storageKeys';
 
 const TABLE = 'app_state';
 const pushTimers: Record<string, number> = {};
@@ -353,6 +353,57 @@ export async function fetchStoryImageIfMissing(storyId: string): Promise<string 
     return undefined;
   } finally {
     storyImageInflight.delete(storyId);
+  }
+}
+
+const publicationImageInflight = new Set<string>();
+
+/**
+ * Publication pictures also live in their own row
+ * (`fiaram_pubimg_<publicationId>`). Members that only received the light
+ * PUBLICATIONS metadata fetch the picture on demand, so the image appears
+ * even when the realtime payload was too large or the media bucket is absent.
+ */
+export async function fetchPublicationImageIfMissing(publicationId: string): Promise<string | undefined> {
+  if (!isSupabaseConfigured || !supabase) return undefined;
+  const key = publicationImageKey(publicationId);
+  const raw = localStorage.getItem(key);
+  if (raw !== null) {
+    try {
+      return JSON.parse(raw) as string;
+    } catch {
+      /* fall through to refetch */
+    }
+  }
+  if (publicationImageInflight.has(publicationId)) return undefined;
+  publicationImageInflight.add(publicationId);
+  try {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select('value')
+        .eq('key', key)
+        .maybeSingle();
+      if (!error && data) {
+        const value = normalizeRemoteValue((data as { value?: unknown }).value);
+        if (typeof value === 'string' && value) {
+          try {
+            localStorage.setItem(key, JSON.stringify(value));
+          } catch (err) {
+            console.error(`[Supabase] cannot store "${key}":`, err);
+          }
+          return value;
+        }
+      }
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      }
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  } finally {
+    publicationImageInflight.delete(publicationId);
   }
 }
 
