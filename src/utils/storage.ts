@@ -552,6 +552,14 @@ export const StorageService = {
   hasPassword(membreId: string): boolean {
     return Boolean(getPasswordHashes()[membreId]);
   },
+  async verifyMembrePassword(membreId: string, password: string): Promise<boolean> {
+    const hashes = getPasswordHashes();
+    if (await verifyPassword(password, hashes[membreId])) return true;
+    // Legacy accounts may still hold their plaintext password in the raw data.
+    const raw = getStoredItem<Array<Membre & { password?: string }>>(STORAGE_KEYS.MEMBRES, []);
+    const legacy = raw.find((row) => row.id === membreId);
+    return Boolean(legacy && legacy.password && legacy.password === password);
+  },
 
   logout(): void {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);

@@ -175,5 +175,20 @@ export const profile: TranslationDictionary = {
     mg: 'Tsy mitovy ny tenimiafina vaovao sy ny fanamafisana!',
     fr: 'Le nouveau mot de passe et sa confirmation ne correspondent pas !',
     en: 'The new password and its confirmation do not match!'
+  },
+  'profile.password.wrongCurrent': {
+    mg: 'Diso ny tenimiafina ankehitriny.',
+    fr: 'Le mot de passe actuel est incorrect.',
+    en: 'The current password is incorrect.'
+  },
+  'profile.password.tooShort': {
+    mg: 'Tokony ho 4 litera farafahakeliny ny tenimiafina vaovao.',
+    fr: 'Le nouveau mot de passe doit contenir au moins 4 caractères.',
+    en: 'The new password must be at least 4 characters long.'
+  },
+  'profile.password.saveError': {
+    mg: 'Tsy afaka nitahiry ny tenimiafina vaovao.',
+    fr: 'Impossible d’enregistrer le nouveau mot de passe.',
+    en: 'Could not save the new password.'
   }
 };

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+
 import { canManageBadges } from '../utils/permissions';
 import { MemberBadgeModal } from '../components/MemberBadgeModal';
 import { compressImage } from '../utils/imageCompressor';
@@ -196,28 +196,24 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       alert(t('profile.password.mismatch'));
       return;
     }
-    try {
-      // The local hash is the authoritative sign-in path on this app: update
-      // it first so the new password works immediately, online or offline.
-      await StorageService.setPasswordHash(currentUser.id, newPassword);
-    } catch {
-      alert("Impossible d'enregistrer le nouveau mot de passe.");
+    if (newPassword.length < 4) {
+      alert(t('profile.password.tooShort'));
       return;
     }
-
-    // Optionally mirror the change to Supabase Auth when a session exists.
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session) {
-          const { error } = await supabase.auth.updateUser({ password: newPassword });
-          if (error) {
-            console.warn('Supabase updateUser non critique:', error.message);
-          }
-        }
-      } catch (e) {
-        console.warn('Supabase updateUser non critique:', e);
+    try {
+      // The local hash is the authoritative sign-in path on this app. The
+      // change never depends on a Supabase Auth session (which does not
+      // exist for accounts created inside the app).
+      const currentOk = await StorageService.verifyMembrePassword(currentUser.id, oldPassword);
+      if (!currentOk) {
+        alert(t('profile.password.wrongCurrent'));
+        return;
       }
+      await StorageService.setPasswordHash(currentUser.id, newPassword);
+    } catch (error) {
+      console.error('Impossible de modifier le mot de passe:', error);
+      alert(t('profile.password.saveError'));
+      return;
     }
 
     onRefreshUser();
