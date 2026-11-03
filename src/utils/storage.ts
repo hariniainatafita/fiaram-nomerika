@@ -1187,7 +1187,22 @@ export const StorageService = {
 
   // Publications
   getPublications(): Publication[] {
-    return getStoredItem<Publication[]>(STORAGE_KEYS.PUBLICATIONS, INITIAL_PUBLICATIONS);
+    const list = getStoredItem<Publication[]>(STORAGE_KEYS.PUBLICATIONS, INITIAL_PUBLICATIONS);
+    // Older posts stored the whole base64 picture inside the collection. Move
+    // it to its own synced row so the feed stays light and reaches every
+    // device through Supabase.
+    let changed = false;
+    const migrated = list.map((publication) => {
+      if (publication.image_url?.startsWith('data:')) {
+        if (savePublicationImageRow(publication.id, publication.image_url)) {
+          changed = true;
+          return { ...publication, image_ref: publication.id, image_url: undefined };
+        }
+      }
+      return publication;
+    });
+    if (changed) setStoredItem(STORAGE_KEYS.PUBLICATIONS, migrated);
+    return migrated;
   },
   savePublications(publications: Publication[]): void {
     setStoredItem(STORAGE_KEYS.PUBLICATIONS, publications);
@@ -1295,7 +1310,19 @@ export const StorageService = {
       markStoriesDeleted(expired.map((story) => story.id));
       setStoredItem(STORAGE_KEYS.STORIES, active);
     }
-    return active
+    // Move base64 pictures saved by older versions into their own row.
+    let changed = false;
+    const migrated = active.map((story) => {
+      if (story.image_url?.startsWith('data:')) {
+        if (saveStoryImageRow(story.id, story.image_url)) {
+          changed = true;
+          return { ...story, image_ref: story.id, image_url: undefined };
+        }
+      }
+      return story;
+    });
+    if (changed) setStoredItem(STORAGE_KEYS.STORIES, migrated);
+    return migrated
       .slice()
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   },
