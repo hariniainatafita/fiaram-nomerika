@@ -83,6 +83,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [newTel, setNewTel] = useState('');
   const [newRole, setNewRole] = useState<Role>('membre');
   const [newGroupeId, setNewGroupeId] = useState(allGroupes[0]?.id || 'g1');
+  const [newPassword, setNewPassword] = useState('');
 
   // Registration Questions State
   const [adminSettings, setAdminSettings] = useState(() => StorageService.getAdminSettings());
@@ -224,7 +225,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   };
 
   // Add Member Submit
-  const handleAddMemberSubmit = (e?: React.FormEvent) => {
+  const handleAddMemberSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!isAdminUser) return;
     if (!newNom.trim() || !newPrenom.trim()) return;
@@ -251,6 +252,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
       fingerprint_registered: false
     });
 
+    if (newPassword.trim()) {
+      try {
+        await StorageService.setPasswordHash(newM.id, newPassword.trim());
+      } catch (error) {
+        console.error('Impossible de définir le mot de passe:', error);
+      }
+    }
+
     onRefreshMembres();
     setShowAddModal(false);
     setNewNom('');
@@ -258,6 +267,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     setNewUsername('');
     setNewEmail('');
     setNewTel('');
+    setNewPassword('');
 
     // Open their badge immediately for preview / printing
     setSelectedBadgeMembre(newM);
@@ -1131,6 +1141,20 @@ export const AdminView: React.FC<AdminViewProps> = ({
                       className="form-input"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                    {t('profile.password.new')}
+                  </label>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="form-input"
+                  />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

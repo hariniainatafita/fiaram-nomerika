@@ -489,7 +489,13 @@ async function pushKeyNow(key: string, fallbackValue?: unknown): Promise<void> {
 export async function hydrateFromSupabase(): Promise<void> {
   if (!isSupabaseConfigured || !supabase) return;
   try {
-    const { data, error } = await supabase.from(TABLE).select('key, value');
+    // Only fetch the light shared collections. Per-item picture rows can be
+    // huge (base64) and are resolved on demand, so downloading them at boot
+    // would make the app (and the login screen) very slow on mobile data.
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('key, value')
+      .in('key', SYNCED_KEYS);
     if (error) {
       console.warn('[Supabase] hydrate failed:', error.message);
       return;

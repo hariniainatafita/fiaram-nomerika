@@ -8,8 +8,12 @@ import { StorageService } from './utils/storage'
 
 async function bootstrap() {
   // Pull shared data from Supabase before the first render so every device
-  // starts from the same accounts / presences / settings.
-  await hydrateFromSupabase()
+  // starts from the same accounts / presences / settings. A timeout keeps a
+  // slow or unreachable network from freezing the login screen.
+  await Promise.race([
+    hydrateFromSupabase(),
+    new Promise<void>((resolve) => setTimeout(resolve, 6000))
+  ])
   StorageService.removeLegacyAutoReplies()
   StorageService.upgradePendingMembers()
 

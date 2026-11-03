@@ -35,6 +35,15 @@ function setPasswordHashes(hashes: Record<string, string>): void {
   setStoredItem(PASSWORD_HASHES_KEY, hashes);
 }
 
+// Never let a slow network block the login screen: Supabase Auth is only a
+// fallback, so it gets a short timeout and the local hash stays authoritative.
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  return Promise.race([
+    promise,
+    new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), ms))
+  ]);
+}
+
 const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   chorale_nom: 'Groupe',
   chorale_sigle: 'GROUPE',
@@ -260,6 +269,7 @@ function ensureInitData(): void {
 }
 
 ensureInitData();
+void ensureDemoPasswordHashes();
 
 /**
  * Seme les hachages SHA-256 des mots de passe par dÃ©faut pour les comptes
@@ -370,37 +380,50 @@ export const StorageService = {
       return { success: false, message: "Tsy misy kaonty mifandraika amin'io mailaka na laharana findraman-telefaona io." };
     }
 
-    // 1) Supabase Auth (primary, when configured).
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const emailCandidates = matches
-          .map((m) => m.email)
-          .filter(Boolean);
-        const email = emailCandidates[0] || term;
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-        if (!error && data.user) {
-          const user = matches.find((m) => m.id === data.user.id) || matches[0];
-          if (user.is_blocked) {
-            return { success: false, message: "Voasakana (bloqué) ity kaonty ity. Mifandraisa amin'ny Mpandrindra." };
-          }
-          if (!user.is_active) {
-            return { success: false, message: "Matoantoka (désactivé) ity kaonty ity. Mifandraisa amin'ny Mpandrindra." };
-          }
-          localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.id);
-          return { success: true, message: `Tongasoa, ${user.prenom}!`, user };
-        }
-      } catch {
-        // Fall through to local hash verification below.
+    // 1) Local verification first: instant, works offline and never waits on
+    // the network (this is what made the login screen feel slow before).
+    const hash = await hashPassword(password);
+    const hashes = getPasswordHashes();
+    let user = matches.find((m) => hashes[m.id] === hash);
+
+    // 2) Legacy accounts: the password may still live in the raw stored array
+    // from before hashing. Accept it once, then persist the hash.
+    if (!user) {
+      const raw = getStoredItem<Array<Membre & { password?: string }>>(STORAGE_KEYS.MEMBRES, []);
+      const legacy = matches.find((m) => {
+        const stored = raw.find((row) => row.id === m.id);
+        return Boolean(stored && stored.password && stored.password === password);
+      });
+      if (legacy) {
+        hashes[legacy.id] = hash;
+        setPasswordHashes(hashes);
+        user = legacy;
       }
     }
 
-    // 2) Local fallback: SHA-256 hash comparison (never plaintext).
-    const hash = await hashPassword(password);
-    const hashes = getPasswordHashes();
-    const user = matches.find((m) => hashes[m.id] === hash);
+    // 3) Supabase Auth only as a fallback, with a timeout so a slow connection
+    // can never block the login screen.
+    if (!user && isSupabaseConfigured && supabase) {
+      const email = matches.find((m) => m.email && m.email.includes('@'))?.email;
+      if (email) {
+        try {
+          const result = await withTimeout(
+            supabase.auth.signInWithPassword({ email, password }),
+            5000
+          );
+          if (result && !result.error && result.data?.user) {
+            user = matches.find((m) => m.email.toLowerCase() === email.toLowerCase()) || matches[0];
+            if (user) {
+              const latest = getPasswordHashes();
+              latest[user.id] = hash;
+              setPasswordHashes(latest);
+            }
+          }
+        } catch {
+          // Fall through to the failure message below.
+        }
+      }
+    }
 
     if (!user) {
       return { success: false, message: "Diso ny tenimiafina nampidirinao." };
@@ -488,16 +511,15 @@ export const StorageService = {
       console.error('Erreur hachage mot de passe:', e);
     }
 
-    // Supabase Auth sign-up (primary authentication provider).
+    // Supabase Auth sign-up is optional and must never delay registration:
+    // the local hash is already saved and works immediately.
     if (isSupabaseConfigured && supabase && email) {
-      try {
-        await supabase.auth.signUp({
-          email,
-          password: data.password
-        });
-      } catch (e) {
-        console.warn('Supabase sign-up non critique (auth locale utilisÃ©e):', e);
-      }
+      void supabase.auth.signUp({
+        email,
+        password: data.password
+      }).catch((e) => {
+        console.warn('Supabase sign-up non critique (auth locale utilisée):', e);
+      });
     }
 
     // No approval probation: the account is usable immediately.
@@ -507,6 +529,16 @@ export const StorageService = {
       message: `Voasoratra soa aman-tsara ianao! Kaody: ${newCode}.`, 
       user: newMembre 
     };
+  },
+
+  async setPasswordHash(membreId: string, password: string): Promise<void> {
+    const hash = await hashPassword(password);
+    const hashes = getPasswordHashes();
+    hashes[membreId] = hash;
+    setPasswordHashes(hashes);
+  },
+  hasPassword(membreId: string): boolean {
+    return Boolean(getPasswordHashes()[membreId]);
   },
 
   logout(): void {

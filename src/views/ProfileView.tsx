@@ -196,20 +196,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       alert(t('profile.password.mismatch'));
       return;
     }
-    if (!currentUser?.email) {
-      alert("Aucune adresse e-mail associÃ©e Ã  ce compte.");
+    try {
+      // The local hash is the authoritative sign-in path on this app: update
+      // it first so the new password works immediately, online or offline.
+      await StorageService.setPasswordHash(currentUser.id, newPassword);
+    } catch {
+      alert("Impossible d'enregistrer le nouveau mot de passe.");
       return;
     }
+
+    // Optionally mirror the change to Supabase Auth when a session exists.
     if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) {
-        alert("Impossible de modifier le mot de passe : " + error.message);
-        return;
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session) {
+          const { error } = await supabase.auth.updateUser({ password: newPassword });
+          if (error) {
+            console.warn('Supabase updateUser non critique:', error.message);
+          }
+        }
+      } catch (e) {
+        console.warn('Supabase updateUser non critique:', e);
       }
-    } else {
-      alert("Supabase Auth n'est pas configurÃ©. Mot de passe non modifiÃ©.");
-      return;
     }
+
     onRefreshUser();
     setPwSuccessMsg(true);
     setOldPassword('');
