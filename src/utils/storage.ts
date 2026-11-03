@@ -127,38 +127,33 @@ function setStoredItem<T>(key: string, value: T): void {
   }
 }
 
-function saveMessageImageRow(messageId: string, dataUrl: string): void {
+/**
+ * Image payloads (base64) can exceed the browser localStorage quota on
+ * phones. Even then the picture must still reach every member, so the local
+ * write is best-effort and the Supabase push always happens.
+ */
+function storeImageRow(key: string, dataUrl: string, label: string): boolean {
+  let localOk = false;
   try {
-    const key = messageImageKey(messageId);
     localStorage.setItem(key, JSON.stringify(dataUrl));
-    pushKey(key, dataUrl);
+    localOk = true;
   } catch (e) {
-    console.error(`Error saving message image ${messageId}:`, e);
+    console.warn(`[image] cache local saturé pour ${label}, envoi direct au serveur:`, e);
   }
+  pushKey(key, dataUrl);
+  return localOk || (isSupabaseConfigured && Boolean(supabase));
+}
+
+function saveMessageImageRow(messageId: string, dataUrl: string): boolean {
+  return storeImageRow(messageImageKey(messageId), dataUrl, `message ${messageId}`);
 }
 
 function saveStoryImageRow(storyId: string, dataUrl: string): boolean {
-  try {
-    const key = storyImageKey(storyId);
-    localStorage.setItem(key, JSON.stringify(dataUrl));
-    pushKey(key, dataUrl);
-    return true;
-  } catch (e) {
-    console.error(`Error saving story image ${storyId}:`, e);
-    return false;
-  }
+  return storeImageRow(storyImageKey(storyId), dataUrl, `story ${storyId}`);
 }
 
 function savePublicationImageRow(publicationId: string, dataUrl: string): boolean {
-  try {
-    const key = publicationImageKey(publicationId);
-    localStorage.setItem(key, JSON.stringify(dataUrl));
-    pushKey(key, dataUrl);
-    return true;
-  } catch (e) {
-    console.error(`Error saving publication image ${publicationId}:`, e);
-    return false;
-  }
+  return storeImageRow(publicationImageKey(publicationId), dataUrl, `publication ${publicationId}`);
 }
 
 function getStoryTombstones(): Record<string, number> {
@@ -400,8 +395,8 @@ export const StorageService = {
 
     // 2) Legacy accounts: the password may still live in the raw stored array
     // from before hashing. Accept it once, then persist the hash.
+    const raw = getStoredItem<Array<Membre & { password?: string }>>(STORAGE_KEYS.MEMBRES, []);
     if (!user) {
-      const raw = getStoredItem<Array<Membre & { password?: string }>>(STORAGE_KEYS.MEMBRES, []);
       const legacy = matches.find((m) => {
         const stored = raw.find((row) => row.id === m.id);
         return Boolean(stored && stored.password && stored.password === password);
@@ -438,7 +433,17 @@ export const StorageService = {
     }
 
     if (!user) {
-      return { success: false, message: "Diso ny tenimiafina nampidirinao." };
+      const noPasswordAtAll = matches.every((m) => {
+        if (hashes[m.id]) return false;
+        const stored = raw.find((row) => row.id === m.id);
+        return !(stored && stored.password);
+      });
+      return {
+        success: false,
+        message: noPasswordAtAll
+          ? "Tsy mbola misy tenimiafina ity kaonty ity. Mifandraisa amin'ny Mpandrindra mba hametrahany tenimiafina."
+          : "Diso ny tenimiafina nampidirinao."
+      };
     }
 
     // Check if account is blocked
@@ -551,6 +556,12 @@ export const StorageService = {
   },
   hasPassword(membreId: string): boolean {
     return Boolean(getPasswordHashes()[membreId]);
+  },
+  hasAnyPassword(membreId: string): boolean {
+    if (getPasswordHashes()[membreId]) return true;
+    const raw = getStoredItem<Array<Membre & { password?: string }>>(STORAGE_KEYS.MEMBRES, []);
+    const legacy = raw.find((row) => row.id === membreId);
+    return Boolean(legacy && legacy.password);
   },
   async verifyMembrePassword(membreId: string, password: string): Promise<boolean> {
     const hashes = getPasswordHashes();
@@ -1062,9 +1073,14 @@ export const StorageService = {
   // per-message row so every payload — text or image — stays small.
   saveMessages(messages: Message[]): void {
     for (const msg of messages) {
-      if (msg.image_url && msg.image_url.startsWith('data:')) {
+      const inlineImage = msg.image_url?.startsWith('data:')
+        ? msg.image_url
+        : msg.file_type === 'image' && typeof msg.file_url === 'string' && msg.file_url.startsWith('data:')
+          ? msg.file_url
+          : undefined;
+      if (inlineImage) {
         msg.image_ref = msg.id;
-        saveMessageImageRow(msg.id, msg.image_url);
+        saveMessageImageRow(msg.id, inlineImage);
         msg.image_url = undefined;
       }
       // Older versions also duplicated the base64 into file_url for images

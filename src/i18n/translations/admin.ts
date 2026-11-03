@@ -446,6 +446,31 @@ export const admin: TranslationDictionary = {
     fr: 'Le mot de passe de {name} a été enregistré. Il/elle peut maintenant se connecter.',
     en: 'The password for {name} has been saved. They can now sign in.'
   },
+  'admin.bulkPasswordButton': {
+    mg: 'Tenimiafina ho an’ny kaonty tsy manana',
+    fr: 'Mots de passe manquants',
+    en: 'Missing passwords'
+  },
+  'admin.bulkPasswordHint': {
+    mg: 'Mametraha tenimiafina ho an’ny kaonty rehetra mbola tsy manana.',
+    fr: 'Définir un mot de passe pour tous les comptes qui n’en ont pas encore.',
+    en: 'Set a password for every account that does not have one yet.'
+  },
+  'admin.bulkPasswordPrompt': {
+    mg: 'Tenimiafina ho an’ny kaonty {count} tsy manana tenimiafina :',
+    fr: 'Mot de passe à attribuer aux {count} compte(s) sans mot de passe :',
+    en: 'Password to give to the {count} account(s) without a password:'
+  },
+  'admin.bulkPasswordDone': {
+    mg: 'Vita: nomena tenimiafina ny kaonty {count}.',
+    fr: 'Terminé : {count} compte(s) ont maintenant un mot de passe.',
+    en: 'Done: {count} account(s) now have a password.'
+  },
+  'admin.bulkPasswordNone': {
+    mg: 'Manana tenimiafina avokoa ny kaonty rehetra.',
+    fr: 'Tous les comptes ont déjà un mot de passe.',
+    en: 'All accounts already have a password.'
+  },
   'admin.emailLabel': {
     mg: 'Adiresy Mailaka (Email):',
     fr: 'Adresse email :',

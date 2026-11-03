@@ -432,8 +432,13 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const getStoryImageSrc = (story?: Story): string | undefined => {
     if (!story) return undefined;
     if (story.image_ref && storyImages[story.image_ref]) return storyImages[story.image_ref];
+    // A realtime image-row event can land before the next state map update:
+    // read the freshly stored copy directly so the picture never waits.
+    if (story.image_ref) {
+      const stored = StorageService.getStoryImage(story.image_ref);
+      if (stored) return stored;
+    }
     if (story.image_url) return story.image_url;
-    if (story.image_ref) return storyImages[story.image_ref];
     return undefined;
   };
 
@@ -465,6 +470,10 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const getPublicationImageSrc = (publication: Publication): string | undefined => {
     if (publication.image_ref && publicationImages[publication.image_ref]) {
       return publicationImages[publication.image_ref];
+    }
+    if (publication.image_ref) {
+      const stored = StorageService.getPublicationImage(publication.image_ref);
+      if (stored) return stored;
     }
     if (publication.image_url) return publication.image_url;
     if (publication.image_ref) return publicationImages[publication.image_ref];
@@ -731,7 +740,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   useEffect(() => {
     if (!storyViewer) return;
     const next = storyViewer.stories[storyViewer.index + 1];
-    const nextImage = next?.image_url || (next?.image_ref ? storyImages[next.image_ref] : undefined);
+    const nextImage = getStoryImageSrc(next);
     if (nextImage) {
       const image = new window.Image();
       image.src = nextImage;

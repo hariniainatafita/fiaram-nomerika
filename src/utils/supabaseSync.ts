@@ -509,6 +509,12 @@ export async function hydrateFromSupabase(): Promise<void> {
     for (const key of SYNCED_KEYS) {
       if (remote.has(key)) {
         writeMerged(key, normalizeRemoteValue(remote.get(key)));
+        // Password hashes: a device may hold entries the remote row does not
+        // have yet (accounts created offline on that phone). Push them back so
+        // every member can sign in from every device.
+        if (key === STORAGE_KEYS.PASSWORD_HASHES) {
+          await pushKeyNow(key);
+        }
       } else if (localStorage.getItem(key) !== null) {
         await pushKeyNow(key);
       }

@@ -155,6 +155,30 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
+  // Give a password to every existing account that has none (accounts created
+  // while the password field was hidden). The admin chooses the value and
+  // tells the members; it is stored as a PBKDF2 hash and synced.
+  const handleResetMissingPasswords = async () => {
+    if (!isAdminUser) return;
+    const missing = allMembres.filter((m) => !StorageService.hasAnyPassword(m.id));
+    if (missing.length === 0) {
+      alert(t('admin.bulkPasswordNone'));
+      return;
+    }
+    const value = window.prompt(t('admin.bulkPasswordPrompt', { count: missing.length }), '');
+    if (value === null) return;
+    const password = value.trim();
+    if (password.length < 4) {
+      alert(t('admin.passwordTooShort'));
+      return;
+    }
+    for (const membre of missing) {
+      await StorageService.setPasswordHash(membre.id, password);
+    }
+    onRefreshMembres();
+    alert(t('admin.bulkPasswordDone', { count: missing.length }));
+  };
+
   // Verify dossier (admin only)
   const handleVerifyDossier = (membre: Membre) => {
     if (!isAdminUser) return;
@@ -707,6 +731,17 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </h3>
 
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {isAdminUser && (
+                <button
+                  onClick={handleResetMissingPasswords}
+                  className="btn btn-ghost"
+                  style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  title={t('admin.bulkPasswordHint')}
+                >
+                  <RotateCcw size={14} />
+                  <span>{t('admin.bulkPasswordButton')}</span>
+                </button>
+              )}
               <div style={{ position: 'relative', width: '240px' }}>
                 <Search size={15} style={{ position: 'absolute', left: '10px', top: '12px', color: 'var(--text-dim)' }} />
                 <input

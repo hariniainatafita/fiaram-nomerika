@@ -50,20 +50,27 @@ const PBKDF2_PREFIX = 'pbkdf2';
  * synchronisÃ© entre appareils sans jamais exposer le mot de passe en clair.
  */
 export async function createPasswordHash(password: string): Promise<string> {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits']
-  );
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: PBKDF2_HASH_ITERATIONS, hash: 'SHA-256' },
-    keyMaterial,
-    256
-  );
-  return `${PBKDF2_PREFIX}$${PBKDF2_HASH_ITERATIONS}$${encodeHex(salt)}$${encodeHex(new Uint8Array(bits))}`;
+  try {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(password),
+      'PBKDF2',
+      false,
+      ['deriveBits']
+    );
+    const bits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt, iterations: PBKDF2_HASH_ITERATIONS, hash: 'SHA-256' },
+      keyMaterial,
+      256
+    );
+    return `${PBKDF2_PREFIX}$${PBKDF2_HASH_ITERATIONS}$${encodeHex(salt)}$${encodeHex(new Uint8Array(bits))}`;
+  } catch (err) {
+    // Some old Android WebViews expose a partial WebCrypto API. Never lose the
+    // password: fall back to the legacy hash so the account stays usable.
+    console.warn('PBKDF2 indisponible, repli SHA-256:', err);
+    return hashPassword(password);
+  }
 }
 
 function safeEqual(a: string, b: string): boolean {

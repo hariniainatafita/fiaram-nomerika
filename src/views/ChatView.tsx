@@ -1542,13 +1542,25 @@ export const ChatView: React.FC<ChatViewProps> = ({
           display: none !important;
         }
         @media (max-width: 768px) {
+          /* Facebook-style: the conversation uses the whole area between the
+             top navbar and the bottom navigation, with no wasted gutters. */
           .chat-container-wrapper {
-            height: calc(100dvh - 128px) !important;
-            min-height: 420px !important;
-            padding: 10px 8px !important;
+            height: calc(100dvh - 128px - env(safe-area-inset-bottom, 0px)) !important;
+            min-height: 0 !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .chat-container-wrapper > .glass-card {
+            border-radius: 0 !important;
+            border-left: none !important;
+            border-right: none !important;
+          }
+          .chat-container-wrapper [data-image-rev] {
+            padding: 10px 12px !important;
           }
           .chat-bubble {
-            max-width: 88% !important;
+            max-width: 86% !important;
           }
           .chat-sidebar {
             width: 100% !important;
