@@ -335,5 +335,65 @@ export const publications: TranslationDictionary = {
     mg: 'Laharam-pahavelomana',
     fr: 'Les plus populaires',
     en: 'Most popular'
+  },
+  'publications.reaction.like': {
+    mg: "Tia",
+    fr: "J'aime",
+    en: 'Like'
+  },
+  'publications.reaction.love': {
+    mg: 'Fitiavana',
+    fr: "J'adore",
+    en: 'Love'
+  },
+  'publications.reaction.haha': {
+    mg: 'Haha',
+    fr: 'Haha',
+    en: 'Haha'
+  },
+  'publications.reaction.angry': {
+    mg: 'Tezitra',
+    fr: 'En colere',
+    en: 'Angry'
+  },
+  'publications.reactions.title': {
+    mg: 'Ireo olona naneho fihetseham-po',
+    fr: 'Personnes ayant reagi',
+    en: 'People who reacted'
+  },
+  'publications.reactions.seeWho': {
+    mg: 'Jereo izay naneho fihetseham-po',
+    fr: 'Voir qui a reagi',
+    en: 'See who reacted'
+  },
+  'publications.reactions.empty': {
+    mg: 'Mbola tsy misy olona naneho fihetseham-po.',
+    fr: "Personne n'a encore reagi.",
+    en: 'No one has reacted yet.'
+  },
+  'publications.stories.replyPlaceholder': {
+    mg: 'Valio ity story ity...',
+    fr: 'Repondre a cette story...',
+    en: 'Reply to this story...'
+  },
+  'publications.stories.replySend': {
+    mg: 'Alefaso ny valiny',
+    fr: 'Envoyer la reponse',
+    en: 'Send reply'
+  },
+  'publications.stories.replySent': {
+    mg: 'Nalefa ny valiny.',
+    fr: 'Reponse envoyee.',
+    en: 'Reply sent.'
+  },
+  'publications.stories.replyMessage': {
+    mg: 'Valiny tamin ny story-nao : {text}',
+    fr: 'Reponse a votre story : {text}',
+    en: 'Reply to your story: {text}'
+  },
+  'publications.stories.replies': {
+    mg: '{count} valiny',
+    fr: '{count} reponse(s)',
+    en: '{count} reply(ies)'
   }
 };

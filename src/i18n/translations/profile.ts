@@ -350,5 +350,25 @@ export const profile: TranslationDictionary = {
     mg: 'Tehirizo',
     fr: 'Enregistrer',
     en: 'Save'
+  },
+  'profile.photo.remove': {
+    mg: 'Esory ny sary',
+    fr: 'Retirer la photo',
+    en: 'Remove photo'
+  },
+  'profile.photo.removeConfirm': {
+    mg: 'Ho esorina tokoa ve ny sarin-takelanao ?',
+    fr: 'Supprimer votre photo de profil ?',
+    en: 'Delete your profile photo?'
+  },
+  'profile.cover.remove': {
+    mg: 'Esory ny fonony',
+    fr: 'Retirer la couverture',
+    en: 'Remove cover'
+  },
+  'profile.cover.removeConfirm': {
+    mg: 'Ho esorina tokoa ve ny sarin-tsaronao ?',
+    fr: 'Supprimer votre photo de couverture ?',
+    en: 'Delete your cover photo?'
   }
 };

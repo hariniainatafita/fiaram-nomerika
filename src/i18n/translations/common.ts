@@ -146,7 +146,62 @@ export const common: TranslationDictionary = {
   },
   'common.logoutConfirm': {
     mg: 'Eny, hivoaka',
-    fr: 'Oui, me déconnecter',
+    fr: 'Oui, me dAcconnecter',
     en: 'Yes, log out'
+  },
+  'update.title': {
+    mg: 'Misy fanavaozana',
+    fr: 'Mise à jour disponible',
+    en: 'Update available'
+  },
+  'update.newVersion': {
+    mg: 'Kinova vaovao {version}',
+    fr: 'Nouvelle version {version}',
+    en: 'New version {version}'
+  },
+  'update.download': {
+    mg: 'Hanavao',
+    fr: 'Mettre à jour',
+    en: 'Update'
+  },
+  'update.later': {
+    mg: "Aorian'ity",
+    fr: 'Plus tard',
+    en: 'Later'
+  },
+  'update.downloading': {
+    mg: 'Eo am-pakàna…',
+    fr: 'Téléchargement…',
+    en: 'Downloading…'
+  },
+  'update.installing': {
+    mg: 'Vita ny fakana. Hamarino ny fametrahana.',
+    fr: "Téléchargement terminé. Confirmez l'installation.",
+    en: 'Download complete. Confirm the installation.'
+  },
+  'update.permission': {
+    mg: "Velaro ny fametrahana amin'ity application ity, dia miverena ary tsindrio indray.",
+    fr: "Autorisez l'installation depuis cette application, puis revenez et appuyez à nouveau.",
+    en: 'Allow installing from this app, then come back and tap Update again.'
+  },
+  'update.permissionButton': {
+    mg: 'Andramo indray',
+    fr: 'Réessayer',
+    en: 'Try again'
+  },
+  'update.error': {
+    mg: 'Tsy afaka naka ny fanavaozana. Jereo ny fifandraisana.',
+    fr: 'Impossible de télécharger la mise à jour. Vérifiez votre connexion.',
+    en: 'Could not download the update. Check your connection.'
+  },
+  'update.check': {
+    mg: 'Jereo ny fanavaozana',
+    fr: 'Vérifier la mise à jour',
+    en: 'Check for update'
+  },
+  'update.upToDate': {
+    mg: 'Vaovao ny application-nao.',
+    fr: 'Votre application est à jour.',
+    en: 'Your app is up to date.'
   }
 };

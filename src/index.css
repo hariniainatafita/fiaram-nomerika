@@ -420,6 +420,19 @@ body {
   }
 }
 
+/* Publications plein écran sur téléphone : image bord à bord, sans cadre */
+@media (max-width: 640px) {
+  .publications-feed .publication-post {
+    margin-left: -12px !important;
+    margin-right: -12px !important;
+    padding: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+}
+
 /* Grids with a fixed minimum column width must never overflow a phone */
 @media (max-width: 640px) {
   [style*="minmax(320px"],

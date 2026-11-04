@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Groupe, Membre, Publication, Story } from '../types';
+import { Groupe, Membre, Publication, Story, ReactionType } from '../types';
 import {
   Heart,
   MessageCircle,
@@ -18,8 +18,19 @@ import {
   Type,
   Smile,
   AtSign,
-  Move
+  Move,
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play
 } from 'lucide-react';
+import {
+  REACTION_OPTIONS,
+  getReactionOption,
+  getReactionType,
+  getReactionCounts,
+  getReactionEntries
+} from '../utils/reactions';
 import { StorageService } from '../utils/storage';
 import { fetchStoryImageIfMissing, fetchPublicationImageIfMissing } from '../utils/supabaseSync';
 import { compressImage } from '../utils/imageCompressor';
@@ -294,6 +305,16 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
 
+  // Reactions Facebook-style : menu long-press sur le bouton J'aime + liste
+  // des membres qui ont reagi a une publication.
+  const [reactionMenuId, setReactionMenuId] = useState<string | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef(false);
+  const [reactorsModal, setReactorsModal] = useState<{
+    title: string;
+    entries: Array<{ membre?: Membre; type: ReactionType }>;
+  } | null>(null);
+
   // Stories States
   const [storyComposerOpen, setStoryComposerOpen] = useState(false);
   const [storyImage, setStoryImage] = useState<StagedImage | null>(null);
@@ -302,6 +323,14 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const [, setIsCompressingStory] = useState(false);
   const [isPublishingStory, setIsPublishingStory] = useState(false);
   const [storyViewer, setStoryViewer] = useState<StoryViewerState | null>(null);
+  const [storyReplyDraft, setStoryReplyDraft] = useState('');
+  const [storyReplyFocused, setStoryReplyFocused] = useState(false);
+  const [storyManuallyPaused, setStoryManuallyPaused] = useState(false);
+  // Auto-advance is paused manually or while the member writes a reply.
+  const isStoryPaused = storyManuallyPaused || storyReplyFocused || storyReplyDraft.trim().length > 0;
+  const storyTimerRemainingRef = useRef(STORY_DURATION_MS);
+  const storyTimerStartedAtRef = useRef<number | null>(null);
+  const storyTimerStoryIdRef = useRef<string | null>(null);
 
   // Story Studio States
   const [activeTool, setActiveTool] = useState<'none' | 'text' | 'sticker' | 'tag'>('none');
@@ -500,6 +529,16 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
         return bLast - aLast;
       });
   }, [activeStories, currentUser.id]);
+
+  // Une seule liste continue : on passe naturellement d'un membre au suivant
+  // quand une story se termine (comme sur Facebook / Instagram).
+  const storySequence = useMemo<Story[]>(
+    () => [
+      ...ownStories,
+      ...orderedStoryGroups.flatMap((group) => group.stories)
+    ],
+    [ownStories, orderedStoryGroups]
+  );
 
   const visiblePublications = sortedPublications.slice(0, visibleCount);
 
@@ -710,7 +749,11 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
 
   const openStoryGroup = (groupStories: Story[]) => {
     if (!groupStories.length) return;
-    setStoryViewer({ stories: groupStories, index: 0 });
+    const startIndex = storySequence.findIndex((story) => story.id === groupStories[0].id);
+    setStoryViewer({
+      stories: storySequence.length ? storySequence : groupStories,
+      index: startIndex >= 0 ? startIndex : 0
+    });
   };
 
   const closeStoryViewer = () => setStoryViewer(null);
@@ -748,6 +791,48 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     onRefreshStories();
   };
 
+  const replaceLocalStory = (updated: Story) => {
+    setLocalStories((prev) => {
+      if (!prev.some((story) => story.id === updated.id)) return prev;
+      return prev.map((story) => (story.id === updated.id ? updated : story));
+    });
+  };
+
+  const handleStoryReaction = (storyId: string, reaction: ReactionType) => {
+    const updated = StorageService.toggleStoryReaction(storyId, currentUser.id, reaction);
+    if (updated) replaceLocalStory(updated);
+    onRefreshStories();
+  };
+
+  const handleSendStoryReply = (event: React.FormEvent, story: Story) => {
+    event.preventDefault();
+    const texte = storyReplyDraft.trim();
+    if (!texte) return;
+
+    const reply = StorageService.addStoryReply(story.id, currentUser.id, texte);
+    if (reply) {
+      const updated = StorageService.getStories().find((item) => item.id === story.id);
+      if (updated) replaceLocalStory(updated);
+    }
+    // Comme sur Facebook, la reponse part aussi en message prive a l'auteur.
+    if (story.auteur_id !== currentUser.id) {
+      StorageService.sendMessage(
+        currentUser.id,
+        t('publications.stories.replyMessage', { text: texte }),
+        story.auteur_id
+      );
+    }
+    setStoryReplyDraft('');
+    setStoryReplyFocused(false);
+    onRefreshStories();
+    showTemporaryMessage(t('publications.stories.replySent'));
+  };
+
+  useEffect(() => {
+    setStoryReplyDraft('');
+    setStoryReplyFocused(false);
+  }, [storyViewer?.index, storyViewer?.stories]);
+
   useEffect(() => {
     if (!storyViewer) return;
     const next = storyViewer.stories[storyViewer.index + 1];
@@ -759,15 +844,48 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   }, [storyViewer, storyImages]);
 
   useEffect(() => {
-    if (!storyViewer) return;
+    if (!storyViewer) {
+      storyTimerStoryIdRef.current = null;
+      storyTimerRemainingRef.current = STORY_DURATION_MS;
+      storyTimerStartedAtRef.current = null;
+      setStoryManuallyPaused(false);
+      return;
+    }
     const current = storyViewer.stories[storyViewer.index];
     if (!current) return;
     if (!current.seen_by.includes(currentUser.id)) {
       StorageService.markStorySeen(current.id, currentUser.id);
     }
-    const timer = window.setTimeout(storyNext, STORY_DURATION_MS);
-    return () => window.clearTimeout(timer);
-  }, [storyViewer, currentUser.id]);
+
+    // Reset the countdown when a different story becomes active.
+    if (storyTimerStoryIdRef.current !== current.id) {
+      storyTimerStoryIdRef.current = current.id;
+      storyTimerRemainingRef.current = STORY_DURATION_MS;
+      storyTimerStartedAtRef.current = null;
+    }
+
+    if (isStoryPaused) {
+      // Freeze the remaining time while the reply field is being used.
+      if (storyTimerStartedAtRef.current !== null) {
+        const elapsed = Date.now() - storyTimerStartedAtRef.current;
+        storyTimerRemainingRef.current = Math.max(0, storyTimerRemainingRef.current - elapsed);
+        storyTimerStartedAtRef.current = null;
+      }
+      return;
+    }
+
+    const remaining = Math.max(1, storyTimerRemainingRef.current);
+    storyTimerStartedAtRef.current = Date.now();
+    const timer = window.setTimeout(storyNext, remaining);
+    return () => {
+      window.clearTimeout(timer);
+      if (storyTimerStartedAtRef.current !== null) {
+        const elapsed = Date.now() - storyTimerStartedAtRef.current;
+        storyTimerRemainingRef.current = Math.max(0, storyTimerRemainingRef.current - elapsed);
+        storyTimerStartedAtRef.current = null;
+      }
+    };
+  }, [storyViewer, currentUser.id, isStoryPaused]);
 
   const handlePublish = (event: React.FormEvent) => {
     event.preventDefault();
@@ -816,6 +934,59 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     StorageService.togglePublicationLike(publicationId, currentUser.id);
     onRefreshPublications();
   };
+
+  const handlePublicationReaction = (publicationId: string, reaction: ReactionType) => {
+    StorageService.togglePublicationReaction(publicationId, currentUser.id, reaction);
+    setReactionMenuId(null);
+    onRefreshPublications();
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const startReactionLongPress = (publicationId: string) => {
+    cancelLongPress();
+    longPressTriggeredRef.current = false;
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      setReactionMenuId(publicationId);
+    }, 450);
+  };
+
+  const handleLikeButtonClick = (event: React.MouseEvent, publicationId: string) => {
+    if (longPressTriggeredRef.current) {
+      // The click follows the long-press release: keep the reaction menu open.
+      event.stopPropagation();
+      longPressTriggeredRef.current = false;
+      return;
+    }
+    setReactionMenuId(null);
+    handleToggleLike(publicationId);
+  };
+
+  const openReactorsModal = (publication: Publication) => {
+    const entries = getReactionEntries(publication.liked_by, publication.reactions)
+      .map((entry) => ({ membre: getAuthor(entry.membreId), type: entry.type }));
+    setReactorsModal({
+      title: t('publications.reactions.title'),
+      entries
+    });
+  };
+
+  useEffect(() => {
+    if (!reactionMenuId) return;
+    const closeMenu = () => setReactionMenuId(null);
+    window.addEventListener('click', closeMenu);
+    return () => window.removeEventListener('click', closeMenu);
+  }, [reactionMenuId]);
+
+  useEffect(() => () => {
+    if (longPressTimerRef.current !== null) window.clearTimeout(longPressTimerRef.current);
+  }, []);
 
   const handleToggleComments = (publicationId: string) => {
     setOpenCommentIds((ids) => ids.includes(publicationId)
@@ -890,7 +1061,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   };
 
   return (
-    <div className="animate-fade-in" style={{ padding: '24px 16px 40px', maxWidth: '760px', margin: '0 auto' }}>
+    <div className="animate-fade-in publications-feed" style={{ padding: '24px 16px 40px', maxWidth: '760px', margin: '0 auto' }}>
 
       <div style={{ marginBottom: '22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1024,9 +1195,13 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
         {visiblePublications.map((publication) => {
           const author = getAuthor(publication.auteur_id);
-          const isLiked = publication.liked_by.includes(currentUser.id);
+          const myReaction = getReactionType(publication.reactions, publication.liked_by, currentUser.id);
+          const isLiked = Boolean(myReaction);
+          const myReactionOption = getReactionOption(myReaction);
+          const reactionSummary = getReactionCounts(publication.liked_by, publication.reactions);
+          const activeReactionOptions = REACTION_OPTIONS.filter((option) => reactionSummary.counts[option.type] > 0);
           const commentsOpen = openCommentIds.includes(publication.id);
-          const likeCount = publication.liked_by.length;
+          const likeCount = reactionSummary.total;
           const commentCount = publication.commentaires.length;
           const canDelete = publication.auteur_id === currentUser.id || isAdmin(currentUser);
           const imageSrc = getPublicationImageSrc(publication);
@@ -1035,7 +1210,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
             <article
               key={publication.id}
               id={`publication-${publication.id}`}
-              className="glass-card"
+              className="glass-card publication-post"
               style={{ overflow: 'hidden' }}
             >
               <div style={{ padding: '18px 18px 14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1160,9 +1335,31 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                   color: 'var(--text-muted)',
                   borderTop: '1px solid var(--border-color)'
                 }}>
-                  <span>
-                    {likeCount > 0 ? formatCount(likeCount, 'likes') : ' '}
-                  </span>
+                  {likeCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => openReactorsModal(publication)}
+                      title={t('publications.reactions.seeWho')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        color: 'var(--text-muted)',
+                        font: 'inherit',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
+                        {activeReactionOptions.map((option) => (
+                          <span key={option.type} style={{ fontSize: '0.95rem', lineHeight: 1 }}>{option.emoji}</span>
+                        ))}
+                      </span>
+                      <span>{formatCount(likeCount, 'likes')}</span>
+                    </button>
+                  ) : <span> </span>}
                   <span>
                     {commentCount > 0 ? formatCount(commentCount, 'comments') : ''}
                     {commentCount > 0 && publication.partages > 0 ? ' · ' : ''}
@@ -1178,23 +1375,75 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                 padding: '6px 10px',
                 borderTop: '1px solid var(--border-color)'
               }}>
-                <button
-                  type="button"
-                  onClick={() => handleToggleLike(publication.id)}
-                  className="btn btn-ghost"
-                  style={{
-                    flex: 1,
-                    background: 'transparent',
-                    border: 'none',
-                    color: isLiked ? '#ef4444' : 'var(--text-muted)',
-                    fontSize: '0.82rem',
-                    padding: '8px 6px'
-                  }}
-                >
-                  <Heart size={18} style={{ fill: isLiked ? '#ef4444' : 'none' }} />
-                  <span>{t('publications.action.like')}</span>
-                  {likeCount > 0 && <span style={{ fontSize: '0.72rem' }}>({likeCount})</span>}
-                </button>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  {reactionMenuId === publication.id && (
+                    <div
+                      onClick={(event) => event.stopPropagation()}
+                      style={{
+                        position: 'absolute',
+                        bottom: 'calc(100% + 8px)',
+                        left: 0,
+                        zIndex: 12,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '6px 9px',
+                        borderRadius: '999px',
+                        background: 'var(--bg-secondary, #1f2937)',
+                        border: '1px solid var(--border-color)',
+                        boxShadow: 'var(--shadow-lg)'
+                      }}
+                    >
+                      {REACTION_OPTIONS.map((option) => (
+                        <button
+                          key={option.type}
+                          type="button"
+                          onClick={() => handlePublicationReaction(publication.id, option.type)}
+                          title={t(option.labelKey)}
+                          aria-label={t(option.labelKey)}
+                          style={{
+                            fontSize: '1.35rem',
+                            lineHeight: 1,
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            cursor: 'pointer',
+                            transform: myReaction === option.type ? 'scale(1.22)' : 'scale(1)',
+                            transition: 'transform 0.12s ease'
+                          }}
+                        >
+                          {option.emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(event) => handleLikeButtonClick(event, publication.id)}
+                    onPointerDown={() => startReactionLongPress(publication.id)}
+                    onPointerUp={cancelLongPress}
+                    onPointerLeave={cancelLongPress}
+                    onPointerCancel={cancelLongPress}
+                    onContextMenu={(event) => event.preventDefault()}
+                    className="btn btn-ghost"
+                    style={{
+                      width: '100%',
+                      background: 'transparent',
+                      border: 'none',
+                      color: myReactionOption?.color || 'var(--text-muted)',
+                      fontSize: '0.82rem',
+                      padding: '8px 6px'
+                    }}
+                  >
+                    {myReactionOption ? (
+                      <span style={{ fontSize: '1rem', lineHeight: 1 }}>{myReactionOption.emoji}</span>
+                    ) : (
+                      <Heart size={18} style={{ fill: isLiked ? '#ef4444' : 'none' }} />
+                    )}
+                    <span>{myReactionOption ? t(myReactionOption.labelKey) : t('publications.action.like')}</span>
+                    {likeCount > 0 && <span style={{ fontSize: '0.72rem' }}>({likeCount})</span>}
+                  </button>
+                </div>
 
                 <button
                   type="button"
@@ -1778,11 +2027,25 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
 
       {/* ===== VISIONNEUSE DE STORIES ===== */}
       {storyViewer && (() => {
-        const currentStory = storyViewer.stories[storyViewer.index];
-        if (!currentStory) return null;
+        const viewerStory = storyViewer.stories[storyViewer.index];
+        if (!viewerStory) return null;
+        // Read the freshest copy so a reaction/reply updates immediately
+        // without resetting the auto-advance timer.
+        const currentStory = localStories.find((story) => story.id === viewerStory.id) || viewerStory;
         const author = getAuthor(currentStory.auteur_id);
         const isOwn = currentStory.auteur_id === currentUser.id;
+        const myStoryReaction = getReactionType(currentStory.reactions, [], currentUser.id);
+        const storyReactions = getReactionCounts([], currentStory.reactions);
+        const replyCount = currentStory.replies?.length || 0;
         const { text, overlays } = parseStoryCaption(currentStory);
+        // Segments de progression du membre affiché (et non de toute la
+        // séquence) : la lecture continue quand on passe au membre suivant.
+        const authorStories = storyViewer.stories.filter(
+          (story) => story.auteur_id === currentStory.auteur_id
+        );
+        const authorStoryIndex = authorStories.findIndex(
+          (story) => story.id === currentStory.id
+        );
 
         return (
           <div
@@ -1810,7 +2073,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                 gap: '4px',
                 zIndex: 2
               }}>
-                {storyViewer.stories.map((story, index) => (
+                {authorStories.map((story, index) => (
                   <div
                     key={story.id}
                     style={{
@@ -1822,12 +2085,13 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                     }}
                   >
                     <div
-                      key={index === storyViewer.index ? `${story.id}-active` : story.id}
-                      className={index === storyViewer.index ? 'story-progress-fill' : ''}
+                      key={index === authorStoryIndex ? `${story.id}-active` : story.id}
+                      className={index === authorStoryIndex ? 'story-progress-fill' : ''}
                       style={{
                         height: '100%',
-                        width: index < storyViewer.index ? '100%' : index === storyViewer.index ? undefined : '0%',
-                        background: '#ffffff'
+                        width: index < authorStoryIndex ? '100%' : index === authorStoryIndex ? undefined : '0%',
+                        background: '#ffffff',
+                        animationPlayState: index === authorStoryIndex && isStoryPaused ? 'paused' : 'running'
                       }}
                     />
                   </div>
@@ -1862,6 +2126,19 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                     </div>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setStoryManuallyPaused((paused) => !paused);
+                  }}
+                  className="btn btn-ghost"
+                  style={{ padding: '6px', color: '#ffffff' }}
+                  title={storyManuallyPaused ? t('common.play') : t('common.pause')}
+                  aria-label={storyManuallyPaused ? t('common.play') : t('common.pause')}
+                >
+                  {storyManuallyPaused ? <Play size={18} /> : <Pause size={18} />}
+                </button>
                 {isOwn && (
                   <button
                     type="button"
@@ -1887,7 +2164,18 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
               <img
                 src={getStoryImageSrc(currentStory) || ''}
                 alt={t('publications.image.alt')}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000', display: 'block' }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  // While writing, a tap closes the keyboard instead of
+                  // skipping the story by accident.
+                  if (storyReplyDraft.trim()) {
+                    setStoryReplyFocused(false);
+                    return;
+                  }
+                  storyNext();
+                }}
+                title={t('common.next')}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000', display: 'block', cursor: 'pointer' }}
               />
 
               {/* Rendu des Overlays */}
@@ -1909,7 +2197,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
               {text && (
                 <div style={{
                   position: 'absolute',
-                  bottom: '60px',
+                  bottom: '158px',
                   left: '14px',
                   right: '14px',
                   color: '#ffffff',
@@ -1924,6 +2212,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                 </div>
               )}
 
+              {/* Zones tactiles larges, comme sur Facebook */}
               <button
                 type="button"
                 onClick={(event) => { event.stopPropagation(); storyPrev(); }}
@@ -1937,23 +2226,291 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                 style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: '34%', background: 'transparent', border: 'none', cursor: 'pointer' }}
               />
 
+              {/* Fleches precedent / suivant visibles */}
+              {storyViewer.index > 0 && (
+                <button
+                  type="button"
+                  onClick={(event) => { event.stopPropagation(); storyPrev(); }}
+                  aria-label={t('common.previous')}
+                  title={t('common.previous')}
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '8px',
+                    transform: 'translateY(-50%)',
+                    zIndex: 3,
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '50%',
+                    border: 'none',
+                    background: 'rgba(0, 0, 0, 0.45)',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <ChevronLeft size={22} />
+                </button>
+              )}
+              {storyViewer.index < storyViewer.stories.length - 1 && (
+                <button
+                  type="button"
+                  onClick={(event) => { event.stopPropagation(); storyNext(); }}
+                  aria-label={t('common.next')}
+                  title={t('common.next')}
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    right: '8px',
+                    transform: 'translateY(-50%)',
+                    zIndex: 3,
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '50%',
+                    border: 'none',
+                    background: 'rgba(0, 0, 0, 0.45)',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <ChevronRight size={22} />
+                </button>
+              )}
+
               <div style={{
                 position: 'absolute',
-                bottom: '16px',
+                bottom: '124px',
                 right: '14px',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '6px',
                 color: 'rgba(255, 255, 255, 0.85)',
                 fontSize: '0.72rem',
                 zIndex: 2
               }}>
                 <Eye size={13} /> {t('publications.stories.viewers', { count: currentStory.seen_by.length })}
+                {replyCount > 0 && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <MessageCircle size={12} /> {t('publications.stories.replies', { count: replyCount })}
+                  </span>
+                )}
               </div>
+
+              {/* Reactions sur la story, comme sur Facebook */}
+              <div style={{
+                position: 'absolute',
+                bottom: '72px',
+                left: 0,
+                right: 0,
+                zIndex: 3,
+                display: 'flex',
+                justifyContent: 'center',
+                pointerEvents: 'none'
+              }}>
+                <div
+                  onClick={(event) => event.stopPropagation()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 9px',
+                    borderRadius: '999px',
+                    background: 'rgba(15, 23, 42, 0.62)',
+                    backdropFilter: 'blur(8px)',
+                    pointerEvents: 'auto'
+                  }}
+                >
+                  {REACTION_OPTIONS.map((option) => {
+                    const active = myStoryReaction === option.type;
+                    const count = storyReactions.counts[option.type];
+                    return (
+                      <button
+                        key={option.type}
+                        type="button"
+                        onClick={() => handleStoryReaction(currentStory.id, option.type)}
+                        title={t(option.labelKey)}
+                        aria-label={t(option.labelKey)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          background: active ? 'rgba(255, 255, 255, 0.22)' : 'transparent',
+                          border: 'none',
+                          borderRadius: '999px',
+                          padding: '4px 7px',
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                          transform: active ? 'scale(1.1)' : 'scale(1)',
+                          transition: 'transform 0.12s ease'
+                        }}
+                      >
+                        <span style={{ fontSize: '1.25rem', lineHeight: 1 }}>{option.emoji}</span>
+                        {count > 0 && <span style={{ fontSize: '0.68rem', fontWeight: 700 }}>{count}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Reponse a la story : enregistree et envoyee en message prive */}
+              <form
+                onSubmit={(event) => handleSendStoryReply(event, currentStory)}
+                onClick={(event) => event.stopPropagation()}
+                style={{
+                  position: 'absolute',
+                  bottom: '14px',
+                  left: '12px',
+                  right: '12px',
+                  zIndex: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <MemberAvatar membre={currentUser} size={34} />
+                <input
+                  type="text"
+                  value={storyReplyDraft}
+                  onChange={(event) => setStoryReplyDraft(event.target.value)}
+                  onFocus={() => setStoryReplyFocused(true)}
+                  onBlur={() => setStoryReplyFocused(false)}
+                  placeholder={t('publications.stories.replyPlaceholder')}
+                  maxLength={500}
+                  className="form-input"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    borderRadius: '999px',
+                    background: 'rgba(255, 255, 255, 0.14)',
+                    border: '1px solid rgba(255, 255, 255, 0.28)',
+                    color: '#ffffff'
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!storyReplyDraft.trim()}
+                  title={t('publications.stories.replySend')}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    flexShrink: 0,
+                    borderRadius: '50%',
+                    border: 'none',
+                    background: storyReplyDraft.trim() ? '#10b981' : 'rgba(255, 255, 255, 0.18)',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: storyReplyDraft.trim() ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  <Send size={17} />
+                </button>
+              </form>
             </div>
           </div>
         );
       })()}
+
+      {/* LISTE DES MEMBRES QUI ONT REAGI */}
+      {reactorsModal && (
+        <div
+          onClick={() => setReactorsModal(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 96,
+            background: 'rgba(0, 0, 0, 0.72)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="glass-card"
+            style={{
+              width: 'min(420px, 100%)',
+              maxHeight: '80dvh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              padding: 0
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              padding: '16px 18px',
+              borderBottom: '1px solid var(--border-color)'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '1rem' }}>{reactorsModal.title}</h3>
+              <button
+                type="button"
+                onClick={() => setReactorsModal(null)}
+                className="btn btn-ghost"
+                style={{ padding: '6px' }}
+                title={t('common.close')}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ overflowY: 'auto', padding: '8px 10px 14px' }}>
+              {reactorsModal.entries.length === 0 && (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  {t('publications.reactions.empty')}
+                </div>
+              )}
+              {reactorsModal.entries.map(({ membre, type }) => {
+                const option = getReactionOption(type);
+                return (
+                  <button
+                    key={`${membre?.id || 'unknown'}-${type}`}
+                    type="button"
+                    onClick={() => {
+                      if (membre) {
+                        setReactorsModal(null);
+                        openMemberProfile(membre.id);
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '8px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--text-primary)',
+                      cursor: membre ? 'pointer' : 'default',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <MemberAvatar membre={membre} size={38} />
+                    <span style={{ flex: 1, minWidth: 0, fontSize: '0.88rem', fontWeight: 600 }}>
+                      {membre ? `${membre.prenom} ${membre.nom}` : t('publications.deletedMember')}
+                    </span>
+                    <span title={option ? t(option.labelKey) : undefined} style={{ fontSize: '1.2rem', lineHeight: 1 }}>
+                      {option?.emoji || '\u{1F44D}'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes storyProgress { from { width: 0%; } to { width: 100%; } }

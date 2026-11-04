@@ -16,7 +16,8 @@ import {
   MessageCircle,
   ImagePlus,
   Pencil,
-  Check
+  Check,
+  Trash2
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
@@ -26,6 +27,7 @@ import { MemberBadgeModal } from '../components/MemberBadgeModal';
 import { compressImage } from '../utils/imageCompressor';
 import { uploadDataUrl } from '../utils/media';
 import { fetchPublicationImageIfMissing, fetchStoryImageIfMissing } from '../utils/supabaseSync';
+import { getReactionCounts } from '../utils/reactions';
 import { useLanguage } from '../i18n';
 
 interface ProfileViewProps {
@@ -269,6 +271,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     onRefreshPublications();
   };
 
+  const handleDeleteMyPublication = (publication: Publication) => {
+    if (!window.confirm(t('publications.confirmDelete'))) return;
+    StorageService.deletePublication(publication.id);
+    if (editingPublicationId === publication.id) {
+      setEditingPublicationId(null);
+      setEditingCaption('');
+    }
+    onRefreshPublications();
+  };
+
   // Generate real QR Code onto the canvas
   useEffect(() => {
     const canvas = qrCanvasRef.current;
@@ -353,6 +365,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }, 1200);
   };
 
+  const handleRemovePhoto = () => {
+    if (!window.confirm(t('profile.photo.removeConfirm'))) return;
+    StorageService.removeMemberImage(currentUser.id, 'avatar');
+    StorageService.updateMembre({ ...currentUser, photo_url: '' });
+    setPhotoUrl('');
+    setTempPhotoUrl('');
+    setShowPhotoModal(false);
+    onRefreshUser();
+  };
+
   const handleCoverFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -385,6 +407,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       setCoverSavedMsg(false);
       setShowCoverModal(false);
     }, 1200);
+  };
+
+  const handleRemoveCover = () => {
+    if (!window.confirm(t('profile.cover.removeConfirm'))) return;
+    StorageService.removeMemberImage(currentUser.id, 'cover');
+    StorageService.updateMembre({ ...currentUser, cover_url: '' });
+    setCoverUrl('');
+    setTempCoverUrl('');
+    setShowCoverModal(false);
+    onRefreshUser();
   };
 
   // Save personal info
@@ -571,6 +603,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           ) : (
             myPublications.map((publication) => {
               const imageSrc = publicationImageSrc(publication);
+              const reactionTotal = getReactionCounts(publication.liked_by, publication.reactions).total;
               return (
                 <article key={`${publication.id}-${imageTick}`} className="glass-card" style={{ padding: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
@@ -588,18 +621,29 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                         {publication.groupe_id ? ` · ${t('profile.posts.groupPost')}` : ''}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingPublicationId(publication.id);
-                        setEditingCaption(publication.contenu);
-                      }}
-                      className="btn btn-ghost"
-                      style={{ padding: '6px', marginLeft: 'auto', color: 'var(--accent-gold)', flexShrink: 0 }}
-                      title={t('profile.posts.editCaption')}
-                    >
-                      <Pencil size={15} />
-                    </button>
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingPublicationId(publication.id);
+                          setEditingCaption(publication.contenu);
+                        }}
+                        className="btn btn-ghost"
+                        style={{ padding: '6px', color: 'var(--accent-gold)' }}
+                        title={t('profile.posts.editCaption')}
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMyPublication(publication)}
+                        className="btn btn-ghost"
+                        style={{ padding: '6px', color: '#ef4444' }}
+                        title={t('publications.deleteTitle')}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
 
                   {editingPublicationId === publication.id ? (
@@ -665,7 +709,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     color: 'var(--text-muted)'
                   }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Heart size={15} /> {publication.liked_by.length}
+                      <Heart size={15} /> {reactionTotal}
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <MessageCircle size={15} /> {publication.commentaires?.length || 0}
@@ -1114,6 +1158,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <ImageIcon size={16} />
                 <span>{t('profile.cover.upload')}</span>
               </button>
+              {(currentUser.cover_url || coverUrl) && (
+                <button
+                  type="button"
+                  onClick={handleRemoveCover}
+                  className="btn btn-ghost"
+                  style={{ fontSize: '0.85rem', color: '#ef4444' }}
+                  title={t('profile.cover.remove')}
+                >
+                  <Trash2 size={16} />
+                  <span>{t('profile.cover.remove')}</span>
+                </button>
+              )}
             </div>
 
             <div style={{ marginBottom: '18px' }}>
@@ -1258,6 +1314,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <ImageIcon size={16} />
                 <span>{t('profile.photo.upload')}</span>
               </button>
+              {(currentUser.photo_url || photoUrl) && (
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="btn btn-ghost"
+                  style={{ fontSize: '0.85rem', color: '#ef4444' }}
+                  title={t('profile.photo.remove')}
+                >
+                  <Trash2 size={16} />
+                  <span>{t('profile.photo.remove')}</span>
+                </button>
+              )}
             </div>
 
             {/* Custom URL Input */}

@@ -200,6 +200,10 @@ export interface Message {
   is_edited: boolean;
   // Membres qui ont lu ce message (utilisé pour les groupes Messenger).
   read_by?: string[];
+  // Réponse citée (style Facebook / WhatsApp).
+  reply_to_id?: string;
+  reply_to_sender_id?: string;
+  reply_to_text?: string;
   sent_at: string;
 }
 
@@ -212,6 +216,16 @@ export interface Conversation {
   nonLus: number;
   membre?: Membre;
   groupe?: Groupe;
+}
+
+// ==================== REACTIONS (style Facebook) ====================
+export type ReactionType = 'like' | 'love' | 'haha' | 'angry';
+
+export interface StoryReply {
+  id: string;
+  auteur_id: string;
+  contenu: string;
+  created_at: string;
 }
 
 // ==================== PUBLICATION ====================
@@ -232,7 +246,14 @@ export interface PublicationComment {
   audience?: 'all' | 'group';
   groupe_id?: string;
   created_at: string;
+  // liked_by liste tous les membres ayant reagit (compatibilite avec les
+  // publications creees avant l'arrivee des reactions). reactions precise le
+  // type choisi par chaque membre.
   liked_by: string[];
+  reactions?: Record<string, ReactionType>;
+  // Horodatage de la derniere action (ajout ou retrait) par membre : permet
+  // de fusionner correctement les reactions entre plusieurs appareils.
+  reactions_updated_at?: Record<string, string>;
   commentaires: PublicationComment[];
   partages: number;
 }
@@ -249,6 +270,9 @@ export interface Story {
   created_at: string;
   expires_at: string;
   seen_by: string[];
+  reactions?: Record<string, ReactionType>;
+  reactions_updated_at?: Record<string, string>;
+  replies?: StoryReply[];
 }
 
 // ==================== QCM (JEU-CONCOURS) ====================

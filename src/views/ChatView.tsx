@@ -26,6 +26,13 @@ import { useLanguage } from '../i18n';
 import { getVisibleGroupIds, isAdmin } from '../utils/permissions';
 import { fetchMessageImageIfMissing } from '../utils/supabaseSync';
 import { openMemberProfile } from '../utils/memberProfileNav';
+import {
+  MessengerBubble,
+  isMessengerBubbleAvailable,
+  isMessengerBubbleEnabled,
+  setMessengerBubbleEnabled
+} from '../utils/messengerBubble';
+import { supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 
 interface ChatViewProps {
   currentUser: Membre;
@@ -68,6 +75,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [inputText, setInputText] = useState('');
   const [searchContact, setSearchContact] = useState('');
 
+  // Réponse à un message (appui long / glissement)
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [swipeMessageId, setSwipeMessageId] = useState<string | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+
   // Staged image attachment state
   const [stagedImage, setStagedImage] = useState<{
     dataUrl: string;
@@ -83,6 +95,57 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // On phones, show either the contact list or the active conversation
   const [isMobileConversation, setIsMobileConversation] = useState(false);
 
+  // Bulle Messenger Android (au-dessus des autres applications)
+  const [bubbleEnabled, setBubbleEnabled] = useState<boolean>(() => isMessengerBubbleEnabled());
+
+  const handleToggleBubble = async () => {
+    if (!isMessengerBubbleAvailable()) {
+      alert(t('chat.bubbleUnsupported'));
+      return;
+    }
+    if (bubbleEnabled) {
+      setMessengerBubbleEnabled(false);
+      setBubbleEnabled(false);
+      await MessengerBubble.stopBubble().catch(() => { /* service déjà arrêté */ });
+      return;
+    }
+    if (!supabaseUrl || !supabaseAnonKey) {
+      alert(t('chat.bubbleUnsupported'));
+      return;
+    }
+
+    const permissions = await MessengerBubble.getBubblePermissions().catch(() => null);
+    if (!permissions?.notifications) {
+      await MessengerBubble.requestNotificationPermission().catch(() => { /* refusée */ });
+    }
+    if (!permissions?.overlay) {
+      await MessengerBubble.requestOverlayPermission().catch(() => { /* réglages indisponibles */ });
+      alert(t('chat.bubbleOverlayHint'));
+      return;
+    }
+
+    const session = {
+      userId: currentUser.id,
+      userName: `${currentUser.prenom} ${currentUser.nom}`.trim(),
+      photoUrl: currentUser.photo_url,
+      supabaseUrl,
+      supabaseAnonKey
+    };
+    try {
+      const result = await MessengerBubble.startBubble(session);
+      if (result.needsOverlayPermission) {
+        alert(t('chat.bubbleOverlayHint'));
+        return;
+      }
+    } catch {
+      alert(t('chat.bubbleOverlayHint'));
+      return;
+    }
+    setMessengerBubbleEnabled(true);
+    setBubbleEnabled(true);
+    void MessengerBubble.registerPushToken(session).catch(() => { /* Firebase non configuré */ });
+  };
+
   // Édition / suppression de messages
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [editingText, setEditingText] = useState('');
@@ -96,9 +159,68 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [manageMemberIds, setManageMemberIds] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messageSwipeRef = useRef<{ id: string; x: number; y: number; triggered: boolean } | null>(null);
+  const lastSwipeAtRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { t } = useLanguage();
+
+  // Le champ de saisie grandit avec le texte (retours à la ligne autorisés).
+  useEffect(() => {
+    const field = inputRef.current;
+    if (!field) return;
+    field.style.height = 'auto';
+    field.style.height = `${Math.min(field.scrollHeight, 132)}px`;
+  }, [inputText]);
+
+  // On ne garde pas une réponse citée en changeant de conversation.
+  useEffect(() => {
+    setReplyingTo(null);
+  }, [activeChannelId, activeChannelType]);
+
+  const getMessagePreviewText = (message: Message) => {
+    if (message.message?.trim()) return message.message.trim();
+    if (message.image_url || message.image_ref || message.file_type === 'image') {
+      return t('chat.replyImage');
+    }
+    return '';
+  };
+
+  const getMessageSenderName = (message: Message) => {
+    if (message.sender_id === currentUser.id) return t('chat.youPrefix');
+    const member = allMembres.find((m) => m.id === message.sender_id);
+    return member ? `${member.prenom} ${member.nom}` : '';
+  };
+
+  const startMessageSwipe = (message: Message, clientX: number, clientY: number) => {
+    messageSwipeRef.current = { id: message.id, x: clientX, y: clientY, triggered: false };
+    setSwipeMessageId(message.id);
+    setSwipeOffset(0);
+  };
+
+  const moveMessageSwipe = (message: Message, clientX: number, clientY: number) => {
+    const current = messageSwipeRef.current;
+    if (!current || current.id !== message.id || current.triggered) return;
+    const deltaX = clientX - current.x;
+    const deltaY = clientY - current.y;
+    if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    setSwipeOffset(Math.max(-72, Math.min(72, deltaX)));
+    if (Math.abs(deltaX) >= 56) {
+      current.triggered = true;
+      lastSwipeAtRef.current = Date.now();
+      setReplyingTo(message);
+      setSwipeOffset(0);
+      window.setTimeout(() => inputRef.current?.focus(), 40);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(12);
+    }
+  };
+
+  const endMessageSwipe = () => {
+    messageSwipeRef.current = null;
+    setSwipeMessageId(null);
+    setSwipeOffset(0);
+  };
 
   // Auto scroll to bottom
   const scrollToBottom = () => {
@@ -373,6 +495,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
       file_name: stagedImage.fileName,
       file_type: 'image' as const
     } : undefined;
+    const replyPayload = replyingTo ? {
+      id: replyingTo.id,
+      sender_id: replyingTo.sender_id,
+      text: getMessagePreviewText(replyingTo)
+    } : undefined;
 
     const sentMessage = activeChannelType === 'group'
       ? StorageService.sendMessage(
@@ -381,7 +508,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
           undefined,
           activeChannelId,
           imageUrlToSend,
-          attachmentPayload
+          attachmentPayload,
+          replyPayload
         )
       : StorageService.sendMessage(
           currentUser.id,
@@ -389,11 +517,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
           activeChannelId,
           undefined,
           imageUrlToSend,
-          attachmentPayload
+          attachmentPayload,
+          replyPayload
         );
 
     setInputText('');
     setStagedImage(null);
+    setReplyingTo(null);
     setIsProcessingImage(false);
     onRefreshMessages();
 
@@ -841,6 +971,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{
+                  padding: '6px',
+                  color: bubbleEnabled ? 'var(--accent-gold)' : 'var(--text-muted)'
+                }}
+                title={bubbleEnabled ? t('chat.bubbleDisable') : t('chat.bubbleEnable')}
+                aria-label={bubbleEnabled ? t('chat.bubbleDisable') : t('chat.bubbleEnable')}
+                onClick={() => { void handleToggleBubble(); }}
+              >
+                <MessageSquare size={16} />
+              </button>
               <span className="badge badge-gold" style={{ fontSize: '0.65rem' }}>
                 {activeChannelType === 'group' && activeGroup?.is_messenger
                   ? t('chat.messengerGroupBadge')
@@ -883,6 +1026,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 const imageUrl = resolveMessageImage(msg);
                 const readByOthers = (msg.read_by || []).filter((id) => id !== currentUser.id).length;
                 const isGroupChannel = activeChannelType === 'group';
+                const replySender = msg.reply_to_sender_id
+                  ? allMembres.find((m) => m.id === msg.reply_to_sender_id)
+                  : undefined;
+                const replySenderName = msg.reply_to_sender_id === currentUser.id
+                  ? t('chat.youPrefix')
+                  : replySender
+                    ? `${replySender.prenom} ${replySender.nom}`
+                    : '';
 
                 return (
                   <div
@@ -905,9 +1056,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
                     <div
                       className="chat-bubble"
+                      onPointerDown={(event) => {
+                        if (event.pointerType === 'mouse' && event.button !== 0) return;
+                        startMessageSwipe(msg, event.clientX, event.clientY);
+                      }}
+                      onPointerMove={(event) => moveMessageSwipe(msg, event.clientX, event.clientY)}
+                      onPointerUp={endMessageSwipe}
+                      onPointerCancel={endMessageSwipe}
+                      onPointerLeave={endMessageSwipe}
+                      onClickCapture={(event) => {
+                        if (Date.now() - lastSwipeAtRef.current < 400) {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }
+                      }}
                       style={{
-                        minWidth: '120px',
-                        padding: '10px 14px',
+                        minWidth: '128px',
+                        padding: '12px 16px',
                         borderRadius: '16px',
                         borderBottomRightRadius: isMe ? '3px' : '16px',
                         borderBottomLeftRadius: !isMe ? '3px' : '16px',
@@ -915,12 +1080,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
                           ? '#10b981'
                           : 'rgba(255, 255, 255, 0.08)',
                         color: isMe ? '#ffffff' : 'var(--text-main)',
-                        fontSize: 'clamp(0.9rem, 2.5vw, 1rem)',
-                        lineHeight: 1.5,
+                        fontSize: 'clamp(0.92rem, 2.5vw, 1.02rem)',
+                        lineHeight: 1.55,
                         boxShadow: 'var(--shadow-sm)',
                         wordBreak: 'break-word',
-                        maxWidth: '80%',
-                        marginBottom: '4px'
+                        maxWidth: '86%',
+                        marginBottom: '6px',
+                        touchAction: 'pan-y',
+                        transform: swipeMessageId === msg.id ? `translateX(${swipeOffset}px)` : undefined,
+                        transition: swipeMessageId === msg.id ? 'none' : 'transform 0.18s ease',
+                        cursor: 'grab'
                       }}
                     >
                       {!isMe && (
@@ -929,6 +1098,33 @@ export const ChatView: React.FC<ChatViewProps> = ({
                           style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--accent-gold)', marginBottom: '4px', cursor: 'pointer' }}
                         >
                           {sender?.prenom} {sender?.nom}
+                        </div>
+                      )}
+
+                      {!msg.is_deleted && msg.reply_to_text && (
+                        <div style={{
+                          borderLeft: `3px solid ${isMe ? 'rgba(255, 255, 255, 0.72)' : 'var(--accent-gold)'}`,
+                          background: isMe ? 'rgba(0, 0, 0, 0.18)' : 'rgba(255, 255, 255, 0.07)',
+                          borderRadius: '7px',
+                          padding: '6px 9px',
+                          marginBottom: '7px',
+                          fontSize: '0.78rem',
+                          lineHeight: 1.35
+                        }}>
+                          <div style={{ fontWeight: 700, opacity: 0.9, marginBottom: '2px' }}>
+                            {replySenderName || t('chat.replyTo')}
+                          </div>
+                          <div style={{
+                            opacity: 0.82,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word'
+                          }}>
+                            {msg.reply_to_text}
+                          </div>
                         </div>
                       )}
 
@@ -1162,15 +1358,51 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           )}
 
+          {/* Aperçu de la réponse en cours */}
+          {replyingTo && (
+            <div style={{
+              padding: '10px 18px',
+              background: 'rgba(245, 158, 11, 0.1)',
+              borderTop: '1px solid var(--border-gold)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <div style={{ flex: 1, minWidth: 0, borderLeft: '3px solid var(--accent-gold)', paddingLeft: '10px' }}>
+                <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
+                  {t('chat.replyingTo', { name: getMessageSenderName(replyingTo) })}
+                </div>
+                <div style={{
+                  fontSize: '0.8rem',
+                  color: 'var(--text-muted)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {getMessagePreviewText(replyingTo)}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReplyingTo(null)}
+                className="btn btn-ghost"
+                style={{ padding: '6px', borderRadius: '50%' }}
+                title={t('chat.cancelReply')}
+              >
+                <X size={18} />
+              </button>
+            </div>
+          )}
+
           {/* Bottom message input form */}
           <form
             onSubmit={handleSendMessage}
             style={{
-              padding: '12px 18px',
+              padding: '12px 20px',
               borderTop: '1px solid var(--border-color)',
               display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
+              alignItems: 'flex-end',
+              gap: '12px',
               background: 'rgba(0, 0, 0, 0.2)'
             }}
           >
@@ -1204,8 +1436,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </button>
 
             {/* Input message text */}
-            <input
-              type="text"
+            <textarea
+              ref={inputRef}
+              rows={1}
               placeholder={
                 stagedImage 
                   ? t('chat.imageCaptionPlaceholder')
@@ -1214,7 +1447,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               className="form-input"
-              style={{ flex: 1, fontSize: '0.88rem' }}
+              style={{
+                flex: 1,
+                fontSize: '0.92rem',
+                lineHeight: 1.45,
+                minHeight: '46px',
+                maxHeight: '132px',
+                padding: '12px 14px',
+                resize: 'none',
+                overflowY: 'auto'
+              }}
             />
 
             {/* Send button */}

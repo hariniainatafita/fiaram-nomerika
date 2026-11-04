@@ -1,4 +1,4 @@
-import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, AdminSettings, RegistrationQuestion, BadgeStyle, BadgeColors, Publication, PublicationComment, CategorieChanson, Story, Quiz, QuizResult } from '../types';
+import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, AdminSettings, RegistrationQuestion, BadgeStyle, BadgeColors, Publication, PublicationComment, CategorieChanson, Story, StoryReply, ReactionType, Quiz, QuizResult } from '../types';
 import {
   INITIAL_MEMBRES,
   INITIAL_GROUPES,
@@ -33,6 +33,7 @@ import {
   clearAllCachedImageRows
 } from './imageRowCache';
 import { deletedIdsFor, markDeleted } from './tombstones';
+import { getReactionType } from './reactions';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { createPasswordHash, verifyPassword } from '../utils/crypto';
 
@@ -440,7 +441,7 @@ function compactMemberImage(
   const ref = memberImageRef(kind);
   // The raw record still holds the reference and this copy has no cached image
   // (fresh device): never wipe the reference while other fields are edited.
-  if (rawValue === ref && (!value || readMemberImageRow(key) === value)) {
+  if (rawValue === ref && (value === undefined || readMemberImageRow(key) === value)) {
     return ref;
   }
   if (!value || !value.startsWith('data:')) return value;
@@ -905,6 +906,13 @@ export const StorageService = {
     memberImageCache.delete(memberCoverKey(id));
     // Remember the deletion so that the union-merge sync never resurrects it.
     this.markMemberDeleted(id);
+  },
+  // Remove a profile/cover picture from its own synced row (used when the
+  // member deletes their picture, not their whole account).
+  removeMemberImage(id: string, kind: 'avatar' | 'cover'): void {
+    const key = kind === 'avatar' ? memberAvatarKey(id) : memberCoverKey(id);
+    removeStoredItem(key);
+    memberImageCache.delete(key);
   },
 
   // Deleted members registry (prevents deleted accounts coming back through sync).
@@ -1438,7 +1446,8 @@ export const StorageService = {
     receiver_id?: string, 
     group_id?: string, 
     image_url?: string,
-    attachment?: { audio_url?: string; file_url?: string; file_name?: string; file_type?: 'image' | 'audio' | 'document' }
+    attachment?: { audio_url?: string; file_url?: string; file_name?: string; file_type?: 'image' | 'audio' | 'document' },
+    replyTo?: { id: string; sender_id: string; text: string }
   ): Message {
     const list = this.getMessages();
     const now = new Date();
@@ -1460,6 +1469,9 @@ export const StorageService = {
       status: 'sent',
       is_deleted: false,
       is_edited: false,
+      reply_to_id: replyTo?.id,
+      reply_to_sender_id: replyTo?.sender_id,
+      reply_to_text: replyTo?.text,
       sent_at: timeStr
     };
     list.push(newMsg);
@@ -1630,6 +1642,8 @@ export const StorageService = {
       groupe_id: audience === 'group' ? groupe_id : undefined,
       created_at: new Date().toISOString(),
       liked_by: [],
+      reactions: {},
+      reactions_updated_at: {},
       commentaires: [],
       partages: 0
     };
@@ -1666,14 +1680,32 @@ export const StorageService = {
     this.savePublications(list);
   },
   togglePublicationLike(publicationId: string, membreId: string): void {
+    this.togglePublicationReaction(publicationId, membreId, 'like');
+  },
+  // Ajoute, change ou retire une reaction (j'aime, j'adore, haha, en colere).
+  // Un second appui sur la meme reaction la retire, comme sur Facebook.
+  togglePublicationReaction(publicationId: string, membreId: string, reaction: ReactionType): void {
     const list = this.getPublications();
     const publication = list.find((p) => p.id === publicationId);
-    if (publication) {
-      publication.liked_by = publication.liked_by.includes(membreId)
-        ? publication.liked_by.filter((id) => id !== membreId)
-        : [...publication.liked_by, membreId];
-      this.savePublications(list);
+    if (!publication) return;
+
+    const current = getReactionType(publication.reactions, publication.liked_by, membreId);
+    const reactions = { ...(publication.reactions || {}) };
+    if (current === reaction) {
+      delete reactions[membreId];
+      publication.liked_by = publication.liked_by.filter((id) => id !== membreId);
+    } else {
+      reactions[membreId] = reaction;
+      if (!publication.liked_by.includes(membreId)) {
+        publication.liked_by = [...publication.liked_by, membreId];
+      }
     }
+    publication.reactions = reactions;
+    publication.reactions_updated_at = {
+      ...(publication.reactions_updated_at || {}),
+      [membreId]: new Date().toISOString()
+    };
+    this.savePublications(list);
   },
   addPublicationComment(publicationId: string, auteur_id: string, contenu: string): PublicationComment | null {
     const list = this.getPublications();
@@ -1700,13 +1732,20 @@ export const StorageService = {
     }
   },
   deletePublication(publicationId: string): void {
-    markCollectionDeleted(STORAGE_KEYS.PUBLICATIONS, [publicationId]);
-    const all = this.getPublications();
-    const publication = all.find((p) => p.id === publicationId);
+    // Read the raw collection first: once the tombstone is written,
+    // getPublications() filters the post out and we could no longer find its
+    // picture reference. This is what left orphaned image rows behind.
+    const raw = getStoredItem<Publication[]>(STORAGE_KEYS.PUBLICATIONS, INITIAL_PUBLICATIONS);
+    const publication = raw.find((p) => p.id === publicationId);
     if (publication?.image_ref) {
       removeStoredItem(publicationImageKey(publication.image_ref));
     }
-    this.savePublications(all.filter((p) => p.id !== publicationId));
+    // New posts use their own id as image_ref; remove that row as well in case
+    // the stored reference was already missing.
+    removeStoredItem(publicationImageKey(publicationId));
+    markCollectionDeleted(STORAGE_KEYS.PUBLICATIONS, [publicationId]);
+    const deleted = deletedIdsFor(STORAGE_KEYS.PUBLICATIONS);
+    this.savePublications(raw.filter((p) => p.id !== publicationId && !deleted.has(p.id)));
   },
 
   // ==================== STORIES (24h, style Facebook) ====================
@@ -1764,7 +1803,10 @@ export const StorageService = {
       caption: caption?.trim() || undefined,
       created_at: now.toISOString(),
       expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-      seen_by: []
+      seen_by: [],
+      reactions: {},
+      reactions_updated_at: {},
+      replies: []
     };
 
     // Keep the STORIES collection small enough for Supabase Realtime and for
@@ -1799,6 +1841,41 @@ export const StorageService = {
       story.seen_by = [...story.seen_by, membreId];
       this.saveStories(list);
     }
+  },
+  toggleStoryReaction(storyId: string, membreId: string, reaction: ReactionType): Story | null {
+    const list = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []);
+    const story = list.find((s) => s.id === storyId);
+    if (!story) return null;
+
+    const reactions = { ...(story.reactions || {}) };
+    const current = getReactionType(story.reactions, [], membreId);
+    if (current === reaction) {
+      delete reactions[membreId];
+    } else {
+      reactions[membreId] = reaction;
+    }
+    story.reactions = reactions;
+    story.reactions_updated_at = {
+      ...(story.reactions_updated_at || {}),
+      [membreId]: new Date().toISOString()
+    };
+    this.saveStories(list);
+    return story;
+  },
+  addStoryReply(storyId: string, auteur_id: string, contenu: string): StoryReply | null {
+    const list = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []);
+    const story = list.find((s) => s.id === storyId);
+    if (!story) return null;
+
+    const reply: StoryReply = {
+      id: 'sr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      auteur_id,
+      contenu: contenu.trim(),
+      created_at: new Date().toISOString()
+    };
+    story.replies = [...(story.replies || []), reply];
+    this.saveStories(list);
+    return reply;
   },
 
   // ==================== QCM / JEU-CONCOURS ====================

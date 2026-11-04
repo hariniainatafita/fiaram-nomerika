@@ -148,6 +148,93 @@ function groupUpdatedAt(item: unknown): number {
   return Number.isFinite(time) ? time : 0;
 }
 
+function readRecord(value: unknown): AnyRecord {
+  return isPlainObject(value) ? value : {};
+}
+
+function recordTime(value: unknown): number {
+  if (typeof value !== 'string') return 0;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? time : 0;
+}
+
+/**
+ * Reactions are stored per member with a last-action timestamp. Merging two
+ * copies picks the most recent action for every member, so a reaction added on
+ * one device is never lost and a removal still wins over an older like.
+ */
+function mergeReactionState(kept: AnyRecord, other: AnyRecord): {
+  reactions: AnyRecord;
+  updates: AnyRecord;
+} {
+  const keptReactions = readRecord(kept.reactions);
+  const otherReactions = readRecord(other.reactions);
+  const keptUpdates = readRecord(kept.reactions_updated_at);
+  const otherUpdates = readRecord(other.reactions_updated_at);
+
+  const reactions: AnyRecord = {};
+  const updates: AnyRecord = {};
+  const ids = new Set<string>([
+    ...Object.keys(keptReactions),
+    ...Object.keys(otherReactions),
+    ...Object.keys(keptUpdates),
+    ...Object.keys(otherUpdates)
+  ]);
+
+  for (const id of ids) {
+    const keptTime = recordTime(keptUpdates[id]);
+    const otherTime = recordTime(otherUpdates[id]);
+    const winner = otherTime > keptTime ? other : kept;
+    const winnerReactions = readRecord(winner.reactions);
+    const winnerUpdates = readRecord(winner.reactions_updated_at);
+    const type = winnerReactions[id];
+    if (typeof type === 'string') reactions[id] = type;
+    if (typeof winnerUpdates[id] === 'string') updates[id] = winnerUpdates[id];
+  }
+
+  // Legacy likes only have liked_by (no reaction type, no timestamp).
+  const legacyLiked = new Set<string>();
+  for (const record of [kept, other]) {
+    if (Array.isArray(record.liked_by)) {
+      record.liked_by.forEach((id) => { if (typeof id === 'string') legacyLiked.add(id); });
+    }
+  }
+  for (const id of legacyLiked) {
+    if (!(id in reactions) && !(id in updates)) reactions[id] = 'like';
+  }
+
+  return { reactions, updates };
+}
+
+function mergeById(first: unknown, second: unknown, dateField: string): unknown[] {
+  const items = new Map<string, unknown>();
+  const push = (list: unknown) => {
+    if (!Array.isArray(list)) return;
+    for (const item of list) {
+      const id = itemId(item);
+      if (id === null) continue;
+      if (!items.has(id)) items.set(id, item);
+    }
+  };
+  push(first);
+  push(second);
+  return [...items.values()].sort((a, b) => {
+    const timeA = isPlainObject(a) && typeof a[dateField] === 'string' ? a[dateField] as string : '';
+    const timeB = isPlainObject(b) && typeof b[dateField] === 'string' ? b[dateField] as string : '';
+    return timeA < timeB ? -1 : timeA > timeB ? 1 : 0;
+  });
+}
+
+function mergeStringLists(first: unknown, second: unknown): string[] {
+  const ids = new Set<string>();
+  for (const value of [first, second]) {
+    if (Array.isArray(value)) {
+      value.forEach((id) => { if (typeof id === 'string') ids.add(id); });
+    }
+  }
+  return [...ids];
+}
+
 /**
  * Resolve two copies of the same item that arrived from different devices.
  * Groups keep the newest edit (membership included); messages are soft-deleted
@@ -177,6 +264,34 @@ function mergeDuplicateItem(key: string, kept: unknown, other: unknown): unknown
       ...kept,
       ...(kept.is_messenger || other.is_messenger ? { is_messenger: true } : {}),
       ...(ids.size > 0 ? { membre_ids: [...ids] } : {})
+    };
+  }
+
+  // Feed posts keep the union of likes/reactions and comments from every
+  // device. Without this a stale push could erase a reaction added elsewhere.
+  if (key === STORAGE_KEYS.PUBLICATIONS) {
+    const { reactions, updates } = mergeReactionState(kept, other);
+    return {
+      ...other,
+      ...kept,
+      liked_by: Object.keys(reactions),
+      reactions,
+      reactions_updated_at: updates,
+      commentaires: mergeById(kept.commentaires, other.commentaires, 'created_at'),
+      partages: Math.max(Number(kept.partages) || 0, Number(other.partages) || 0)
+    };
+  }
+
+  // Stories merge the same social data plus replies and viewers.
+  if (key === STORAGE_KEYS.STORIES) {
+    const { reactions, updates } = mergeReactionState(kept, other);
+    return {
+      ...other,
+      ...kept,
+      reactions,
+      reactions_updated_at: updates,
+      seen_by: mergeStringLists(kept.seen_by, other.seen_by),
+      replies: mergeById(kept.replies, other.replies, 'created_at')
     };
   }
 

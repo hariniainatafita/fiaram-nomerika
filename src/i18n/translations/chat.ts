@@ -90,6 +90,38 @@ export const chat: TranslationDictionary = {
     en: 'Write a message to {name}...'
   },
   'chat.send': { mg: 'Alefaso', fr: 'Envoyer', en: 'Send' },
+  'chat.replyTo': { mg: 'Valio', fr: 'Répondre', en: 'Reply' },
+  'chat.replyingTo': {
+    mg: 'Mamaly an’i {name}',
+    fr: 'Réponse à {name}',
+    en: 'Replying to {name}'
+  },
+  'chat.cancelReply': {
+    mg: 'Hanafoana ny valiny',
+    fr: 'Annuler la réponse',
+    en: 'Cancel reply'
+  },
+  'chat.replyImage': { mg: 'Sary', fr: 'Photo', en: 'Photo' },
+  'chat.bubbleEnable': {
+    mg: 'Alefaso ny bulle Messenger',
+    fr: 'Activer la bulle Messenger',
+    en: 'Enable Messenger bubble'
+  },
+  'chat.bubbleDisable': {
+    mg: 'Ajanona ny bulle Messenger',
+    fr: 'Désactiver la bulle Messenger',
+    en: 'Disable Messenger bubble'
+  },
+  'chat.bubbleUnsupported': {
+    mg: 'Ny bulle Messenger dia miasa amin’ny Android ihany.',
+    fr: 'La bulle Messenger fonctionne uniquement sur Android.',
+    en: 'The Messenger bubble only works on Android.'
+  },
+  'chat.bubbleOverlayHint': {
+    mg: 'Omeo alalana ny FIARAM hampiseho eo ambonin’ny rindranasa hafa, dia tsindrio indray.',
+    fr: 'Autorisez FIARAM à s’afficher par-dessus les autres applications, puis appuyez à nouveau.',
+    en: 'Allow FIARAM to display over other apps, then tap again.'
+  },
   'chat.downloadImageTitle': {
     mg: 'Sintomy ny sary',
     fr: "Télécharger l'image",

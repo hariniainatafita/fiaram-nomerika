@@ -19,6 +19,12 @@ import {
   NotificationPermissionState
 } from './utils/notificationPermission';
 import { updateFaviconBadge } from './utils/faviconBadge';
+import {
+  MessengerBubble,
+  isMessengerBubbleAvailable,
+  isMessengerBubbleEnabled
+} from './utils/messengerBubble';
+import { supabaseUrl, supabaseAnonKey } from './lib/supabase';
 
 // Views
 import { DashboardView } from './views/DashboardView';
@@ -94,6 +100,25 @@ export function App() {
 const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getStories());
   const [allQuizzes, setAllQuizzes] = useState<Quiz[]>(() => StorageService.getQuizzes());
   const [allQuizResults, setAllQuizResults] = useState<QuizResult[]>(() => StorageService.getQuizResults());
+
+  // Bulle Messenger Android : on restaure le service flottant pour les membres
+  // qui l'ont déjà activé, et on enregistre leur jeton de notifications.
+  useEffect(() => {
+    if (!isMessengerBubbleAvailable()) return;
+    if (!currentUser || !isMessengerBubbleEnabled() || !supabaseUrl || !supabaseAnonKey) {
+      void MessengerBubble.stopBubble().catch(() => { /* service absent */ });
+      return;
+    }
+    const session = {
+      userId: currentUser.id,
+      userName: `${currentUser.prenom} ${currentUser.nom}`.trim(),
+      photoUrl: currentUser.photo_url,
+      supabaseUrl,
+      supabaseAnonKey
+    };
+    void MessengerBubble.startBubble(session).catch(() => { /* permission refusée */ });
+    void MessengerBubble.registerPushToken(session).catch(() => { /* Firebase non configuré */ });
+  }, [currentUser]);
 
   // Android hardware back / browser back: walk through the app views instead of
   // closing the app. Each view change becomes a history entry, and an open
@@ -503,6 +528,18 @@ const refreshStories = () => {
         groupName: group?.nom_groupe,
         peerId: msg.group_id ? undefined : msg.sender_id
       });
+
+      if (isMessengerBubbleAvailable() && isMessengerBubbleEnabled()) {
+        void MessengerBubble.showMessage({
+          messageId: msg.id,
+          peerId: msg.group_id ? undefined : msg.sender_id,
+          groupId: msg.group_id,
+          senderId: msg.sender_id,
+          senderName: `${sender.prenom} ${sender.nom}`.trim(),
+          text: preview,
+          photoUrl: sender.photo_url
+        }).catch(() => { /* bulle non autorisée */ });
+      }
     });
 
     // ---- Publications ----
@@ -586,6 +623,9 @@ const refreshStories = () => {
     };
     const kinds = kindsByView[allowedViewValue];
     if (!kinds) return;
+    if (allowedViewValue === 'chat' && isMessengerBubbleAvailable() && isMessengerBubbleEnabled()) {
+      void MessengerBubble.clearMessages().catch(() => { /* service arrêté */ });
+    }
     let touched = false;
     kinds.forEach((kind) => {
       if (unviewedByKindRef.current[kind] > 0) {

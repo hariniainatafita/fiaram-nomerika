@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { AppUpdateBanner } from './components/AppUpdateBanner.tsx'
 import { LanguageProvider } from './i18n'
 import { hydrateFromSupabase } from './utils/supabaseSync'
 import { StorageService } from './utils/storage'
@@ -24,6 +25,7 @@ async function bootstrap() {
     <StrictMode>
       <LanguageProvider>
         <App />
+        <AppUpdateBanner />
       </LanguageProvider>
     </StrictMode>,
   )
