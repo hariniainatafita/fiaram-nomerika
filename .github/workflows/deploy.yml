@@ -24,9 +24,10 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      - name: Remove legacy Pages Functions (missing R2 bucket)
-        run: rm -rf functions
-
+      # Pages Functions are deployed with the site. The R2 bucket is referenced
+      # by the `MEDIA` binding configured on the Pages project; when it is
+      # absent the upload endpoint answers 5xx and the app falls back to
+      # Supabase Storage, so a missing binding never blocks a deployment.
       - name: Deploy
         uses: cloudflare/wrangler-action@v3
         with:

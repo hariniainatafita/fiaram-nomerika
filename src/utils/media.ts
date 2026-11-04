@@ -1,10 +1,10 @@
-// Envoi des fichiers média vers le stockage de fichiers Supabase (bucket public).
-// La fonction retourne une URL https publique du fichier ; si le stockage
-// n'est pas disponible (bucket « fiaram-media » pas encore créé, réseau
-// coupé), la valeur undefined est retournée et l'appelant conserve son mode
-// interne (data URL) — aucune régression possible : les médias ne sont pas
-// perdus, simplement localisés. Si un jour Cloudflare R2 est activé, seule
-// cette fonction change : le reste de l'application ne voit que des URL.
+// Envoi des fichiers média vers Cloudflare R2 (via la fonction Pages
+// `/api/upload`) en priorité, puis vers le bucket Supabase en secours.
+// La fonction retourne une URL https publique du fichier ; si les deux
+// stockages sont indisponibles (binding R2 absent, bucket Supabase non créé,
+// réseau coupé), la valeur undefined est retournée et l'appelant conserve son
+// mode interne (data URL) — aucune régression possible : les médias ne sont
+// pas perdus, simplement localisés.
 
 import { supabase } from '../lib/supabase';
 
@@ -12,6 +12,12 @@ export type MediaKind = 'image' | 'audio' | 'document';
 
 const MEDIA_BUCKET = 'fiaram-media';
 const MAX_BYTES = 25 * 1024 * 1024;
+const R2_UPLOAD_TIMEOUT_MS = 30_000;
+
+// A missing R2 binding answers 404/500/503 on every request: remember it for
+// the session so each upload does not waste a doomed round-trip before falling
+// back to Supabase Storage.
+let r2Unavailable = false;
 
 const MIME_EXTENSIONS: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -44,21 +50,72 @@ function buildObjectKey(kind: MediaKind, mime: string): string {
   return `${kind}_m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}.${ext}`;
 }
 
-async function storeBlob(blob: Blob, kind: MediaKind): Promise<string | undefined> {
-  if (!supabase) {
-    console.warn('Stockage média indisponible: Supabase non configuré');
-    return undefined;
+// The function returns a relative `/media/<key>` URL. Store an absolute URL so
+// the value keeps working whatever origin reads it (pages.dev, Android WebView).
+function absoluteMediaUrl(url: string): string {
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  try {
+    return new URL(url, window.location.origin).toString();
+  } catch {
+    return url;
   }
+}
+
+async function uploadToR2(blob: Blob, kind: MediaKind): Promise<string | undefined> {
+  if (r2Unavailable) return undefined;
+  const ext = MIME_EXTENSIONS[blob.type] || 'bin';
+  const formData = new FormData();
+  formData.append('kind', kind);
+  formData.append('file', blob, `media.${ext}`);
+
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), R2_UPLOAD_TIMEOUT_MS);
+  try {
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+      signal: controller.signal
+    });
+    if (!res.ok) {
+      // 404/500/503 mean the Pages function or its R2 binding is absent;
+      // 403 means a misconfigured origin. Do not retry on every upload.
+      if ([403, 404, 500, 503].includes(res.status)) r2Unavailable = true;
+      console.warn('Téléversement R2 refusé:', res.status);
+      return undefined;
+    }
+    const payload = await res.json() as { url?: unknown };
+    const url = typeof payload?.url === 'string' ? payload.url : undefined;
+    if (!url || !url.startsWith('/media/')) {
+      r2Unavailable = true;
+      return undefined;
+    }
+    return absoluteMediaUrl(url);
+  } catch (error) {
+    console.warn('Téléversement R2 indisponible:', error);
+    return undefined;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+async function uploadToSupabase(blob: Blob, kind: MediaKind): Promise<string | undefined> {
+  if (!supabase) return undefined;
   const key = buildObjectKey(kind, blob.type);
   const { error } = await supabase.storage
     .from(MEDIA_BUCKET)
     .upload(key, blob, { contentType: blob.type || 'application/octet-stream' });
   if (error) {
-    console.warn('Téléversement média refusé:', error.message);
+    console.warn('Téléversement Supabase refusé:', error.message);
     return undefined;
   }
   const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(key);
   return data?.publicUrl ?? undefined;
+}
+
+async function storeBlob(blob: Blob, kind: MediaKind): Promise<string | undefined> {
+  const r2Url = await uploadToR2(blob, kind);
+  if (r2Url) return r2Url;
+  return uploadToSupabase(blob, kind);
 }
 
 export async function uploadDataUrl(dataUrl: string, kind: MediaKind = 'image'): Promise<string | undefined> {
