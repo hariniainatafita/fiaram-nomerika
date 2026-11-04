@@ -38,13 +38,16 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
   const { t } = useLanguage();
   const canManageAll = canManageAllGroups(currentUser);
   const canAssignChef = canManageChefs(currentUser);
-  const managedGroupIds = getManagedGroupIds(currentUser, allGroupes);
+  // Les groupes de discussion (Messenger) se gèrent uniquement depuis le chat :
+  // ils ne doivent pas apparaître dans les groupes de présence / finances.
+  const officialGroupes = allGroupes.filter((g) => !g.is_messenger);
+  const managedGroupIds = getManagedGroupIds(currentUser, officialGroupes);
   const visibleGroupes = canManageAll
-    ? allGroupes
-    : allGroupes.filter((g) => managedGroupIds.includes(g.id) || g.id === currentUser.groupe_id);
+    ? officialGroupes
+    : officialGroupes.filter((g) => managedGroupIds.includes(g.id) || g.id === currentUser.groupe_id);
   const movableGroupes = canManageAll
-    ? allGroupes
-    : allGroupes.filter((g) => managedGroupIds.includes(g.id));
+    ? officialGroupes
+    : officialGroupes.filter((g) => managedGroupIds.includes(g.id));
 
   // Selected group to view & manage (chef starts on his own group)
   const [selectedGroupe, setSelectedGroupe] = useState<Groupe>(
@@ -149,7 +152,7 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
       alert(t('groups.noPermissionDelete'));
       return;
     }
-    if (allGroupes.length <= 1) {
+    if (officialGroupes.length <= 1) {
       alert(t('groups.cannotDeleteLast'));
       return;
     }
@@ -706,7 +709,7 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid var(--border-color)' }}>
-                {canManageAll && allGroupes.length > 1 ? (
+                {canManageAll && officialGroupes.length > 1 ? (
                   <button
                     type="button"
                     onClick={handleDeleteGroupe}

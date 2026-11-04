@@ -22,9 +22,17 @@ import {
   MEMBER_AVATAR_REF,
   MEMBER_COVER_REF,
   memberAvatarKey,
-  memberCoverKey
+  memberCoverKey,
+  isFeedImageKey
 } from './storageKeys';
 import { pushKey, deleteKey, fetchMemberImageIfMissing } from './supabaseSync';
+import {
+  readCachedImageRow,
+  setCachedImageRow,
+  clearCachedImageRow,
+  clearAllCachedImageRows
+} from './imageRowCache';
+import { deletedIdsFor, markDeleted } from './tombstones';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { createPasswordHash, verifyPassword } from '../utils/crypto';
 
@@ -161,6 +169,7 @@ function pruneImageCache(keepKey?: string): number {
     } catch {
       /* ignore */
     }
+    clearCachedImageRow(key);
   });
   return removeCount;
 }
@@ -181,9 +190,17 @@ function writeLocalStorageJSON(key: string, value: unknown): boolean {
 
 function setStoredItem<T>(key: string, value: T): void {
   writeLocalStorageJSON(key, value);
+  if (isFeedImageKey(key) && typeof value === 'string') {
+    setCachedImageRow(key, value);
+  }
   // Always mirror to Supabase, even when the local cache is saturated: the
   // remote copy is what makes a change survive a refresh or a logout.
   pushKey(key, value);
+}
+
+function markCollectionDeleted(collectionKey: string, ids: string[]): void {
+  const tombstone = markDeleted(collectionKey, ids);
+  if (tombstone) setStoredItem(tombstone.key, tombstone.map);
 }
 
 /**
@@ -202,6 +219,9 @@ function storeImageRow(key: string, dataUrl: string, label: string): boolean {
       console.warn(`[image] cache local saturé pour ${label}, envoi direct au serveur:`, e);
     }
   }
+  // Keep the picture in memory even when localStorage is full: the current
+  // session then renders it instantly instead of refetching it every render.
+  setCachedImageRow(key, dataUrl);
   pushKey(key, dataUrl);
   return localOk || (isSupabaseConfigured && Boolean(supabase));
 }
@@ -244,6 +264,7 @@ function removeStoredItem(key: string): void {
   } catch (e) {
     console.error(`Error removing key ${key}:`, e);
   }
+  if (isFeedImageKey(key)) clearCachedImageRow(key);
 }
 
 function migrateLegacyDemoData(): void {
@@ -849,7 +870,7 @@ export const StorageService = {
       }
     };
     await Promise.all(
-      Array.from({ length: Math.min(4, queue.length) }, () => worker())
+      Array.from({ length: Math.min(8, queue.length) }, () => worker())
     );
     return fetched;
   },
@@ -987,7 +1008,9 @@ export const StorageService = {
 
   // Groupes
   getGroupes(): Groupe[] {
-    return getStoredItem<Groupe[]>(STORAGE_KEYS.GROUPES, INITIAL_GROUPES);
+    const deleted = deletedIdsFor(STORAGE_KEYS.GROUPES);
+    return getStoredItem<Groupe[]>(STORAGE_KEYS.GROUPES, INITIAL_GROUPES)
+      .filter((groupe) => !deleted.has(groupe.id));
   },
   saveGroupes(groupes: Groupe[]): void {
     setStoredItem(STORAGE_KEYS.GROUPES, groupes);
@@ -1000,7 +1023,8 @@ export const StorageService = {
       description,
       chef_id,
       solde: 0,
-      created_at: new Date().toISOString().split('T')[0]
+      created_at: new Date().toISOString().split('T')[0],
+      updated_at: new Date().toISOString()
     };
     list.push(newG);
     this.saveGroupes(list);
@@ -1010,11 +1034,12 @@ export const StorageService = {
     const list = this.getGroupes();
     const index = list.findIndex((g) => g.id === updated.id);
     if (index !== -1) {
-      list[index] = { ...list[index], ...updated };
+      list[index] = { ...list[index], ...updated, updated_at: new Date().toISOString() };
       this.saveGroupes(list);
     }
   },
   deleteGroupe(id: string): void {
+    markCollectionDeleted(STORAGE_KEYS.GROUPES, [id]);
     const list = this.getGroupes().filter((g) => g.id !== id);
     this.saveGroupes(list);
     // Unassign members that belonged to this group
@@ -1030,9 +1055,30 @@ export const StorageService = {
     const raw = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
     const index = raw.findIndex((m) => m.id === membreId);
     if (index !== -1) {
+      const previousGroupId = raw[index].groupe_id;
       raw[index].groupe_id = groupeId;
       raw[index].updated_at = new Date().toISOString();
       setStoredItem(STORAGE_KEYS.MEMBRES, raw);
+
+      // A discussion (Messenger) group uses `membre_ids`, not `groupe_id`:
+      // keep both in sync so a member moved from the Groups page can actually
+      // open the conversation.
+      const groupes = this.getGroupes();
+      let changed = false;
+      groupes.forEach((groupe) => {
+        if (!groupe.is_messenger) return;
+        const ids = new Set(groupe.membre_ids || []);
+        if (previousGroupId === groupe.id) ids.delete(membreId);
+        if (groupeId === groupe.id) ids.add(membreId);
+        const next = [...ids];
+        if (next.length !== (groupe.membre_ids || []).length
+          || next.some((id) => !(groupe.membre_ids || []).includes(id))) {
+          groupe.membre_ids = next;
+          groupe.updated_at = new Date().toISOString();
+          changed = true;
+        }
+      });
+      if (changed) this.saveGroupes(groupes);
     }
   },
 
@@ -1053,6 +1099,7 @@ export const StorageService = {
       chef_id: creatorId,
       solde: 0,
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
       is_messenger: true,
       membre_ids: uniqueIds
     };
@@ -1064,7 +1111,14 @@ export const StorageService = {
     const list = this.getGroupes();
     const index = list.findIndex((g) => g.id === groupId);
     if (index !== -1 && list[index].is_messenger) {
-      list[index].membre_ids = [...new Set(membreIds)];
+      // The creator must always stay in the conversation.
+      const ids = new Set(membreIds);
+      if (list[index].chef_id) ids.add(list[index].chef_id);
+      list[index] = {
+        ...list[index],
+        membre_ids: [...ids],
+        updated_at: new Date().toISOString()
+      };
       this.saveGroupes(list);
     }
   },
@@ -1072,16 +1126,36 @@ export const StorageService = {
     const list = this.getGroupes();
     const index = list.findIndex((g) => g.id === groupId);
     if (index !== -1 && list[index].is_messenger) {
-      list[index].nom_groupe = nom.trim();
+      list[index] = {
+        ...list[index],
+        nom_groupe: nom.trim(),
+        updated_at: new Date().toISOString()
+      };
       this.saveGroupes(list);
     }
   },
   deleteMessengerGroupe(groupId: string): void {
+    markCollectionDeleted(STORAGE_KEYS.GROUPES, [groupId]);
     const list = this.getGroupes().filter((g) => g.id !== groupId || !g.is_messenger);
     this.saveGroupes(list);
-    // Un groupe Messenger supprimé emporte aussi ses messages.
-    const remaining = this.getMessages().filter((m) => m.group_id !== groupId);
-    this.saveMessages(remaining);
+    // Messages are soft-deleted (not removed) so the union-merge sync cannot
+    // bring the conversation back on another device.
+    const messages = this.getMessages();
+    let messagesChanged = false;
+    for (const msg of messages) {
+      if (msg.group_id !== groupId || msg.is_deleted) continue;
+      msg.is_deleted = true;
+      msg.message = '';
+      msg.image_url = undefined;
+      msg.file_url = undefined;
+      msg.audio_url = undefined;
+      if (msg.image_ref) {
+        this.deleteMessageImage(msg.image_ref);
+        msg.image_ref = undefined;
+      }
+      messagesChanged = true;
+    }
+    if (messagesChanged) this.saveMessages(messages);
     const reads = this.getGroupReads();
     Object.keys(reads).forEach((key) => {
       if (key.endsWith(`:${groupId}`)) delete reads[key];
@@ -1130,6 +1204,7 @@ export const StorageService = {
 
     if (grp) {
       grp.solde = newSolde;
+      grp.updated_at = new Date().toISOString();
       this.saveGroupes(groupes);
     }
 
@@ -1229,10 +1304,11 @@ export const StorageService = {
 
   // Categories de ressources
   getCategoriesRessources(): CategorieChanson[] {
+    const deleted = deletedIdsFor(STORAGE_KEYS.CATEGORIES_RESSOURCES);
     return getStoredItem<CategorieChanson[]>(
       STORAGE_KEYS.CATEGORIES_RESSOURCES,
       DEFAULT_RESSOURCE_CATEGORIES
-    );
+    ).filter((category) => !deleted.has(category.id));
   },
   saveCategoriesRessources(categories: CategorieChanson[]): void {
     setStoredItem(STORAGE_KEYS.CATEGORIES_RESSOURCES, categories);
@@ -1253,6 +1329,7 @@ export const StorageService = {
     this.saveCategoriesRessources(categories);
   },
   deleteCategorieRessource(id: string): void {
+    markCollectionDeleted(STORAGE_KEYS.CATEGORIES_RESSOURCES, [id]);
     const categories = this.getCategoriesRessources().filter((category) => category.id !== id);
     this.saveCategoriesRessources(categories);
 
@@ -1268,7 +1345,9 @@ export const StorageService = {
 
   // Chansons
   getChansons(): Chanson[] {
+    const deleted = deletedIdsFor(STORAGE_KEYS.CHANSONS);
     return getStoredItem<Chanson[]>(STORAGE_KEYS.CHANSONS, INITIAL_CHANSONS)
+      .filter((chanson) => !deleted.has(chanson.id))
       .sort((a, b) => a.titre.localeCompare(b.titre, 'fr', { sensitivity: 'base' }));
   },
   saveChansons(chansons: Chanson[]): void {
@@ -1303,6 +1382,7 @@ export const StorageService = {
     return newS;
   },
   deleteChanson(id: string): void {
+    markCollectionDeleted(STORAGE_KEYS.CHANSONS, [id]);
     const list = this.getChansons().filter((s) => s.id !== id);
     this.saveChansons(list);
   },
@@ -1344,7 +1424,7 @@ export const StorageService = {
   },
   // Base64 image payloads, one sync row per message
   getMessageImage(messageId: string): string | undefined {
-    return getStoredItem<string | undefined>(messageImageKey(messageId), undefined);
+    return readCachedImageRow(messageImageKey(messageId));
   },
   moveMessageImage(messageId: string, dataUrl: string): void {
     setStoredItem(messageImageKey(messageId), dataUrl);
@@ -1475,12 +1555,15 @@ export const StorageService = {
 
   // Evenements
   getEvenements(): Evenement[] {
-    return getStoredItem<Evenement[]>(STORAGE_KEYS.EVENEMENTS, INITIAL_EVENEMENTS);
+    const deleted = deletedIdsFor(STORAGE_KEYS.EVENEMENTS);
+    return getStoredItem<Evenement[]>(STORAGE_KEYS.EVENEMENTS, INITIAL_EVENEMENTS)
+      .filter((evenement) => !deleted.has(evenement.id));
   },
   saveEvenements(events: Evenement[]): void {
     setStoredItem(STORAGE_KEYS.EVENEMENTS, events);
   },
   deleteEvenement(id: string): void {
+    markCollectionDeleted(STORAGE_KEYS.EVENEMENTS, [id]);
     const list = this.getEvenements().filter((evenement) => evenement.id !== id);
     this.saveEvenements(list);
   },
@@ -1507,7 +1590,9 @@ export const StorageService = {
 
   // Publications
   getPublications(): Publication[] {
-    const list = getStoredItem<Publication[]>(STORAGE_KEYS.PUBLICATIONS, INITIAL_PUBLICATIONS);
+    const deleted = deletedIdsFor(STORAGE_KEYS.PUBLICATIONS);
+    const list = getStoredItem<Publication[]>(STORAGE_KEYS.PUBLICATIONS, INITIAL_PUBLICATIONS)
+      .filter((publication) => !deleted.has(publication.id));
     // Older posts stored the whole base64 picture inside the collection. Move
     // it to its own synced row so the feed stays light and reaches every
     // device through Supabase.
@@ -1566,7 +1651,12 @@ export const StorageService = {
     return newPublication;
   },
   getPublicationImage(publicationId: string): string | undefined {
-    return getStoredItem<string | undefined>(publicationImageKey(publicationId), undefined);
+    return readCachedImageRow(publicationImageKey(publicationId));
+  },
+  // Replaces the local/synced base64 picture by a fast CDN URL once the
+  // background upload finishes. The row keeps the same `image_ref`.
+  replacePublicationImage(publicationId: string, url: string): void {
+    savePublicationImageRow(publicationId, url);
   },
   updatePublication(publicationId: string, contenu: string): void {
     const list = this.getPublications();
@@ -1610,6 +1700,7 @@ export const StorageService = {
     }
   },
   deletePublication(publicationId: string): void {
+    markCollectionDeleted(STORAGE_KEYS.PUBLICATIONS, [publicationId]);
     const all = this.getPublications();
     const publication = all.find((p) => p.id === publicationId);
     if (publication?.image_ref) {
@@ -1657,7 +1748,11 @@ export const StorageService = {
     setStoredItem(STORAGE_KEYS.STORIES, stories);
   },
   getStoryImage(storyId: string): string | undefined {
-    return getStoredItem<string | undefined>(storyImageKey(storyId), undefined);
+    return readCachedImageRow(storyImageKey(storyId));
+  },
+  // Same as replacePublicationImage: swap the synced base64 row for its URL.
+  replaceStoryImage(storyId: string, url: string): void {
+    saveStoryImageRow(storyId, url);
   },
   addStory(auteur_id: string, image_url: string, caption?: string, localDataUrl?: string): Story {
     const list = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []);
@@ -1708,8 +1803,9 @@ export const StorageService = {
 
   // ==================== QCM / JEU-CONCOURS ====================
   getQuizzes(): Quiz[] {
+    const deleted = deletedIdsFor(STORAGE_KEYS.QUIZZES);
     return getStoredItem<Quiz[]>(STORAGE_KEYS.QUIZZES, [])
-      .slice()
+      .filter((quiz) => !deleted.has(quiz.id))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   },
   saveQuizzes(quizzes: Quiz[]): void {
@@ -1735,14 +1831,16 @@ export const StorageService = {
     }
   },
   deleteQuiz(quizId: string): void {
+    markCollectionDeleted(STORAGE_KEYS.QUIZZES, [quizId]);
     this.saveQuizzes(getStoredItem<Quiz[]>(STORAGE_KEYS.QUIZZES, []).filter((q) => q.id !== quizId));
     this.saveQuizResults(
       getStoredItem<QuizResult[]>(STORAGE_KEYS.QUIZ_RESULTS, []).filter((r) => r.quiz_id !== quizId)
     );
   },
   getQuizResults(): QuizResult[] {
+    const deletedQuizzes = deletedIdsFor(STORAGE_KEYS.QUIZZES);
     return getStoredItem<QuizResult[]>(STORAGE_KEYS.QUIZ_RESULTS, [])
-      .slice()
+      .filter((result) => !deletedQuizzes.has(result.quiz_id))
       .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
   },
   saveQuizResults(results: QuizResult[]): void {
@@ -1884,22 +1982,29 @@ export const StorageService = {
       localStorage.removeItem(key);
       deleteKey(key);
     });
+    clearAllCachedImageRows();
 
     const sharedKeys = [
       STORAGE_KEYS.MEMBRES_DELETED,
       STORAGE_KEYS.MEMBRES,
+      STORAGE_KEYS.GROUPES_DELETED,
       STORAGE_KEYS.GROUPES,
       STORAGE_KEYS.PRESENCES,
       STORAGE_KEYS.FINANCES,
       STORAGE_KEYS.COTISATIONS,
+      STORAGE_KEYS.CHANSONS_DELETED,
       STORAGE_KEYS.CHANSONS,
       STORAGE_KEYS.MESSAGES,
+      STORAGE_KEYS.EVENEMENTS_DELETED,
       STORAGE_KEYS.EVENEMENTS,
+      STORAGE_KEYS.PUBLICATIONS_DELETED,
       STORAGE_KEYS.PUBLICATIONS,
       STORAGE_KEYS.STORIES_DELETED,
       STORAGE_KEYS.STORIES,
+      STORAGE_KEYS.QUIZZES_DELETED,
       STORAGE_KEYS.QUIZZES,
       STORAGE_KEYS.QUIZ_RESULTS,
+      STORAGE_KEYS.CATEGORIES_DELETED,
       STORAGE_KEYS.CATEGORIES_RESSOURCES,
       STORAGE_KEYS.ADMIN_SETTINGS,
       STORAGE_KEYS.GROUP_READS,

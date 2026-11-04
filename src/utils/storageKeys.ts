@@ -16,6 +16,12 @@ export const STORAGE_KEYS = {
   EVENEMENTS: 'fiaram_evenements_v2',
   PUBLICATIONS: 'fiaram_publications_v1',
   PUBLICATIONS_SEEN: 'fiaram_publications_seen_v1',
+  PUBLICATIONS_DELETED: 'fiaram_publications_deleted_v1',
+  GROUPES_DELETED: 'fiaram_groupes_deleted_v1',
+  CHANSONS_DELETED: 'fiaram_chansons_deleted_v1',
+  EVENEMENTS_DELETED: 'fiaram_evenements_deleted_v1',
+  QUIZZES_DELETED: 'fiaram_quizzes_deleted_v1',
+  CATEGORIES_DELETED: 'fiaram_ressource_categories_deleted_v1',
   STORIES_DELETED: 'fiaram_stories_deleted_v1',
   STORIES: 'fiaram_stories_v1',
   QUIZZES: 'fiaram_quizzes_v1',
@@ -26,6 +32,18 @@ export const STORAGE_KEYS = {
   PASSWORD_HASHES: 'fiaram_password_hashes_v1'
 };
 
+// Tombstones record hard deletions so the union-merge synchronisation cannot
+// resurrect an item deleted on another device. Each value maps item id to the
+// deletion timestamp (ms).
+export const TOMBSTONE_FOR: Record<string, string> = {
+  [STORAGE_KEYS.GROUPES]: STORAGE_KEYS.GROUPES_DELETED,
+  [STORAGE_KEYS.CHANSONS]: STORAGE_KEYS.CHANSONS_DELETED,
+  [STORAGE_KEYS.EVENEMENTS]: STORAGE_KEYS.EVENEMENTS_DELETED,
+  [STORAGE_KEYS.PUBLICATIONS]: STORAGE_KEYS.PUBLICATIONS_DELETED,
+  [STORAGE_KEYS.QUIZZES]: STORAGE_KEYS.QUIZZES_DELETED,
+  [STORAGE_KEYS.CATEGORIES_RESSOURCES]: STORAGE_KEYS.CATEGORIES_DELETED
+};
+
 // Keys that must be shared/synchronised between every device.
 // CURRENT_USER_ID and THEME stay local (per-device session & preference).
 // MEMBRES_DELETED is placed before MEMBRES so tombstones are known before
@@ -33,19 +51,25 @@ export const STORAGE_KEYS = {
 export const SYNCED_KEYS: string[] = [
   STORAGE_KEYS.MEMBRES_DELETED,
   STORAGE_KEYS.MEMBRES,
+  STORAGE_KEYS.GROUPES_DELETED,
   STORAGE_KEYS.GROUPES,
   STORAGE_KEYS.PRESENCES,
   STORAGE_KEYS.FINANCES,
   STORAGE_KEYS.COTISATIONS,
+  STORAGE_KEYS.CHANSONS_DELETED,
   STORAGE_KEYS.CHANSONS,
   STORAGE_KEYS.MESSAGES,
   STORAGE_KEYS.PRESENCE_ONLINE,
+  STORAGE_KEYS.EVENEMENTS_DELETED,
   STORAGE_KEYS.EVENEMENTS,
+  STORAGE_KEYS.PUBLICATIONS_DELETED,
   STORAGE_KEYS.PUBLICATIONS,
   STORAGE_KEYS.STORIES_DELETED,
   STORAGE_KEYS.STORIES,
+  STORAGE_KEYS.QUIZZES_DELETED,
   STORAGE_KEYS.QUIZZES,
   STORAGE_KEYS.QUIZ_RESULTS,
+  STORAGE_KEYS.CATEGORIES_DELETED,
   STORAGE_KEYS.CATEGORIES_RESSOURCES,
   STORAGE_KEYS.ADMIN_SETTINGS,
   STORAGE_KEYS.GROUP_READS,
@@ -94,11 +118,15 @@ export const memberAvatarKey = (memberId: string): string =>
 export const memberCoverKey = (memberId: string): string =>
   `${MEMBER_IMAGE_PREFIX}${memberId}_cover`;
 
-export const isImageKey = (key: string): boolean =>
+// Feed/chat/story pictures use the shared in-memory row cache; member pictures
+// keep their own dedicated cache in StorageService.
+export const isFeedImageKey = (key: string): boolean =>
   key.startsWith(MESSAGE_IMAGE_PREFIX) ||
   key.startsWith(STORY_IMAGE_PREFIX) ||
-  key.startsWith(PUBLICATION_IMAGE_PREFIX) ||
-  key.startsWith(MEMBER_IMAGE_PREFIX);
+  key.startsWith(PUBLICATION_IMAGE_PREFIX);
+
+export const isImageKey = (key: string): boolean =>
+  isFeedImageKey(key) || key.startsWith(MEMBER_IMAGE_PREFIX);
 
 export const isSyncedKey = (key: string): boolean =>
   SYNCED_KEYS.includes(key) || isImageKey(key);

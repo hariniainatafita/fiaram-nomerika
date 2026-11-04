@@ -358,47 +358,54 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   // Send message
-  const handleSendMessage = async (e?: React.FormEvent) => {
+  const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputText.trim() && !stagedImage) return;
 
-    // Le média est d'abord envoyé vers R2 ; en cas d'échec on garde la base64
-    // interne afin que le message parte quand même.
+    // The picture is stored locally/synced immediately as its own base64 row
+    // so the message appears without waiting for the storage upload. The
+    // upload then runs in the background and replaces the row with a fast CDN
+    // URL when it succeeds.
     setIsProcessingImage(true);
-    const uploadedUrl = stagedImage ? await uploadDataUrl(stagedImage.dataUrl, 'image') : undefined;
-    const imageUrlToSend = stagedImage
-      ? (uploadedUrl ?? stagedImage.dataUrl)
-      : undefined;
+    const imageUrlToSend = stagedImage?.dataUrl;
     const attachmentPayload = stagedImage ? {
       file_url: imageUrlToSend,
       file_name: stagedImage.fileName,
       file_type: 'image' as const
     } : undefined;
 
-    if (activeChannelType === 'group') {
-      StorageService.sendMessage(
-        currentUser.id,
-        inputText.trim(),
-        undefined,
-        activeChannelId,
-        imageUrlToSend,
-        attachmentPayload
-      );
-    } else {
-      StorageService.sendMessage(
-        currentUser.id,
-        inputText.trim(),
-        activeChannelId,
-        undefined,
-        imageUrlToSend,
-        attachmentPayload
-      );
-    }
+    const sentMessage = activeChannelType === 'group'
+      ? StorageService.sendMessage(
+          currentUser.id,
+          inputText.trim(),
+          undefined,
+          activeChannelId,
+          imageUrlToSend,
+          attachmentPayload
+        )
+      : StorageService.sendMessage(
+          currentUser.id,
+          inputText.trim(),
+          activeChannelId,
+          undefined,
+          imageUrlToSend,
+          attachmentPayload
+        );
 
     setInputText('');
     setStagedImage(null);
     setIsProcessingImage(false);
     onRefreshMessages();
+
+    if (stagedImage && sentMessage.image_ref) {
+      const imageRef = sentMessage.image_ref;
+      const dataUrl = stagedImage.dataUrl;
+      void uploadDataUrl(dataUrl, 'image').then((url) => {
+        if (!url) return;
+        StorageService.moveMessageImage(imageRef, url);
+        onRefreshMessages();
+      }).catch(() => { /* the synced base64 row already carries the picture */ });
+    }
   };
 
   // Create Messenger Group

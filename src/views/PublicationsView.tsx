@@ -442,8 +442,14 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
 
   useEffect(() => {
     const resolveImages = async () => {
+      // Only the posts currently rendered are resolved: downloading pictures
+      // of older posts in advance competes with the visible ones on mobile
+      // data and makes the feed feel much slower.
       const refs = Array.from(new Set(
-        publications.map((publication) => publication.image_ref).filter((ref): ref is string => Boolean(ref))
+        sortedPublications
+          .slice(0, visibleCount)
+          .map((publication) => publication.image_ref)
+          .filter((ref): ref is string => Boolean(ref))
       ));
       // Parallel fetches: one slow picture never blocks the others.
       await Promise.all(refs.map(async (ref) => {
@@ -460,7 +466,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       }));
     };
     void resolveImages();
-  }, [publications, publicationImages]);
+  }, [sortedPublications, visibleCount, publicationImages]);
 
   const getPublicationImageSrc = (publication: Publication): string | undefined => {
     if (publication.image_ref && publicationImages[publication.image_ref]) {
@@ -659,25 +665,26 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   };
 
   // --- PUBLIER UNE STORY (MISE À JOUR) ---
-  const handlePublishStory = async (event?: React.MouseEvent | React.FormEvent) => {
+  const handlePublishStory = (event?: React.MouseEvent | React.FormEvent) => {
     if (event) event.preventDefault();
     if (!storyImage) return;
 
     setIsPublishingStory(true);
     try {
-      const imageUrl = (await uploadDataUrl(storyImage.dataUrl, 'image')) ?? storyImage.dataUrl;
+      const localDataUrl = storyImage.dataUrl;
       const captionData = JSON.stringify({ text: storyCaption, overlays: storyOverlays });
 
-      // Une seule sauvegarde locale: le même objet est affiché tout de suite
-      // et envoyé aux autres membres via la synchronisation Supabase.
+      // Publish immediately with the local/base64 row: the story is visible at
+      // once and leaves for other devices without waiting for the storage
+      // upload. The upload then swaps the row for a fast CDN URL.
       const savedStory = StorageService.addStory(
         currentUser.id,
-        imageUrl,
+        localDataUrl,
         captionData,
-        storyImage.dataUrl
+        localDataUrl
       );
       if (savedStory.image_ref) {
-        setStoryImages((prev) => ({ ...prev, [savedStory.image_ref!]: storyImage.dataUrl }));
+        setStoryImages((prev) => ({ ...prev, [savedStory.image_ref!]: localDataUrl }));
       }
 
       setLocalStories(prev => [savedStory, ...prev.filter(s => s.id !== savedStory.id)]);
@@ -686,6 +693,13 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       onRefreshStories();
       storiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       showTemporaryMessage(t('publications.success.published'));
+
+      if (savedStory.image_ref) {
+        const imageRef = savedStory.image_ref;
+        void uploadDataUrl(localDataUrl, 'image').then((url) => {
+          if (url) StorageService.replaceStoryImage(imageRef, url);
+        }).catch(() => { /* the synced base64 row already carries the picture */ });
+      }
     } catch (error) {
       console.error(error);
       alert(t('publications.stories.error'));
@@ -755,7 +769,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     return () => window.clearTimeout(timer);
   }, [storyViewer, currentUser.id]);
 
-  const handlePublish = async (event: React.FormEvent) => {
+  const handlePublish = (event: React.FormEvent) => {
     event.preventDefault();
     const content = newContent.trim();
     if (!content && !stagedImage) return;
@@ -763,21 +777,21 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     setIsPublishing(true);
     try {
       const publicationAudience = audience === 'group' && targetGroupeId ? 'group' : 'all';
-      const imageUrl = stagedImage
-        ? (await uploadDataUrl(stagedImage.dataUrl, 'image') ?? stagedImage.dataUrl)
-        : undefined;
+      const localDataUrl = stagedImage?.dataUrl;
+      // Same as stories: show the post at once with its synced base64 row and
+      // upload in the background, then swap in the CDN URL.
       const savedPublication = StorageService.createPublication(
         currentUser.id,
         content,
-        imageUrl,
+        localDataUrl,
         publicationAudience,
         targetGroupeId || undefined,
-        stagedImage?.dataUrl
+        localDataUrl
       );
-      if (savedPublication.image_ref && stagedImage) {
+      if (savedPublication.image_ref && localDataUrl) {
         setPublicationImages((prev) => ({
           ...prev,
-          [savedPublication.image_ref as string]: stagedImage.dataUrl
+          [savedPublication.image_ref as string]: localDataUrl
         }));
       }
       setNewContent('');
@@ -786,6 +800,13 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       setVisibleCount((count) => Math.max(count, PAGE_SIZE));
       onRefreshPublications();
       showTemporaryMessage(t('publications.success.published'));
+
+      if (savedPublication.image_ref && localDataUrl) {
+        const imageRef = savedPublication.image_ref;
+        void uploadDataUrl(localDataUrl, 'image').then((url) => {
+          if (url) StorageService.replacePublicationImage(imageRef, url);
+        }).catch(() => { /* the synced base64 row already carries the picture */ });
+      }
     } finally {
       setIsPublishing(false);
     }

@@ -96,6 +96,9 @@ export interface Groupe {
   // présences / finances / cotisations. Les comptes restent inchangés.
   is_messenger?: boolean;
   membre_ids?: string[];
+  // Dernière modification (nom, chef, membres) : le merge multi-appareils
+  // garde la version la plus récente pour ne jamais perdre un membre ajouté.
+  updated_at?: string;
 }
 
 export interface GroupeMembre {

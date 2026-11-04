@@ -1,5 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { STORAGE_KEYS, SYNCED_KEYS, PENDING_IMAGE_UPLOADS, isSyncedKey, isImageKey, messageImageKey, storyImageKey, publicationImageKey, memberAvatarKey, memberCoverKey } from './storageKeys';
+import { STORAGE_KEYS, SYNCED_KEYS, PENDING_IMAGE_UPLOADS, isSyncedKey, isImageKey, isFeedImageKey, messageImageKey, storyImageKey, publicationImageKey, memberAvatarKey, memberCoverKey } from './storageKeys';
+import { deletedIdsFor, isTombstoneKey, pruneDeletedFromCollections } from './tombstones';
+import { readCachedImageRow, setCachedImageRow } from './imageRowCache';
 
 const TABLE = 'app_state';
 const pushTimers: Record<string, number> = {};
@@ -123,14 +125,95 @@ function mergeMemberLists(localList: unknown[], remoteList: unknown[], preferLoc
  * Remote wins on shared ids (it carries the latest change), local-only items
  * are preserved, and known deleted members stay filtered out.
  */
+function filterDeletedItems(key: string, list: unknown[]): unknown[] {
+  const deleted = deletedIdsFor(key);
+  const deletedQuizzes = key === STORAGE_KEYS.QUIZ_RESULTS
+    ? deletedIdsFor(STORAGE_KEYS.QUIZZES)
+    : null;
+  if (deleted.size === 0 && !deletedQuizzes?.size) return list;
+  return list.filter((item) => {
+    const id = itemId(item);
+    if (id !== null && deleted.has(id)) return false;
+    if (deletedQuizzes && isPlainObject(item)
+      && typeof item.quiz_id === 'string' && deletedQuizzes.has(item.quiz_id)) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function groupUpdatedAt(item: unknown): number {
+  if (!isPlainObject(item) || typeof item.updated_at !== 'string') return 0;
+  const time = Date.parse(item.updated_at);
+  return Number.isFinite(time) ? time : 0;
+}
+
+/**
+ * Resolve two copies of the same item that arrived from different devices.
+ * Groups keep the newest edit (membership included); messages are soft-deleted
+ * and their read receipt is a list, so a deleted message stays deleted and
+ * every "seen by" id is preserved even when the other copy is stale.
+ */
+function mergeDuplicateItem(key: string, kept: unknown, other: unknown): unknown {
+  if (!isPlainObject(kept) || !isPlainObject(other)) return kept;
+
+  // A group's name / chef / members can be edited from any device. The copy
+  // carrying the newest `updated_at` wins, so a stale snapshot can never
+  // remove a member who was added on another phone.
+  if (key === STORAGE_KEYS.GROUPES) {
+    const keptTime = groupUpdatedAt(kept);
+    const otherTime = groupUpdatedAt(other);
+    if (otherTime > keptTime) return other;
+    if (keptTime > otherTime) return kept;
+    // Legacy groups without a date: union the memberships instead of dropping
+    // anyone.
+    const ids = new Set<string>();
+    for (const value of [kept.membre_ids, other.membre_ids]) {
+      if (Array.isArray(value)) {
+        value.forEach((id) => { if (typeof id === 'string') ids.add(id); });
+      }
+    }
+    return {
+      ...kept,
+      ...(kept.is_messenger || other.is_messenger ? { is_messenger: true } : {}),
+      ...(ids.size > 0 ? { membre_ids: [...ids] } : {})
+    };
+  }
+
+  if (key !== STORAGE_KEYS.MESSAGES) {
+    return kept;
+  }
+  const deleted = kept.is_deleted === true || other.is_deleted === true;
+  const readBy = new Set<string>();
+  for (const value of [kept.read_by, other.read_by]) {
+    if (Array.isArray(value)) {
+      value.forEach((id) => { if (typeof id === 'string') readBy.add(id); });
+    }
+  }
+  return {
+    ...kept,
+    status: kept.status === 'read' || other.status === 'read' ? 'read' : kept.status,
+    ...(deleted
+      ? {
+          is_deleted: true,
+          message: '',
+          image_url: undefined,
+          file_url: undefined,
+          audio_url: undefined,
+          image_ref: undefined
+        }
+      : {}),
+    ...(readBy.size > 0 ? { read_by: [...readBy] } : {})
+  };
+}
+
 function mergeKeyValues(key: string, local: unknown, remote: unknown): unknown {
   if (Array.isArray(local) && Array.isArray(remote)) {
+    let localList = filterDeletedItems(key, local);
+    let remoteList = filterDeletedItems(key, remote);
     if (key === STORAGE_KEYS.MEMBRES) {
-      return mergeMemberLists(local, remote, false);
+      return mergeMemberLists(localList, remoteList, false);
     }
-
-    let localList: unknown[] = local;
-    let remoteList: unknown[] = remote;
 
     if (key === STORAGE_KEYS.STORIES) {
       const tombstones = getLocalDeletedStoryIds();
@@ -143,17 +226,20 @@ function mergeKeyValues(key: string, local: unknown, remote: unknown): unknown {
     }
 
     const merged: unknown[] = [];
-    const seen = new Set<string>();
+    const indexById = new Map<string, number>();
     const pushUnique = (item: unknown) => {
       const id = itemId(item);
       if (id === null) {
         merged.push(item);
         return;
       }
-      if (!seen.has(id)) {
-        seen.add(id);
+      const existingIndex = indexById.get(id);
+      if (existingIndex === undefined) {
+        indexById.set(id, merged.length);
         merged.push(item);
+        return;
       }
+      merged[existingIndex] = mergeDuplicateItem(key, merged[existingIndex], item);
     };
     remoteList.forEach(pushUnique);
     localList.forEach(pushUnique);
@@ -199,8 +285,10 @@ function mergeKeyValues(key: string, local: unknown, remote: unknown): unknown {
  */
 function mergeKeyValuesForPush(key: string, local: unknown, remote: unknown): unknown {
   if (Array.isArray(local) && Array.isArray(remote)) {
+    const localList = filterDeletedItems(key, local);
+    const remoteList = filterDeletedItems(key, remote);
     if (key === STORAGE_KEYS.MEMBRES) {
-      return mergeMemberLists(local, remote, true);
+      return mergeMemberLists(localList, remoteList, true);
     }
 
     const tombstones = key === STORAGE_KEYS.STORIES
@@ -212,22 +300,25 @@ function mergeKeyValuesForPush(key: string, local: unknown, remote: unknown): un
     };
 
     const merged: unknown[] = [];
-    const seen = new Set<string>();
+    const indexById = new Map<string, number>();
     const pushUnique = (item: unknown) => {
       const id = itemId(item);
       if (id === null) {
         merged.push(item);
         return;
       }
-      if (!seen.has(id)) {
-        seen.add(id);
+      const existingIndex = indexById.get(id);
+      if (existingIndex === undefined) {
+        indexById.set(id, merged.length);
         merged.push(item);
+        return;
       }
+      merged[existingIndex] = mergeDuplicateItem(key, merged[existingIndex], item);
     };
 
     // Local first: the device that triggers the push owns the latest change.
-    local.filter(keep).forEach(pushUnique);
-    remote.filter(keep).forEach(pushUnique);
+    localList.filter(keep).forEach(pushUnique);
+    remoteList.filter(keep).forEach(pushUnique);
 
     const sortField = SORT_FIELDS_DESC[key];
     if (sortField) {
@@ -325,14 +416,8 @@ const messageImageInflight = new Set<string>();
 export async function fetchMessageImageIfMissing(messageId: string): Promise<string | undefined> {
   if (!isSupabaseConfigured || !supabase) return undefined;
   const key = messageImageKey(messageId);
-  const raw = localStorage.getItem(key);
-  if (raw !== null) {
-    try {
-      return JSON.parse(raw) as string;
-    } catch {
-      /* fall through to refetch */
-    }
-  }
+  const cached = readCachedImageRow(key);
+  if (cached) return cached;
   if (messageImageInflight.has(messageId)) return undefined;
   messageImageInflight.add(messageId);
   try {
@@ -344,6 +429,7 @@ export async function fetchMessageImageIfMissing(messageId: string): Promise<str
     if (error || !data) return undefined;
     const value = normalizeRemoteValue((data as { value?: unknown }).value);
     if (typeof value !== 'string' || !value) return undefined;
+    setCachedImageRow(key, value);
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (err) {
@@ -374,14 +460,8 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
 export async function fetchStoryImageIfMissing(storyId: string): Promise<string | undefined> {
   if (!isSupabaseConfigured || !supabase) return undefined;
   const key = storyImageKey(storyId);
-  const raw = localStorage.getItem(key);
-  if (raw !== null) {
-    try {
-      return JSON.parse(raw) as string;
-    } catch {
-      /* fall through to refetch */
-    }
-  }
+  const cached = readCachedImageRow(key);
+  if (cached) return cached;
   if (storyImageInflight.has(storyId)) return undefined;
   storyImageInflight.add(storyId);
   try {
@@ -396,6 +476,7 @@ export async function fetchStoryImageIfMissing(storyId: string): Promise<string 
       if (!error && data) {
         const value = normalizeRemoteValue((data as { value?: unknown }).value);
         if (typeof value === 'string' && value) {
+          setCachedImageRow(key, value);
           try {
             localStorage.setItem(key, JSON.stringify(value));
           } catch (err) {
@@ -478,14 +559,8 @@ const publicationImageInflight = new Set<string>();
 export async function fetchPublicationImageIfMissing(publicationId: string): Promise<string | undefined> {
   if (!isSupabaseConfigured || !supabase) return undefined;
   const key = publicationImageKey(publicationId);
-  const raw = localStorage.getItem(key);
-  if (raw !== null) {
-    try {
-      return JSON.parse(raw) as string;
-    } catch {
-      /* fall through to refetch */
-    }
-  }
+  const cached = readCachedImageRow(key);
+  if (cached) return cached;
   if (publicationImageInflight.has(publicationId)) return undefined;
   publicationImageInflight.add(publicationId);
   try {
@@ -498,6 +573,7 @@ export async function fetchPublicationImageIfMissing(publicationId: string): Pro
       if (!error && data) {
         const value = normalizeRemoteValue((data as { value?: unknown }).value);
         if (typeof value === 'string' && value) {
+          setCachedImageRow(key, value);
           try {
             localStorage.setItem(key, JSON.stringify(value));
           } catch (err) {
@@ -522,25 +598,35 @@ function writeMerged(key: string, remoteValue: unknown): void {
   const localValue = readLocalStorage(key);
   if (localValue === undefined) {
     try {
-      localStorage.setItem(key, JSON.stringify(remoteValue));
+      // A collection arriving before its tombstone (or after the local copy
+      // was cleared) must not bring back items deleted elsewhere.
+      const value = Array.isArray(remoteValue)
+        ? filterDeletedItems(key, remoteValue)
+        : remoteValue;
+      localStorage.setItem(key, JSON.stringify(value));
+      if (isFeedImageKey(key) && typeof value === 'string') setCachedImageRow(key, value);
     } catch (err) {
       console.error(`[Supabase] cannot store "${key}":`, err);
     }
+    if (isTombstoneKey(key)) pruneDeletedFromCollections();
     return;
   }
   try {
     // The local value is normalized as well: a previously corrupted value
     // (JSONB delivered as a string) is repaired during the next merge.
-    localStorage.setItem(
-      key,
-      JSON.stringify(mergeKeyValues(key, normalizeRemoteValue(localValue), remoteValue))
-    );
+    const value = mergeKeyValues(key, normalizeRemoteValue(localValue), remoteValue);
+    localStorage.setItem(key, JSON.stringify(value));
+    if (isFeedImageKey(key) && typeof value === 'string') setCachedImageRow(key, value);
   } catch (err) {
     console.error(`[Supabase] cannot merge "${key}":`, err);
     try {
       localStorage.setItem(key, JSON.stringify(remoteValue));
+      if (isFeedImageKey(key) && typeof remoteValue === 'string') {
+        setCachedImageRow(key, remoteValue);
+      }
     } catch { /* ignore */ }
   }
+  if (isTombstoneKey(key)) pruneDeletedFromCollections();
 }
 
 async function upsertKey(key: string, value: unknown): Promise<boolean> {
@@ -620,7 +706,9 @@ async function pushKeyNow(key: string, fallbackValue?: unknown): Promise<void> {
     if (localValue === undefined) return;
 
     if (error || !data) {
-      await upsertKey(key, localValue);
+      await upsertKey(key, Array.isArray(localValue)
+        ? filterDeletedItems(key, localValue)
+        : localValue);
       return;
     }
     const remoteValue = normalizeRemoteValue((data as { value?: unknown }).value);
@@ -629,7 +717,11 @@ async function pushKeyNow(key: string, fallbackValue?: unknown): Promise<void> {
   } catch {
     const current = readLocalStorage(key);
     const localValue = current === undefined ? fallbackValue : current;
-    if (localValue !== undefined) await upsertKey(key, localValue);
+    if (localValue !== undefined) {
+      await upsertKey(key, Array.isArray(localValue)
+        ? filterDeletedItems(key, localValue)
+        : localValue);
+    }
   }
 }
 

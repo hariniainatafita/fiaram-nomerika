@@ -3,7 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import { StorageService } from './utils/storage';
 import { subscribeToSupabase, hydrateFromSupabase } from './utils/supabaseSync';
 import { usePresence } from './utils/presence';
-import { canAccessGroupData, canAccessView, canViewPublication } from './utils/permissions';
+import { canAccessGroupData, canAccessView, canViewPublication, getVisibleGroupIds } from './utils/permissions';
 import { STORAGE_KEYS } from './utils/storageKeys';
 import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication, Story, Quiz, QuizResult } from './types';
 import {useLanguage} from './i18n';
@@ -365,15 +365,19 @@ const refreshStories = () => {
         !m.is_deleted
     ).length;
     const reads = currentUser ? StorageService.getGroupReads() : {};
+    const visibleGroups = new Set(
+      currentUser ? getVisibleGroupIds(currentUser, allGroupes) : []
+    );
     const groups = currentUser
       ? allMessages.filter((m) => {
           if (!m.group_id || m.is_deleted || m.sender_id === currentUser.id) return false;
+          if (!visibleGroups.has(m.group_id)) return false;
           const cursor = reads[`${currentUser.id}:${m.group_id}`] || '';
           return !cursor || m.sent_at > cursor;
         }).length
       : 0;
     return direct + groups;
-  }, [allMessages, allMembres, currentUser]);
+  }, [allMessages, allMembres, allGroupes, currentUser]);
 
   // Badge du bouton Publications : nombre de publications d'autres membres
   // arrivées après la dernière visite du fil.
@@ -464,6 +468,9 @@ const refreshStories = () => {
     // ---- Messages privés et de groupe ----
     const seenMsg = seenMessageIdsRef.current ?? new Set<string>(StorageService.getMessages().map((m) => m.id));
     seenMessageIdsRef.current = seenMsg;
+    // Only notify for conversations the member can actually open: a message
+    // from a group the user does not belong to must not create a dead alert.
+    const visibleGroupIds = new Set(getVisibleGroupIds(currentUser, allGroupes));
     const freshMsg = allMessages.filter(
       (m) =>
         !m.is_deleted &&
@@ -471,7 +478,8 @@ const refreshStories = () => {
         !seenMsg.has(m.id) &&
         m.sender_id !== currentUser.id &&
         m.status !== 'read' &&
-        (m.receiver_id === currentUser.id || !!m.group_id)
+        (m.receiver_id === currentUser.id ||
+          (!!m.group_id && visibleGroupIds.has(m.group_id)))
     );
     allMessages.forEach((m) => seenMsg.add(m.id));
     freshMsg.forEach((msg) => {
