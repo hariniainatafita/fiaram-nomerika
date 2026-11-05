@@ -1,10 +1,10 @@
-name: Build Android APK
+name: Build Android APK (manual)
 
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
 
+# Shares the keystore cache with the release workflow, so serializing them
+# avoids generating two different signing keys on a cache miss.
 concurrency:
   group: fiaram-android-apk
   cancel-in-progress: false
@@ -17,7 +17,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
@@ -39,8 +39,8 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # Same key as the deploy workflow so the artifact and the published APK
-      # share one signature (required for in-app updates).
+      # Same key as the release workflow so both artifacts share one signature
+      # (required for in-app updates).
       - name: Cache debug keystore
         uses: actions/cache@v4
         with:
@@ -48,17 +48,28 @@ jobs:
           key: android-debug-keystore-v1
           restore-keys: android-debug-keystore-v1
 
+      - name: Ensure signing keystore exists
+        run: |
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            mkdir -p "$HOME/.android"
+            keytool -genkeypair -v \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android -keypass android \
+              -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
       # Ubuntu runners already ship the Android SDK ($ANDROID_HOME); just
       # accept the licenses before Gradle compiles the app.
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
 
-      - name: Build debug APK
+      - name: Build release APK
         run: |
           cd android
-          bash ./gradlew assembleDebug --no-daemon --stacktrace
+          bash ./gradlew assembleRelease --no-daemon --stacktrace
 
       - uses: actions/upload-artifact@v4
         with:
-          name: fiaram-nomerika-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: fiaram-nomerika-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk

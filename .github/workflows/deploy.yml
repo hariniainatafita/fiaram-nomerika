@@ -54,26 +54,41 @@ jobs:
           key: android-debug-keystore-v1
           restore-keys: android-debug-keystore-v1
 
+      - name: Ensure signing keystore exists
+        run: |
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            mkdir -p "$HOME/.android"
+            keytool -genkeypair -v \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android -keypass android \
+              -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
 
-      - name: Build Android APK
+      - name: Build Android release APK
         run: |
           cd android
-          bash ./gradlew assembleDebug --no-daemon --stacktrace
+          bash ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets dist/downloads
+          cp android/app/build/outputs/apk/release/app-release.apk release-assets/app-release.apk
+          # Keep the old asset name so installs that still check app-debug.apk
+          # receive this release build instead of a 404.
+          cp android/app/build/outputs/apk/release/app-release.apk release-assets/app-debug.apk
+          cp android/app/build/outputs/apk/release/app-release.apk dist/downloads/FIARAM-NOMERIKA-latest.apk
 
       - name: Publish APK as a GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.event.repository.name }}-${{ github.sha }}
           name: FIARAM ${{ github.sha }}
-          files: android/app/build/outputs/apk/debug/app-debug.apk
+          files: release-assets/*
           fail_on_unmatched_files: true
-
-      - name: Publish APK with the site
-        run: |
-          mkdir -p dist/downloads
-          cp android/app/build/outputs/apk/debug/app-debug.apk dist/downloads/FIARAM-NOMERIKA-latest.apk
 
       - name: Verify Cloudflare credentials
         run: |

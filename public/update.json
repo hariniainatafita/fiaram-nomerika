@@ -1,6 +1,6 @@
 {
-  "versionCode": 4,
-  "versionName": "1.3",
-  "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-debug.apk",
-  "notes": "Nouveau logo, mise a jour integree et telechargement hors ligne des fichiers."
+  "versionCode": 5,
+  "versionName": "1.4",
+  "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
+  "notes": "Version release (non-debug) pour une installation plus fiable sur tous les telephones."
 }
