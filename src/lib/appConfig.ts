@@ -5,7 +5,7 @@ import { Capacitor } from '@capacitor/core';
 // s'ouvrir. Les services qui restent en ligne (upload R2, medias, manifeste de
 // mise a jour) doivent cependant pointer vers le site public, pas vers
 // l'origine locale du WebView (https://localhost).
-export const REMOTE_APP_URL = 'https://hariniainatafita.github.io/fiaram-nomerika';
+export const REMOTE_APP_URL = 'https://fiaram-nomerika.pages.dev';
 
 export function isNativeApp(): boolean {
   return Capacitor.isNativePlatform();

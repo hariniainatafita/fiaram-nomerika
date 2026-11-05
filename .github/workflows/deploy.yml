@@ -1,4 +1,4 @@
-name: Release Android APK
+name: Build and publish Android APK
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 # CI builds the APK with the same cached debug keystore and publishes it as a
-# GitHub Release. Serializing with the manual APK workflow prevents a
-# first-run race that would sign artifacts with different keys.
+# GitHub Release and on the Pages site (cloudflare/wrangler-action@v3 uses
+# CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets).
 concurrency:
   group: fiaram-android-apk
   cancel-in-progress: false
@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -69,3 +69,20 @@ jobs:
           name: FIARAM ${{ github.sha }}
           files: android/app/build/outputs/apk/debug/app-debug.apk
           fail_on_unmatched_files: true
+
+      - name: Publish APK with the site
+        run: |
+          mkdir -p dist/downloads
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist/downloads/FIARAM-NOMERIKA-latest.apk
+
+      # Pages Functions are deployed with the site. The R2 bucket is referenced
+      # by the `MEDIA` binding configured on the Pages project; when it is
+      # absent the upload endpoint answers 5xx and the app falls back to
+      # Supabase Storage, so a missing binding never blocks a deployment.
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          command: pages deploy dist --project-name fiaram-nomerika --branch master
