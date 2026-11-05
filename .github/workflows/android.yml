@@ -39,15 +39,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # Same key as the release workflow so both artifacts share one signature
-      # (required for in-app updates).
-      - name: Cache debug keystore
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: android-debug-keystore-v1
-          restore-keys: android-debug-keystore-v1
-
+      # The keystore must exist before the cache post-step so a first run with
+      # an empty cache still saves a usable key. The cache is immutable, so v2
+      # replaces the old empty v1 entry that made every run generate a new key.
       - name: Ensure signing keystore exists
         run: |
           if [ ! -f "$HOME/.android/debug.keystore" ]; then
@@ -59,6 +53,22 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
+      - name: Cache signing keystore
+        id: keystore-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v2
+          restore-keys: android-debug-keystore-v2
+
+      - name: Report keystore cache
+        run: echo "::notice::Keystore cache hit: ${{ steps.keystore-cache.outputs.cache-hit }}"
+
+      - name: Show signing certificate
+        run: |
+          fingerprint=$(keytool -list -v -keystore "$HOME/.android/debug.keystore" -storepass android | grep -m1 'SHA256:' | sed 's/^[[:space:]]*//')
+          echo "::notice::Keystore signing certificate ${fingerprint}"
+
       # Ubuntu runners already ship the Android SDK ($ANDROID_HOME); just
       # accept the licenses before Gradle compiles the app.
       - name: Accept Android SDK licenses
@@ -68,6 +78,12 @@ jobs:
         run: |
           cd android
           bash ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Verify APK signature
+        run: |
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n1)
+          signature=$("$apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | grep -m1 'SHA-256')
+          echo "::notice::APK signing certificate ${signature}"
 
       - uses: actions/upload-artifact@v4
         with:

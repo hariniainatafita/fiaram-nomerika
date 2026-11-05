@@ -45,15 +45,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # Reuse the same debug keystore across runs, otherwise every APK is
-      # signed with a different key and Android refuses the in-app update.
-      - name: Cache debug keystore
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: android-debug-keystore-v1
-          restore-keys: android-debug-keystore-v1
-
+      # The keystore must exist before the cache post-step so a first run with
+      # an empty cache still saves a usable key. The cache is immutable, so v2
+      # replaces the old empty v1 entry that made every run generate a new key.
       - name: Ensure signing keystore exists
         run: |
           if [ ! -f "$HOME/.android/debug.keystore" ]; then
@@ -65,6 +59,22 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
+      - name: Cache signing keystore
+        id: keystore-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v2
+          restore-keys: android-debug-keystore-v2
+
+      - name: Report keystore cache
+        run: echo "::notice::Keystore cache hit: ${{ steps.keystore-cache.outputs.cache-hit }}"
+
+      - name: Show signing certificate
+        run: |
+          fingerprint=$(keytool -list -v -keystore "$HOME/.android/debug.keystore" -storepass android | grep -m1 'SHA256:' | sed 's/^[[:space:]]*//')
+          echo "::notice::Keystore signing certificate ${fingerprint}"
+
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
 
@@ -72,6 +82,12 @@ jobs:
         run: |
           cd android
           bash ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Verify APK signature
+        run: |
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n1)
+          signature=$("$apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | grep -m1 'SHA-256')
+          echo "::notice::APK signing certificate ${signature}"
 
       - name: Prepare release assets
         run: |
@@ -90,7 +106,8 @@ jobs:
           files: release-assets/*
           fail_on_unmatched_files: true
 
-      - name: Verify Cloudflare credentials
+      - name: Verify Cloudflare Pages access
+        id: cf
         run: |
           if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
             echo "::error::CLOUDFLARE_API_TOKEN is not set in the GitHub repository secrets."
@@ -100,16 +117,18 @@ jobs:
             echo "::error::CLOUDFLARE_ACCOUNT_ID is not set in the GitHub repository secrets."
             exit 1
           fi
-          set +e
-          output=$(npx --yes wrangler@4 whoami 2>&1)
-          status=$?
-          set -e
-          echo "$output"
-          if [ "$status" -ne 0 ]; then
-            message=$(echo "$output" | tr '\n' ' ')
-            echo "::error::Cloudflare authentication failed (${status}): ${message}"
+          response=$(curl -sS -w '\n%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/fiaram-nomerika")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "::error::Cloudflare Pages API rejected the token or project (HTTP ${http_code}): ${body}"
             exit 1
           fi
+          branch=$(echo "$body" | jq -r '.result.production_branch // "master"')
+          echo "Production branch: ${branch}"
+          echo "production_branch=${branch}" >> "$GITHUB_OUTPUT"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -119,7 +138,17 @@ jobs:
       # absent the upload endpoint answers 5xx and the app falls back to
       # Supabase Storage, so a missing binding never blocks a deployment.
       - name: Deploy
-        run: npx --yes wrangler@4 pages deploy dist --project-name fiaram-nomerika --branch master
+        run: |
+          set +e
+          output=$(npx --yes wrangler@4 pages deploy dist --project-name fiaram-nomerika --branch "${{ steps.cf.outputs.production_branch }}" 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          if [ "$status" -ne 0 ]; then
+            message=$(echo "$output" | tr '\n' ' ')
+            echo "::error::Cloudflare Pages deploy failed (${status}): ${message}"
+            exit 1
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

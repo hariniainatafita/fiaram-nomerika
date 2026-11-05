@@ -1,6 +1,6 @@
 {
-  "versionCode": 5,
-  "versionName": "1.4",
+  "versionCode": 6,
+  "versionName": "1.5",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Version release (non-debug) pour une installation plus fiable sur tous les telephones."
+  "notes": "Clé de signature stabilisée : desinstaller une seule fois l'ancienne version, puis installer cette version release."
 }
