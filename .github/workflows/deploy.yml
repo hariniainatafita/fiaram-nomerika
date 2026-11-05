@@ -66,6 +66,7 @@ jobs:
           path: ~/.android/debug.keystore
           key: android-debug-keystore-v2
           restore-keys: android-debug-keystore-v2
+          save-always: true
 
       - name: Report keystore cache
         run: |
@@ -134,10 +135,9 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Pages Functions are deployed with the site. The R2 bucket is referenced
-      # by the `MEDIA` binding configured on the Pages project; when it is
-      # absent the upload endpoint answers 5xx and the app falls back to
-      # Supabase Storage, so a missing binding never blocks a deployment.
+      # Pages Functions are deployed with the site. The `MEDIA` binding points
+      # at the R2 bucket `fiaram-nomerika-media`; that bucket must exist in the
+      # account or Wrangler refuses to publish the Functions bundle.
       - name: Deploy
         run: |
           set +e
