@@ -45,10 +45,20 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # The keystore must exist before the cache post-step so a first run with
-      # an empty cache still saves a usable key. The cache is immutable, so v2
-      # replaces the old empty v1 entry that made every run generate a new key.
+      # The keystore must exist before the cache save step so a first run with
+      # an empty cache still saves a usable key. The cache is immutable, so v3
+      # replaces the old v2 entry that failed to save with the deprecated
+      # `save-always` option.
+      - name: Restore signing keystore
+        id: keystore-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v3
+          restore-keys: android-debug-keystore-v3
+
       - name: Ensure signing keystore exists
+        if: steps.keystore-cache.outputs.cache-hit != 'true'
         run: |
           if [ ! -f "$HOME/.android/debug.keystore" ]; then
             mkdir -p "$HOME/.android"
@@ -59,14 +69,16 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-      - name: Cache signing keystore
-        id: keystore-cache
-        uses: actions/cache@v4
+      # Save as a normal step (not a post-step cache action) so the keystore is
+      # persisted even when a later deploy step fails. This is the key fix for
+      # the unstable APK signature.
+      - name: Save signing keystore
+        if: steps.keystore-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
         with:
           path: ~/.android/debug.keystore
-          key: android-debug-keystore-v2
-          restore-keys: android-debug-keystore-v2
-          save-always: true
+          key: android-debug-keystore-v3
 
       - name: Report keystore cache
         run: |
