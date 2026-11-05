@@ -5,6 +5,10 @@ on:
     branches: [master]
   workflow_dispatch:
 
+concurrency:
+  group: fiaram-android-apk
+  cancel-in-progress: false
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -17,6 +21,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Check app version consistency
+        run: node scripts/check-version.mjs
 
       - name: Build web assets
         run: npm run build
@@ -31,6 +38,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+
+      # Same key as the deploy workflow so the artifact and the published APK
+      # share one signature (required for in-app updates).
+      - name: Cache debug keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+          restore-keys: android-debug-keystore-v1
 
       # Ubuntu runners already ship the Android SDK ($ANDROID_HOME); just
       # accept the licenses before Gradle compiles the app.

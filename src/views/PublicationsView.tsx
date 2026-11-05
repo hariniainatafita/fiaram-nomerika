@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Groupe, Membre, Publication, Story, ReactionType } from '../types';
 import {
   Heart,
@@ -38,6 +38,7 @@ import { uploadDataUrl, downloadMedia } from '../utils/media';
 import { canViewPublication, getVisibleGroupIds, isAdmin } from '../utils/permissions';
 import { openMemberProfile } from '../utils/memberProfileNav';
 import { useLanguage } from '../i18n';
+import { getPublicShareUrl } from '../lib/appConfig';
 
 interface PublicationsViewProps {
   currentUser: Membre;
@@ -456,7 +457,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     void resolveImages();
   }, [localStories, storyImages]);
 
-  const getStoryImageSrc = (story?: Story): string | undefined => {
+  const getStoryImageSrc = useCallback((story?: Story): string | undefined => {
     if (!story) return undefined;
     if (story.image_ref && storyImages[story.image_ref]) return storyImages[story.image_ref];
     // A realtime image-row event can land before the next state map update:
@@ -467,7 +468,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     }
     if (story.image_url) return story.image_url;
     return undefined;
-  };
+  }, [storyImages]);
 
   useEffect(() => {
     const resolveImages = async () => {
@@ -841,7 +842,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       const image = new window.Image();
       image.src = nextImage;
     }
-  }, [storyViewer, storyImages]);
+  }, [storyViewer, storyImages, getStoryImageSrc]);
 
   useEffect(() => {
     if (!storyViewer) {
@@ -1023,7 +1024,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     const author = getAuthor(publication.auteur_id);
     const authorName = author ? `${author.prenom} ${author.nom}` : t('publications.share.memberFallback');
     const text = t('publications.share.text', { author: authorName, content: publication.contenu }).trim();
-    const url = `${window.location.origin}${window.location.pathname}#publication-${publication.id}`;
+    const url = getPublicShareUrl(`/#publication-${publication.id}`);
 
     try {
       if (navigator.share) {

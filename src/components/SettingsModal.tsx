@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Membre, AdminSettings, RegistrationQuestion } from '../types';
 import { StorageService } from '../utils/storage';
 import { isAdmin } from '../utils/permissions';
@@ -15,9 +15,13 @@ import {
   CheckCircle2, 
   RotateCcw,
   Sliders,
-  IdCard
+  IdCard,
+  Download,
+  WifiOff
 } from 'lucide-react';
 import { LanguageSwitcher, useLanguage } from '../i18n';
+import { openAppUpdateModal } from '../utils/appUpdate';
+import { precacheAllMedia, getOfflineCacheStats, formatBytes } from '../utils/mediaCache';
 import devAvatar from '../profiles-developpeur-mini.jpeg';
 
 interface SettingsModalProps {
@@ -38,9 +42,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeCategory, setActiveCategory] = useState<'general' | 'cotisations' | 'questions' | 'badge' | 'system'>('general');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  // Cache hors ligne (photos, audios, documents)
+  const [offlineBusy, setOfflineBusy] = useState(false);
+  const [offlineProgress, setOfflineProgress] = useState('');
+  const [offlineStats, setOfflineStats] = useState<{ count: number; bytes: number } | null>(null);
+
   // New question form state
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionRequired, setNewQuestionRequired] = useState(true);
+
+  useEffect(() => {
+    void getOfflineCacheStats().then(setOfflineStats);
+  }, []);
+
+  const handlePrecache = async () => {
+    if (offlineBusy) return;
+    setOfflineBusy(true);
+    setOfflineProgress(t('settings.offline.starting'));
+    try {
+      const result = await precacheAllMedia((done, total) => {
+        setOfflineProgress(t('settings.offline.progress', { done, total }));
+      });
+      setOfflineStats({ count: result.count, bytes: result.bytes });
+      setOfflineProgress(
+        t('settings.offline.done', {
+          cached: result.cached,
+          failed: result.failed
+        })
+      );
+    } catch {
+      setOfflineProgress(t('settings.offline.error'));
+    } finally {
+      setOfflineBusy(false);
+    }
+  };
 
   if (!isAdminOnly) {
     return (
@@ -492,6 +527,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                     <span>{t('settings.system.soundEffects')}</span>
                   </label>
+                </div>
+
+                {/* Application & mises à jour */}
+                <div style={{ padding: '14px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.07)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '9px', fontWeight: 700, fontSize: '0.86rem', marginBottom: '6px' }}>
+                    <Download size={16} style={{ color: 'var(--accent-gold)' }} />
+                    <span>{t('settings.update.title')}</span>
+                  </div>
+                  <p style={{ margin: '0 0 10px', fontSize: '0.77rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    {t('settings.update.description')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={openAppUpdateModal}
+                    className="btn btn-primary"
+                    style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '7px' }}
+                  >
+                    <Download size={14} />
+                    <span>{t('update.checkButton')}</span>
+                  </button>
+                </div>
+
+                {/* Fichiers hors ligne */}
+                <div style={{ padding: '14px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.07)', border: '1px solid rgba(16, 185, 129, 0.28)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '9px', fontWeight: 700, fontSize: '0.86rem', marginBottom: '6px' }}>
+                    <WifiOff size={16} style={{ color: '#10b981' }} />
+                    <span>{t('settings.offline.title')}</span>
+                  </div>
+                  <p style={{ margin: '0 0 8px', fontSize: '0.77rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    {t('settings.offline.description')}
+                  </p>
+                  {offlineStats && (
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginBottom: '8px' }}>
+                      {t('settings.offline.stats', {
+                        count: offlineStats.count,
+                        size: formatBytes(offlineStats.bytes)
+                      })}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void handlePrecache()}
+                    className="btn btn-ghost"
+                    disabled={offlineBusy}
+                    style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#10b981' }}
+                  >
+                    <Download size={14} />
+                    <span>{offlineBusy ? t('settings.offline.busy') : t('settings.offline.button')}</span>
+                  </button>
+                  {offlineProgress && (
+                    <div style={{ marginTop: '8px', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                      {offlineProgress}
+                    </div>
+                  )}
                 </div>
 
                 {isAdminOnly && (

@@ -5,6 +5,13 @@ on:
     branches: [master]
   workflow_dispatch:
 
+# Both workflows sign the APK with the same cached debug keystore. Serializing
+# them prevents a first-run race that would publish an APK signed with a
+# different key than the one cached for future updates.
+concurrency:
+  group: fiaram-android-apk
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -18,11 +25,44 @@ jobs:
 
       - run: npm ci
 
-      - name: Build
+      - name: Check app version consistency
+        run: node scripts/check-version.mjs
+
+      - name: Build web assets
         run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Copy web assets into the Android project
+        run: npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Reuse the same debug keystore across runs, otherwise every APK is
+      # signed with a different key and Android refuses the in-app update.
+      - name: Cache debug keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+          restore-keys: android-debug-keystore-v1
+
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+
+      - name: Build Android APK
+        run: |
+          cd android
+          bash ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Publish APK with the site
+        run: |
+          mkdir -p dist/downloads
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist/downloads/FIARAM-NOMERIKA-latest.apk
 
       # Pages Functions are deployed with the site. The R2 bucket is referenced
       # by the `MEDIA` binding configured on the Pages project; when it is

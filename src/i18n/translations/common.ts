@@ -203,5 +203,40 @@ export const common: TranslationDictionary = {
     mg: 'Vaovao ny application-nao.',
     fr: 'Votre application est à jour.',
     en: 'Your app is up to date.'
+  },
+  'update.checking': {
+    mg: 'Eo am-panandramana…',
+    fr: 'Vérification…',
+    en: 'Checking…'
+  },
+  'update.checkButton': {
+    mg: 'Jereo ny fanavaozana',
+    fr: 'Vérifier les mises à jour',
+    en: 'Check for updates'
+  },
+  'update.currentVersion': {
+    mg: 'Kinova apetraka',
+    fr: 'Version installée',
+    en: 'Installed version'
+  },
+  'update.latestVersion': {
+    mg: 'Kinova farany',
+    fr: 'Dernière version',
+    en: 'Latest version'
+  },
+  'update.notesTitle': {
+    mg: 'Vaovao ao amin’ny kinova',
+    fr: 'Nouveautés',
+    en: 'What’s new'
+  },
+  'update.platformHint': {
+    mg: 'Tehirizo ao amin’ny findainao ny application mba tsy handany data.',
+    fr: 'Installez l’application sur votre téléphone pour ne plus consommer de données.',
+    en: 'Install the app on your phone to stop consuming mobile data.'
+  },
+  'update.webHint': {
+    mg: 'Ampidino ny APK ary apetraho amin’ny findaina Android.',
+    fr: 'Téléchargez le fichier APK puis installez-le sur votre téléphone Android.',
+    en: 'Download the APK and install it on your Android phone.'
   }
 };

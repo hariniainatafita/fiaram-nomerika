@@ -7,6 +7,7 @@
 // pas perdus, simplement localisés.
 
 import { supabase } from '../lib/supabase';
+import { getServerOrigin, resolveServerUrl } from '../lib/appConfig';
 
 export type MediaKind = 'image' | 'audio' | 'document';
 
@@ -53,12 +54,7 @@ function buildObjectKey(kind: MediaKind, mime: string): string {
 // The function returns a relative `/media/<key>` URL. Store an absolute URL so
 // the value keeps working whatever origin reads it (pages.dev, Android WebView).
 function absoluteMediaUrl(url: string): string {
-  if (/^(https?:|data:|blob:)/i.test(url)) return url;
-  try {
-    return new URL(url, window.location.origin).toString();
-  } catch {
-    return url;
-  }
+  return resolveServerUrl(url);
 }
 
 async function uploadToR2(blob: Blob, kind: MediaKind): Promise<string | undefined> {
@@ -71,7 +67,7 @@ async function uploadToR2(blob: Blob, kind: MediaKind): Promise<string | undefin
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), R2_UPLOAD_TIMEOUT_MS);
   try {
-    const res = await fetch('/api/upload', {
+    const res = await fetch(`${getServerOrigin()}/api/upload`, {
       method: 'POST',
       body: formData,
       signal: controller.signal

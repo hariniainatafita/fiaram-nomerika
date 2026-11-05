@@ -268,7 +268,7 @@ function removeStoredItem(key: string): void {
   if (isFeedImageKey(key)) clearCachedImageRow(key);
 }
 
-function migrateLegacyDemoData(): void {
+export function migrateLegacyDemoData(): void {
   if (typeof localStorage === 'undefined') return;
   const migrationKey = 'fiaram_generic_brand_v1';
   if (localStorage.getItem(migrationKey)) return;

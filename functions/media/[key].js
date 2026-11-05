@@ -29,8 +29,23 @@ const baseHeaders = (meta) => ({
   'content-type': meta.httpMetadata?.contentType || 'application/octet-stream',
   'cache-control': 'public, max-age=31536000, immutable',
   etag: meta.httpEtag,
-  'accept-ranges': 'bytes'
+  'accept-ranges': 'bytes',
+  // Les médias sont publics : autorise leur lecture/cache depuis l'app Android
+  // (origine https://localhost) et depuis le site.
+  'access-control-allow-origin': '*'
 });
+
+export async function onRequestOptions() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'access-control-allow-origin': '*',
+      'access-control-allow-methods': 'GET, HEAD, OPTIONS',
+      'access-control-allow-headers': 'range, content-type',
+      'access-control-max-age': '86400'
+    }
+  });
+}
 
 export async function onRequestGet({ request, env }) {
   if (!env.MEDIA) return new Response('stockage non configure', { status: 500 });

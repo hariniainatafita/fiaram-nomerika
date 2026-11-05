@@ -1,0 +1,7 @@
+/update.json
+  Access-Control-Allow-Origin: *
+  Cache-Control: no-cache
+
+/downloads/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=300

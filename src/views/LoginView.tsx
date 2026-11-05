@@ -5,7 +5,7 @@ import { StorageService } from '../utils/storage';
 import confetti from 'canvas-confetti';
 import { useLanguage, LanguageSwitcher } from '../i18n';
 import devAvatar from '../profiles-developpeur-mini.jpeg';
-import fnLogo from '../iconne-mini.jpg';
+import fnLogo from '../assets/logo.png';
 
 interface LoginViewProps {
   onLoginSuccess: (user: Membre) => void;

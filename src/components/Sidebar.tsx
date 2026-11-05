@@ -17,7 +17,8 @@ import {
   X,
   Settings,
   UsersRound,
-  BrainCircuit
+  BrainCircuit,
+  Download
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
@@ -25,6 +26,7 @@ import { canAccessAdminPanel, canAccessFinance, canAccessGroupData, isAdmin, can
 import { useLanguage } from '../i18n';
 import { SettingsModal } from './SettingsModal';
 import QrScannerModal from './QrScannerModal';
+import { openAppUpdateModal } from '../utils/appUpdate';
 
 interface SidebarProps {
   activeView: string;
@@ -47,7 +49,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen,
   onCloseMobile,
   unreadCount,
-  publicationUnreadCount,
   quizUnreadCount,
   feedUnreadCount
 }) => {
@@ -125,19 +126,17 @@ const navItems = [
           justifyContent: 'space-between'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#070d1e',
-              fontWeight: 900
-            }}>
-              :
-            </div>
+            <img
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="FIARAM NUMERIQUE"
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '11px',
+                objectFit: 'cover',
+                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.35)'
+              }}
+            />
             <div>
               <div style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.01em' }}>
                 FIARAM
@@ -295,10 +294,18 @@ const navItems = [
                 <span>{t('nav.settingsAdmin')}</span>
               </button>
             )}
+            <button
+              onClick={openAppUpdateModal}
+              className="btn btn-ghost"
+              style={{ width: '100%', fontSize: '0.78rem', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', color: 'var(--accent-gold)' }}
+            >
+              <Download size={14} />
+              <span>{t('update.checkButton')}</span>
+            </button>
           </div>
           
           <div style={{ fontSize: '0.68rem', textAlign: 'center', color: 'var(--text-dim)' }}>
-            FIARAM NUMERIQUE v1.0 · {t('nav.footer')}
+            FIARAM NUMERIQUE v1.3 · {t('nav.footer')}
           </div>
         </div>
       </aside>

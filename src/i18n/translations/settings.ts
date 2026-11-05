@@ -176,6 +176,61 @@ export const settings: TranslationDictionary = {
     fr: 'Supprimer toutes les données (réinitialisation complète)',
     en: 'Delete all data (full reset)'
   },
+  'settings.update.title': {
+    mg: 'Fanavaozana ny application',
+    fr: "Mise à jour de l'application",
+    en: 'Application update'
+  },
+  'settings.update.description': {
+    mg: 'Jereo raha misy kinova vaovao ny application Android ary apetraho mivantana.',
+    fr: "Vérifiez si une nouvelle version de l'application Android est disponible et installez-la directement.",
+    en: 'Check whether a new Android app version is available and install it directly.'
+  },
+  'settings.offline.title': {
+    mg: 'Fichiers hors ligne',
+    fr: 'Fichiers hors ligne',
+    en: 'Offline files'
+  },
+  'settings.offline.description': {
+    mg: 'Alaivo indray mandeha ny sary, feo ary antontan-taratasy mba tsy handany data rehefa mampiasa azy indray.',
+    fr: 'Téléchargez une seule fois les photos, audios et documents pour ne plus consommer de données en les consultant.',
+    en: 'Download photos, audio and documents once so viewing them again uses no data.'
+  },
+  'settings.offline.stats': {
+    mg: 'Efa voatahiry: {count} fichier ({size})',
+    fr: 'Déjà enregistrés : {count} fichier(s) ({size})',
+    en: 'Already saved: {count} file(s) ({size})'
+  },
+  'settings.offline.button': {
+    mg: 'Alaivo ny fichiers rehetra',
+    fr: 'Télécharger tous les fichiers',
+    en: 'Download all files'
+  },
+  'settings.offline.busy': {
+    mg: 'Eo am-pakàna…',
+    fr: 'Téléchargement…',
+    en: 'Downloading…'
+  },
+  'settings.offline.starting': {
+    mg: 'Manomboka ny fakana ny fichiers…',
+    fr: 'Démarrage du téléchargement…',
+    en: 'Starting download…'
+  },
+  'settings.offline.progress': {
+    mg: 'Vita {done}/{total}',
+    fr: '{done}/{total} terminés',
+    en: '{done}/{total} completed'
+  },
+  'settings.offline.done': {
+    mg: 'Vita: {cached} voatahiry, {failed} tsy nahomby.',
+    fr: 'Terminé : {cached} enregistré(s), {failed} échec(s).',
+    en: 'Done: {cached} saved, {failed} failed.'
+  },
+  'settings.offline.error': {
+    mg: 'Tsy afaka naka ny fichiers. Jereo ny fifandraisana.',
+    fr: 'Impossible de télécharger les fichiers. Vérifiez votre connexion.',
+    en: 'Could not download the files. Check your connection.'
+  },
   'settings.saveChanges': {
     mg: 'Tehirizo ny fanovana',
     fr: 'Enregistrer les modifications',

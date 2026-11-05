@@ -54,34 +54,68 @@ function isSameHost(request) {
   return false;
 }
 
-export async function onRequestPost({ request, env }) {
-  if (!env.MEDIA) {
-    return Response.json({ error: 'stockage non configure' }, { status: 500 });
+// The Android app runs from https://localhost inside the Capacitor WebView, so
+// its uploads are cross-origin. Allow those origins explicitly instead of
+// relying on a same-host check that only works for the website.
+const CAPACITOR_ORIGINS = new Set([
+  'https://localhost',
+  'capacitor://localhost',
+  'http://localhost'
+]);
+
+function isAllowedRequest(request) {
+  const origin = request.headers.get('origin');
+  if (!origin) return true;
+  if (CAPACITOR_ORIGINS.has(origin)) return true;
+  return isSameHost(request);
+}
+
+function corsHeaders(request) {
+  const headers = {
+    'access-control-allow-methods': 'POST, OPTIONS',
+    'access-control-allow-headers': 'content-type',
+    vary: 'origin'
+  };
+  const origin = request.headers.get('origin');
+  if (origin && isAllowedRequest(request)) {
+    headers['access-control-allow-origin'] = origin;
   }
-  if (!isSameHost(request)) {
-    return Response.json({ error: 'origine refusee' }, { status: 403 });
+  return headers;
+}
+
+export async function onRequestOptions({ request }) {
+  return new Response(null, { status: 204, headers: corsHeaders(request) });
+}
+
+export async function onRequestPost({ request, env }) {
+  const cors = corsHeaders(request);
+  if (!env.MEDIA) {
+    return Response.json({ error: 'stockage non configure' }, { status: 500, headers: cors });
+  }
+  if (!isAllowedRequest(request)) {
+    return Response.json({ error: 'origine refusee' }, { status: 403, headers: cors });
   }
 
   let form;
   try {
     form = await request.formData();
   } catch {
-    return Response.json({ error: 'corps invalide' }, { status: 400 });
+    return Response.json({ error: 'corps invalide' }, { status: 400, headers: cors });
   }
 
   const file = form.get('file');
   if (!file || typeof file === 'string') {
-    return Response.json({ error: 'fichier manquant' }, { status: 400 });
+    return Response.json({ error: 'fichier manquant' }, { status: 400, headers: cors });
   }
   if (file.size > MAX_BYTES) {
-    return Response.json({ error: 'fichier trop volumineux (25 Mo max)' }, { status: 413 });
+    return Response.json({ error: 'fichier trop volumineux (25 Mo max)' }, { status: 413, headers: cors });
   }
 
   const buf = await file.arrayBuffer();
   const bytes = new Uint8Array(buf);
   const mime = sniffMime(bytes);
   if (!mime) {
-    return Response.json({ error: 'type de fichier refuse' }, { status: 415 });
+    return Response.json({ error: 'type de fichier refuse' }, { status: 415, headers: cors });
   }
 
   let kind = String(form.get('kind') || 'image');
@@ -93,8 +127,8 @@ export async function onRequestPost({ request, env }) {
       customMetadata: { uploaded_at: new Date().toISOString() }
     });
   } catch {
-    return Response.json({ error: 'stockage indisponible' }, { status: 503 });
+    return Response.json({ error: 'stockage indisponible' }, { status: 503, headers: cors });
   }
 
-  return Response.json({ key, url: `/media/${key}`, size: bytes.length, contentType: mime });
+  return Response.json({ key, url: `/media/${key}`, size: bytes.length, contentType: mime }, { headers: cors });
 }

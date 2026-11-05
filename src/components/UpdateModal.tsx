@@ -1,0 +1,269 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { CheckCircle2, Download, RefreshCw, Smartphone, X } from 'lucide-react';
+import { useLanguage } from '../i18n';
+import {
+  AppUpdater,
+  AppUpdateManifest,
+  fetchAppUpdateManifest,
+  getCurrentAppVersion,
+  isAppUpdaterAvailable,
+  resolveApkUrl
+} from '../utils/appUpdate';
+
+type UpdateStatus = 'idle' | 'checking' | 'downloading' | 'installing' | 'permission' | 'error';
+
+interface UpdateModalProps {
+  onClose: () => void;
+}
+
+export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
+  const { t } = useLanguage();
+  const [manifest, setManifest] = useState<AppUpdateManifest | null>(null);
+  const [currentVersion, setCurrentVersion] = useState('');
+  const [currentVersionCode, setCurrentVersionCode] = useState(0);
+  const [status, setStatus] = useState<UpdateStatus>('checking');
+  const [message, setMessage] = useState('');
+  const checkingRef = useRef(false);
+
+  const check = useCallback(async () => {
+    if (checkingRef.current) return;
+    checkingRef.current = true;
+    setStatus('checking');
+    setMessage('');
+    try {
+      const [latest, current] = await Promise.all([
+        fetchAppUpdateManifest(),
+        getCurrentAppVersion()
+      ]);
+      setManifest(latest);
+      setCurrentVersionCode(current.versionCode);
+      setCurrentVersion(
+        current.versionName && current.versionName !== 'web'
+          ? current.versionName
+          : 'web'
+      );
+      setStatus('idle');
+    } catch {
+      setStatus('error');
+      setMessage(t('update.error'));
+    } finally {
+      checkingRef.current = false;
+    }
+  }, [t]);
+
+  useEffect(() => {
+    void check();
+  }, [check]);
+
+  const isNative = isAppUpdaterAvailable();
+  // Sur Android on ne propose l'installation que si le manifeste est plus
+  // recent que l'APK installe. Sur le web, le bouton telecharge l'APK.
+  const hasUpdate = Boolean(manifest) && (
+    isNative ? manifest!.versionCode > currentVersionCode : true
+  );
+  const upToDate = Boolean(manifest) && isNative && !hasUpdate && status === 'idle';
+
+  const install = async () => {
+    if (!manifest) return;
+    const apkUrl = resolveApkUrl(manifest.apkUrl);
+    if (!isNative) {
+      window.open(apkUrl, '_blank', 'noopener');
+      return;
+    }
+    setStatus('downloading');
+    setMessage('');
+    try {
+      const result = await AppUpdater.downloadAndInstall({ apkUrl });
+      if (result.needsPermission) {
+        setStatus('permission');
+        return;
+      }
+      setStatus('installing');
+    } catch {
+      setStatus('error');
+      setMessage(t('update.error'));
+    }
+  };
+
+  const statusLabel = status === 'checking'
+    ? t('update.checking')
+    : status === 'downloading'
+      ? t('update.downloading')
+      : status === 'installing'
+        ? t('update.installing')
+        : status === 'permission'
+          ? t('update.permissionButton')
+          : t('update.download');
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 3700,
+        background: 'rgba(3, 7, 18, 0.86)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px'
+      }}
+    >
+      <div
+        className="glass-card animate-fade-in"
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          width: 'min(460px, 100%)',
+          padding: '22px',
+          borderRadius: '20px',
+          background: 'linear-gradient(180deg, #0e1728 0%, #070d18 100%)',
+          border: '1.5px solid rgba(245, 158, 11, 0.42)',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.8)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+          <div style={{
+            width: '44px',
+            height: '44px',
+            flexShrink: 0,
+            borderRadius: '13px',
+            background: 'linear-gradient(135deg, rgba(245,158,11,.25), rgba(139,92,246,.22))',
+            color: '#f59e0b',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            {status === 'checking'
+              ? <RefreshCw size={21} style={{ animation: 'fiaram-spin 0.9s linear infinite' }} />
+              : upToDate
+                ? <CheckCircle2 size={21} />
+                : <Smartphone size={21} />}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3 style={{ margin: 0, fontSize: '1.08rem' }}>{t('update.title')}</h3>
+            <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              {t('update.platformHint')}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-ghost"
+            style={{ padding: '6px', borderRadius: '50%', color: '#94a3b8' }}
+            title={t('common.close')}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{
+          marginTop: '16px',
+          padding: '12px 14px',
+          borderRadius: '12px',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid var(--border-color)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', fontSize: '0.8rem' }}>
+            <span style={{ color: 'var(--text-muted)' }}>{t('update.currentVersion')}</span>
+            <strong>{currentVersion || '…'}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', fontSize: '0.8rem' }}>
+            <span style={{ color: 'var(--text-muted)' }}>{t('update.latestVersion')}</span>
+            <strong style={{ color: 'var(--accent-gold)' }}>
+              {manifest ? manifest.versionName || manifest.versionCode : '…'}
+            </strong>
+          </div>
+        </div>
+
+        {manifest?.notes && (
+          <div style={{
+            marginTop: '12px',
+            padding: '12px 14px',
+            borderRadius: '12px',
+            background: 'rgba(245, 158, 11, 0.08)',
+            border: '1px solid rgba(245, 158, 11, 0.25)',
+            fontSize: '0.78rem',
+            color: 'var(--text-muted)',
+            lineHeight: 1.5
+          }}>
+            <div style={{ fontWeight: 700, color: 'var(--accent-gold)', marginBottom: '4px' }}>
+              {t('update.notesTitle')}
+            </div>
+            {manifest.notes}
+          </div>
+        )}
+
+        {status === 'error' && message && (
+          <div style={{ marginTop: '10px', fontSize: '0.78rem', color: '#f87171', lineHeight: 1.45 }}>
+            {message}
+          </div>
+        )}
+
+        {status === 'permission' && (
+          <div style={{ marginTop: '10px', fontSize: '0.78rem', color: '#fbbf24', lineHeight: 1.45 }}>
+            {t('update.permission')}
+          </div>
+        )}
+
+        {status === 'installing' && (
+          <div style={{ marginTop: '10px', fontSize: '0.78rem', color: '#34d399', lineHeight: 1.45 }}>
+            {t('update.installing')}
+          </div>
+        )}
+
+        {upToDate && (
+          <div style={{ marginTop: '10px', fontSize: '0.78rem', color: '#34d399', lineHeight: 1.45 }}>
+            {t('update.upToDate')}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '9px', marginTop: '16px' }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}
+            onClick={() => void (hasUpdate ? install() : check())}
+            disabled={status === 'checking' || status === 'downloading' || status === 'installing'}
+          >
+            {hasUpdate ? <Download size={16} /> : <RefreshCw size={16} />}
+            <span>{hasUpdate ? statusLabel : t('update.checkButton')}</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}
+            onClick={() => void check()}
+            disabled={status === 'checking' || status === 'downloading'}
+            title={t('update.checkButton')}
+          >
+            <RefreshCw size={15} />
+          </button>
+        </div>
+
+        {!isNative && (
+          <div style={{
+            marginTop: '10px',
+            fontSize: '0.72rem',
+            color: 'var(--text-dim)',
+            lineHeight: 1.5,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '6px'
+          }}>
+            <CheckCircle2 size={13} style={{ marginTop: '1px', flexShrink: 0 }} />
+            <span>{t('update.webHint')}</span>
+          </div>
+        )}
+      </div>
+      <style>{`@keyframes fiaram-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+};

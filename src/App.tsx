@@ -43,6 +43,10 @@ import { MemberProfileModal } from './components/MemberProfileModal';
 import { OPEN_MEMBER_PROFILE_EVENT } from './utils/memberProfileNav';
 import { AdminView } from './views/AdminView';
 import { LoginView } from './views/LoginView';
+import { UpdateModal } from './components/UpdateModal';
+import { OPEN_APP_UPDATE_EVENT } from './utils/appUpdate';
+import { autoPrecacheIfNeeded } from './utils/mediaCache';
+import { isNativeApp } from './lib/appConfig';
 
 export function App() {
   const { t } = useLanguage();
@@ -86,6 +90,15 @@ export function App() {
   // Confirmation before logging out
   const [confirmLogout, setConfirmLogout] = useState(false);
 
+  // Fenêtre de mise à jour (ouverte depuis le menu ou les paramètres)
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+
+  useEffect(() => {
+    const handleOpenUpdate = () => setShowUpdateModal(true);
+    window.addEventListener(OPEN_APP_UPDATE_EVENT, handleOpenUpdate);
+    return () => window.removeEventListener(OPEN_APP_UPDATE_EVENT, handleOpenUpdate);
+  }, []);
+
   // App Data States
   const [currentUser, setCurrentUser] = useState<Membre | null>(() => StorageService.getCurrentUser());
   const [allMembres, setAllMembres] = useState<Membre[]>(() => StorageService.getMembres());
@@ -118,6 +131,18 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
     };
     void MessengerBubble.startBubble(session).catch(() => { /* permission refusée */ });
     void MessengerBubble.registerPushToken(session).catch(() => { /* Firebase non configuré */ });
+  }, [currentUser]);
+
+  // Téléchargement silencieux des médias déjà partagés (une fois par jour) :
+  // l'application Android n'a plus besoin de les récupérer à chaque ouverture.
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    if (!currentUser) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    const timer = window.setTimeout(() => {
+      void autoPrecacheIfNeeded().catch(() => { /* cache indisponible */ });
+    }, 8000);
+    return () => window.clearTimeout(timer);
   }, [currentUser]);
 
   // Android hardware back / browser back: walk through the app views instead of
@@ -883,6 +908,9 @@ const refreshStories = () => {
             onOpenChat={openChatFromMemberProfile}
           />
         )}
+
+        {/* Mise à jour de l'application Android */}
+        {showUpdateModal && <UpdateModal onClose={() => setShowUpdateModal(false)} />}
 
         {/* Demande d'autorisation des notifications système (une seule fois) */}
         {notifPermission !== 'granted' && notifPermission !== 'unsupported' && !permissionBannerDismissed && (

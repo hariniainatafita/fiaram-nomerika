@@ -527,7 +527,7 @@ public class BubbleService extends Service {
                 PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
         );
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_dialog_email)
+                .setSmallIcon(R.drawable.ic_stat_fiaram)
                 .setContentTitle("FIARAM NUMERIQUE")
                 .setContentText(text)
                 .setContentIntent(pendingIntent)

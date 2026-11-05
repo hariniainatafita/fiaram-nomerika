@@ -1,6 +1,8 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { REMOTE_APP_URL, isNativeApp, resolveServerUrl } from '../lib/appConfig';
 
 export const CHECK_APP_UPDATE_EVENT = 'fiaram:check-app-update';
+export const OPEN_APP_UPDATE_EVENT = 'fiaram:open-app-update';
 const DISMISSED_VERSION_KEY = 'fn_app_update_dismissed_version';
 
 export interface AppUpdateInfo {
@@ -11,6 +13,13 @@ export interface AppUpdateInfo {
   latestVersionName: string;
   notes: string;
   apkUrl: string;
+}
+
+export interface AppUpdateManifest {
+  versionCode: number;
+  versionName: string;
+  apkUrl: string;
+  notes: string;
 }
 
 export interface AppUpdaterPlugin {
@@ -29,11 +38,48 @@ export function isAppUpdaterAvailable(): boolean {
 }
 
 export function getAppUpdateManifestUrl(): string {
-  return new URL('update.json', `${window.location.origin}/`).toString();
+  // In the Android app the bundled assets live on https://localhost, so the
+  // manifest must be read from the public platform to actually see releases.
+  const base = isNativeApp() ? REMOTE_APP_URL : window.location.origin;
+  return new URL('update.json', `${base}/`).toString();
+}
+
+export function resolveApkUrl(apkUrl: string): string {
+  return resolveServerUrl(apkUrl);
+}
+
+export async function fetchAppUpdateManifest(): Promise<AppUpdateManifest> {
+  const response = await fetch(getAppUpdateManifestUrl(), { cache: 'no-store' });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data = await response.json() as Partial<AppUpdateManifest>;
+  if (!data || typeof data.apkUrl !== 'string' || !data.apkUrl) {
+    throw new Error('Manifeste de mise a jour invalide');
+  }
+  return {
+    versionCode: Number(data.versionCode) || 0,
+    versionName: typeof data.versionName === 'string' ? data.versionName : '',
+    apkUrl: data.apkUrl,
+    notes: typeof data.notes === 'string' ? data.notes : ''
+  };
+}
+
+export async function getCurrentAppVersion(): Promise<{ versionCode: number; versionName: string }> {
+  if (isAppUpdaterAvailable()) {
+    try {
+      return await AppUpdater.getVersion();
+    } catch {
+      /* plugin indisponible : on retombe sur le web */
+    }
+  }
+  return { versionCode: 0, versionName: 'web' };
 }
 
 export function requestAppUpdateCheck(): void {
   window.dispatchEvent(new Event(CHECK_APP_UPDATE_EVENT));
+}
+
+export function openAppUpdateModal(): void {
+  window.dispatchEvent(new Event(OPEN_APP_UPDATE_EVENT));
 }
 
 export function dismissAppUpdate(versionCode: number): void {
