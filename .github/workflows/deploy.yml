@@ -1,19 +1,22 @@
-name: Deploy to Cloudflare Pages
+name: Release Android APK
 
 on:
   push:
     branches: [master]
   workflow_dispatch:
 
-# Both workflows sign the APK with the same cached debug keystore. Serializing
-# them prevents a first-run race that would publish an APK signed with a
-# different key than the one cached for future updates.
+# CI builds the APK with the same cached debug keystore and publishes it as a
+# GitHub Release. Serializing with the manual APK workflow prevents a
+# first-run race that would sign artifacts with different keys.
 concurrency:
   group: fiaram-android-apk
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
-  deploy:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,17 +62,10 @@ jobs:
           cd android
           bash ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Publish APK with the site
-        run: |
-          mkdir -p dist/downloads
-          cp android/app/build/outputs/apk/debug/app-debug.apk dist/downloads/FIARAM-NOMERIKA-latest.apk
-
-      # Pages Functions are deployed with the site. The R2 bucket is referenced
-      # by the `MEDIA` binding configured on the Pages project; when it is
-      # absent the upload endpoint answers 5xx and the app falls back to
-      # Supabase Storage, so a missing binding never blocks a deployment.
-      - name: Deploy
-        run: npx --yes wrangler@4 pages deploy dist --project-name fiaram-nomerika --branch master
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Publish APK as a GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.repository.name }}-${{ github.sha }}
+          name: FIARAM ${{ github.sha }}
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+          fail_on_unmatched_files: true
