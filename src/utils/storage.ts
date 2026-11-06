@@ -25,7 +25,7 @@ import {
   memberCoverKey,
   isFeedImageKey
 } from './storageKeys';
-import { pushKey, deleteKey, fetchMemberImageIfMissing } from './supabaseSync';
+import { pushKey, deleteKey, fetchMemberImageIfMissing, reportMemberImageProgress } from './supabaseSync';
 import {
   readCachedImageRow,
   setCachedImageRow,
@@ -386,21 +386,16 @@ function sanitizePhotoUrl(url?: string): string | undefined {
   return url;
 }
 
-// Cache decoded base64 pictures in memory: the members list is rebuilt often
-// (realtime events, navigation) and re-parsing megabytes each time is slow.
-const memberImageCache = new Map<string, string>();
-
+// Member pictures share the decoded-picture cache with feed images: the members
+// list is rebuilt often (realtime events, navigation) and re-parsing megabytes
+// each time is slow.
 function readMemberImageRow(key: string): string | undefined {
-  const cached = memberImageCache.get(key);
-  if (cached !== undefined) return cached;
-  const value = getStoredItem<string | undefined>(key, undefined);
-  if (typeof value === 'string' && value) memberImageCache.set(key, value);
-  return value;
+  return readCachedImageRow(key);
 }
 
 function writeMemberImageRow(key: string, value: string): boolean {
   if (!writeLocalStorageJSON(key, value)) return false;
-  memberImageCache.set(key, value);
+  setCachedImageRow(key, value);
   return true;
 }
 
@@ -410,6 +405,37 @@ function memberImageRowKey(memberId: string, kind: 'avatar' | 'cover'): string {
 
 function memberImageRef(kind: 'avatar' | 'cover'): string {
   return kind === 'avatar' ? MEMBER_AVATAR_REF : MEMBER_COVER_REF;
+}
+
+// Each member record carries the date of its last profile change. When that
+// date differs from the one stored next to the picture row, the picture must be
+// downloaded again: editing a profile photo replaces the same row, so the
+// cached value alone cannot tell us whether it is still current.
+const MEMBER_IMAGE_SIG_PREFIX = 'fiaram_imgsig_';
+
+function memberImageSignature(member: Membre): string {
+  return member.updated_at || member.created_at || '';
+}
+
+function memberImageSigKey(memberId: string, kind: 'avatar' | 'cover'): string {
+  return `${MEMBER_IMAGE_SIG_PREFIX}${memberId}_${kind}`;
+}
+
+function setMemberImageSignature(memberId: string, kind: 'avatar' | 'cover', signature: string): void {
+  try {
+    localStorage.setItem(memberImageSigKey(memberId, kind), signature);
+  } catch {
+    /* memory cache still holds the picture */
+  }
+}
+
+function clearMemberImageSignature(memberId: string): void {
+  try {
+    localStorage.removeItem(memberImageSigKey(memberId, 'avatar'));
+    localStorage.removeItem(memberImageSigKey(memberId, 'cover'));
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -806,6 +832,10 @@ export const StorageService = {
   saveMembres(membres: Membre[]): void {
     const raw = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
     const rawById = new Map(raw.map((member) => [member.id, member]));
+    const uploaded = membres.map((m) => ({
+      avatar: Boolean(m.photo_url?.startsWith('data:')),
+      cover: Boolean(m.cover_url?.startsWith('data:'))
+    }));
     const compact = membres.map((m) => {
       const rawMember = rawById.get(m.id);
       return {
@@ -815,6 +845,18 @@ export const StorageService = {
       };
     });
     setStoredItem(STORAGE_KEYS.MEMBRES, compact);
+    // A picture uploaded on this device is already the current one: remember
+    // its version so an unrelated save cannot trigger a download of the same
+    // row (which could still hold the previous picture on the server).
+    compact.forEach((member, index) => {
+      const signature = memberImageSignature(membres[index]);
+      if (uploaded[index].avatar && member.photo_url === MEMBER_AVATAR_REF) {
+        setMemberImageSignature(member.id, 'avatar', signature);
+      }
+      if (uploaded[index].cover && member.cover_url === MEMBER_COVER_REF) {
+        setMemberImageSignature(member.id, 'cover', signature);
+      }
+    });
   },
   /**
    * Move legacy inline base64 profile pictures out of the members collection.
@@ -828,18 +870,39 @@ export const StorageService = {
     if (!hasInline) return;
     this.saveMembres(raw);
   },
-  /** Pictures referenced by a member record but not present in local cache. */
-  getPendingMemberImages(): Array<{ id: string; kind: 'avatar' | 'cover' }> {
+  /**
+   * Pictures referenced by a member record whose local copy is missing or
+   * belongs to an older profile version. `force` means a cached picture exists
+   * but must be replaced by the server copy.
+   */
+  getPendingMemberImages(): Array<{
+    id: string;
+    kind: 'avatar' | 'cover';
+    signature: string;
+    force: boolean;
+  }> {
     const raw = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
-    const pending: Array<{ id: string; kind: 'avatar' | 'cover' }> = [];
+    const pending: Array<{
+      id: string;
+      kind: 'avatar' | 'cover';
+      signature: string;
+      force: boolean;
+    }> = [];
     for (const member of raw) {
-      if (member.photo_url === MEMBER_AVATAR_REF
-        && !readMemberImageRow(memberAvatarKey(member.id))) {
-        pending.push({ id: member.id, kind: 'avatar' });
+      const signature = memberImageSignature(member);
+      if (member.photo_url === MEMBER_AVATAR_REF) {
+        const cached = readMemberImageRow(memberAvatarKey(member.id));
+        const stale = localStorage.getItem(memberImageSigKey(member.id, 'avatar')) !== signature;
+        if (!cached || stale) {
+          pending.push({ id: member.id, kind: 'avatar', signature, force: Boolean(cached) });
+        }
       }
-      if (member.cover_url === MEMBER_COVER_REF
-        && !readMemberImageRow(memberCoverKey(member.id))) {
-        pending.push({ id: member.id, kind: 'cover' });
+      if (member.cover_url === MEMBER_COVER_REF) {
+        const cached = readMemberImageRow(memberCoverKey(member.id));
+        const stale = localStorage.getItem(memberImageSigKey(member.id, 'cover')) !== signature;
+        if (!cached || stale) {
+          pending.push({ id: member.id, kind: 'cover', signature, force: Boolean(cached) });
+        }
       }
     }
     return pending;
@@ -849,31 +912,41 @@ export const StorageService = {
     if (!key || !key.startsWith(MEMBER_IMAGE_PREFIX)) return;
     const raw = localStorage.getItem(key);
     if (raw === null) {
-      memberImageCache.delete(key);
+      clearCachedImageRow(key);
       return;
     }
     try {
       const value = JSON.parse(raw);
-      if (typeof value === 'string' && value) memberImageCache.set(key, value);
+      if (typeof value === 'string' && value) setCachedImageRow(key, value);
+      else clearCachedImageRow(key);
     } catch {
-      memberImageCache.delete(key);
+      clearCachedImageRow(key);
     }
   },
-  /** Download missing profile/cover photos in parallel (limited concurrency). */
+  /** Download missing or outdated profile/cover photos (limited concurrency). */
   async hydrateMemberImages(): Promise<boolean> {
     const queue = this.getPendingMemberImages();
-    if (queue.length === 0) return false;
-    let fetched = false;
+    const total = queue.length;
+    if (total === 0) {
+      reportMemberImageProgress(0, 0);
+      return false;
+    }
+    let fetchedCount = 0;
     const worker = async () => {
       for (let item = queue.shift(); item; item = queue.shift()) {
-        const value = await fetchMemberImageIfMissing(item.id, item.kind);
-        if (value) fetched = true;
+        const value = await fetchMemberImageIfMissing(item.id, item.kind, item.force);
+        if (value) {
+          fetchedCount += 1;
+          setCachedImageRow(memberImageRowKey(item.id, item.kind), value);
+          setMemberImageSignature(item.id, item.kind, item.signature);
+        }
       }
     };
     await Promise.all(
-      Array.from({ length: Math.min(8, queue.length) }, () => worker())
+      Array.from({ length: Math.min(8, total) }, () => worker())
     );
-    return fetched;
+    reportMemberImageProgress(total, fetchedCount);
+    return fetchedCount > 0;
   },
   updateMembre(updated: Membre): void {
     const list = this.getMembres();
@@ -902,8 +975,9 @@ export const StorageService = {
     this.saveMembres(list);
     removeStoredItem(memberAvatarKey(id));
     removeStoredItem(memberCoverKey(id));
-    memberImageCache.delete(memberAvatarKey(id));
-    memberImageCache.delete(memberCoverKey(id));
+    clearCachedImageRow(memberAvatarKey(id));
+    clearCachedImageRow(memberCoverKey(id));
+    clearMemberImageSignature(id);
     // Remember the deletion so that the union-merge sync never resurrects it.
     this.markMemberDeleted(id);
   },
@@ -912,7 +986,12 @@ export const StorageService = {
   removeMemberImage(id: string, kind: 'avatar' | 'cover'): void {
     const key = kind === 'avatar' ? memberAvatarKey(id) : memberCoverKey(id);
     removeStoredItem(key);
-    memberImageCache.delete(key);
+    clearCachedImageRow(key);
+    try {
+      localStorage.removeItem(memberImageSigKey(id, kind));
+    } catch {
+      /* ignore */
+    }
   },
 
   // Deleted members registry (prevents deleted accounts coming back through sync).

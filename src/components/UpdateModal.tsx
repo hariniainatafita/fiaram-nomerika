@@ -32,6 +32,9 @@ interface DiagResult {
   messages: number;
   storageKb: number;
   storageWrite: boolean;
+  memberImagesPending: number;
+  memberImagesFetched: number;
+  memberImageError: string | null;
 }
 
 interface UpdateModalProps {
@@ -179,6 +182,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
       storageWrite = false;
     }
 
+    // Re-download outdated avatars/covers now so the diagnostic reports a real
+    // result instead of the state left by the last background poll.
+    await StorageService.hydrateMemberImages();
+    const images = getSyncStatus();
+
     setDiag({
       online: typeof navigator !== 'undefined' ? navigator.onLine : false,
       realtime: status.realtime,
@@ -189,7 +197,10 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
       members: StorageService.getMembres().length,
       messages: StorageService.getMessages().length,
       storageKb,
-      storageWrite
+      storageWrite,
+      memberImagesPending: images.memberImagesPending,
+      memberImagesFetched: images.memberImagesFetched,
+      memberImageError: images.memberImageError
     });
     setDiagRunning(false);
   };
@@ -448,6 +459,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
                 {t('update.diagStorage')} : {diag ? `${diag.storageKb < 0 ? '?' : diag.storageKb} Ko ${diag.storageWrite ? 'OK' : t('update.diagFull')}` : '—'}
               </div>
               <div>{t('update.diagData')} : {diag ? `${diag.members} / ${diag.messages}` : '—'}</div>
+              <div>
+                {t('update.diagPhotos')} : {diag
+                  ? `${diag.memberImagesFetched}/${diag.memberImagesPending}${diag.memberImageError ? ` (${diag.memberImageError})` : ''}`
+                  : '—'}
+              </div>
               <button
                 type="button"
                 className="btn btn-ghost"

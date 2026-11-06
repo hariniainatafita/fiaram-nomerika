@@ -1,6 +1,6 @@
 {
-  "versionCode": 13,
-  "versionName": "1.12",
+  "versionCode": 14,
+  "versionName": "1.13",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Correctif Android : les messages, la presence en ligne et les photos de profil se mettent maintenant a jour regulierement, meme si la connexion temps reel se coupe. Ajout d'un diagnostic de connexion dans la fenetre de mise a jour pour verifier reseau, base de donnees et stockage."
+  "notes": "Correctif photos de profil : les avatars et couvertures modifies sur le web se mettent maintenant a jour dans l'application Android, meme si l'ancienne photo etait deja en cache. La synchronisation verifie la version du profil et retelcharge la photo quand elle a change. Diagnostic de connexion ameliore avec l'etat des photos de profil."
 }

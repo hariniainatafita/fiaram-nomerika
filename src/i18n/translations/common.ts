@@ -344,6 +344,11 @@ export const common: TranslationDictionary = {
     fr: 'Données locales',
     en: 'Local data'
   },
+  'update.diagPhotos': {
+    mg: 'Sary profil',
+    fr: 'Photos de profil',
+    en: 'Profile photos'
+  },
   'update.diagReload': {
     mg: 'Avereno indray',
     fr: 'Recharger l’app',

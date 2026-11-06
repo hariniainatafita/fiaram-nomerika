@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { STORAGE_KEYS, SYNCED_KEYS, PENDING_IMAGE_UPLOADS, isSyncedKey, isImageKey, isFeedImageKey, messageImageKey, storyImageKey, publicationImageKey, memberAvatarKey, memberCoverKey } from './storageKeys';
+import { STORAGE_KEYS, SYNCED_KEYS, PENDING_IMAGE_UPLOADS, isSyncedKey, isImageKey, isFeedImageKey, messageImageKey, storyImageKey, publicationImageKey, MEMBER_IMAGE_PREFIX, MEMBER_AVATAR_REF, MEMBER_COVER_REF, memberAvatarKey, memberCoverKey } from './storageKeys';
 import { deletedIdsFor, isTombstoneKey, pruneDeletedFromCollections } from './tombstones';
-import { readCachedImageRow, setCachedImageRow } from './imageRowCache';
+import { readCachedImageRow, setCachedImageRow, clearCachedImageRow } from './imageRowCache';
 
 const TABLE = 'app_state';
 
@@ -9,12 +9,18 @@ export interface SyncStatus {
   realtime: string;
   lastHydrateAt: number | null;
   lastHydrateError: string | null;
+  memberImagesPending: number;
+  memberImagesFetched: number;
+  memberImageError: string | null;
 }
 
 let syncStatus: SyncStatus = {
   realtime: 'idle',
   lastHydrateAt: null,
-  lastHydrateError: null
+  lastHydrateError: null,
+  memberImagesPending: 0,
+  memberImagesFetched: 0,
+  memberImageError: null
 };
 
 export function getSyncStatus(): SyncStatus {
@@ -23,6 +29,10 @@ export function getSyncStatus(): SyncStatus {
 
 function setSyncStatus(patch: Partial<SyncStatus>): void {
   syncStatus = { ...syncStatus, ...patch };
+}
+
+export function reportMemberImageProgress(pending: number, fetched: number): void {
+  setSyncStatus({ memberImagesPending: pending, memberImagesFetched: fetched });
 }
 const pushTimers: Record<string, number> = {};
 
@@ -132,7 +142,22 @@ function mergeMemberLists(localList: unknown[], remoteList: unknown[], preferLoc
     const localTime = memberUpdatedAt(item);
     const remoteTime = memberUpdatedAt(remote);
     if (localTime > remoteTime || (localTime === remoteTime && preferLocalOnTie)) {
-      byId.set(id, item);
+      // A device with an empty avatar must still pick up a profile photo set
+      // elsewhere, even when its clock makes the local record look newer.
+      const localMember = isPlainObject(item) ? item : null;
+      const remoteMember = isPlainObject(remote) ? remote : null;
+      const missingAvatar = localMember && !localMember.photo_url && remoteMember?.photo_url === MEMBER_AVATAR_REF;
+      const missingCover = localMember && !localMember.cover_url && remoteMember?.cover_url === MEMBER_COVER_REF;
+      if (localMember && remoteMember && (missingAvatar || missingCover)) {
+        byId.set(id, {
+          ...localMember,
+          ...(missingAvatar ? { photo_url: remoteMember.photo_url } : {}),
+          ...(missingCover ? { cover_url: remoteMember.cover_url } : {}),
+          updated_at: remoteMember.updated_at ?? localMember.updated_at
+        });
+      } else {
+        byId.set(id, item);
+      }
     }
   }
 
@@ -472,6 +497,11 @@ function mergeKeyValuesForPush(key: string, local: unknown, remote: unknown): un
     return { ...remote, ...local };
   }
 
+  // Picture rows are content stored under a stable key. A profile photo edited
+  // on another device replaces the same row, so the server copy must win: the
+  // local copy is only a cache of an older picture.
+  if (isImageKey(key) && typeof remote === 'string' && remote) return remote;
+
   return local;
 }
 
@@ -641,19 +671,32 @@ const memberImageInflight = new Set<string>();
  */
 export async function fetchMemberImageIfMissing(
   memberId: string,
-  kind: 'avatar' | 'cover'
+  kind: 'avatar' | 'cover',
+  force = false
 ): Promise<string | undefined> {
   if (!isSupabaseConfigured || !supabase) return undefined;
   const key = kind === 'avatar' ? memberAvatarKey(memberId) : memberCoverKey(memberId);
-  const raw = localStorage.getItem(key);
-  if (raw !== null) {
-    try {
-      return JSON.parse(raw) as string;
-    } catch {
-      /* fall through to refetch */
+  const cached = readCachedImageRow(key);
+  if (cached && !force) return cached;
+
+  let localValue = cached;
+  if (!localValue) {
+    const raw = localStorage.getItem(key);
+    if (raw !== null) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed === 'string' && parsed) {
+          localValue = parsed;
+          setCachedImageRow(key, parsed);
+          if (!force) return parsed;
+        }
+      } catch {
+        /* corrupted row: refetch it */
+      }
     }
   }
-  if (memberImageInflight.has(key)) return undefined;
+
+  if (memberImageInflight.has(key)) return localValue;
   memberImageInflight.add(key);
   try {
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -662,22 +705,31 @@ export async function fetchMemberImageIfMissing(
         .select('value')
         .eq('key', key)
         .maybeSingle();
-      if (!error && data) {
+      if (error) {
+        setSyncStatus({ memberImageError: error.message });
+      } else if (data) {
         const value = normalizeRemoteValue((data as { value?: unknown }).value);
         if (typeof value === 'string' && value) {
+          setCachedImageRow(key, value);
           try {
             localStorage.setItem(key, JSON.stringify(value));
           } catch (err) {
             console.error(`[Supabase] cannot store "${key}":`, err);
           }
+          setSyncStatus({ memberImageError: null });
           return value;
         }
+      } else {
+        setSyncStatus({ memberImageError: 'photo absente sur le serveur' });
       }
       if (attempt < 2) await wait(700);
     }
-    return undefined;
-  } catch {
-    return undefined;
+    // Never replace a working picture with a blank avatar when the network
+    // fails: keep showing the cached copy until the next attempt.
+    return localValue;
+  } catch (err) {
+    setSyncStatus({ memberImageError: err instanceof Error ? err.message : String(err) });
+    return localValue;
   } finally {
     memberImageInflight.delete(key);
   }
@@ -730,6 +782,11 @@ export async function fetchPublicationImageIfMissing(publicationId: string): Pro
 }
 
 function writeMerged(key: string, remoteValue: unknown): void {
+  // Apply picture rows to the in-memory cache first: the avatar must change
+  // even when localStorage is saturated and cannot store the row.
+  if (typeof remoteValue === 'string' && remoteValue && key.startsWith(MEMBER_IMAGE_PREFIX)) {
+    setCachedImageRow(key, remoteValue);
+  }
   const localValue = readLocalStorage(key);
   if (localValue === undefined) {
     try {
@@ -999,6 +1056,7 @@ export function subscribeToSupabase(onRemoteChange: (key: string) => void): () =
           const oldRow = payload.old as { key?: string };
           if (oldRow?.key) {
             localStorage.removeItem(oldRow.key);
+            if (isImageKey(oldRow.key)) clearCachedImageRow(oldRow.key);
             onRemoteChange(oldRow.key);
           }
           return;
