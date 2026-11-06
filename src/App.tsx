@@ -470,6 +470,29 @@ const refreshStories = () => {
     };
     loadMemberPhotos();
 
+    // Android: the realtime socket can stay silent after a long sleep. As a
+    // safety net, a light sync runs periodically while the screen is visible so
+    // messages, presence and profile photos always end up appearing.
+    let pollTimer: number | undefined;
+    let polling = false;
+    if (isNativeApp()) {
+      pollTimer = window.setInterval(() => {
+        if (polling || document.visibilityState !== 'visible') return;
+        polling = true;
+        void (async () => {
+          try {
+            await hydrateFromSupabase();
+            await StorageService.hydrateMemberImages();
+            refreshAll();
+          } catch {
+            /* prochaine tentative */
+          } finally {
+            polling = false;
+          }
+        })();
+      }, 45000);
+    }
+
     // Smartphones: realtime socket drops while the app sleeps in background
     // and missed (non-queued) events never replay. On resume / focus / network
     // up, re-hydrate from Supabase so new messages and unread badges appear.
@@ -487,6 +510,7 @@ const refreshStories = () => {
     window.addEventListener('online', onResume);
     return () => {
       unsubscribe();
+      if (pollTimer) window.clearInterval(pollTimer);
       document.removeEventListener('visibilitychange', onResume);
       window.removeEventListener('focus', onResume);
       window.removeEventListener('online', onResume);

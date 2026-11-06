@@ -14,8 +14,25 @@ import {
   checkLiveUpdate,
   getCurrentWebBundle
 } from '../utils/liveUpdate';
+import { REMOTE_APP_URL } from '../lib/appConfig';
+import { supabaseAnonKey, supabaseUrl } from '../lib/supabase';
+import { getSyncStatus } from '../utils/supabaseSync';
+import { StorageService } from '../utils/storage';
 
 type UpdateStatus = 'idle' | 'checking' | 'downloading' | 'installing' | 'permission' | 'error';
+
+interface DiagResult {
+  online: boolean;
+  realtime: string;
+  lastHydrateAt: number | null;
+  lastHydrateError: string | null;
+  server: string;
+  database: string;
+  members: number;
+  messages: number;
+  storageKb: number;
+  storageWrite: boolean;
+}
 
 interface UpdateModalProps {
   onClose: () => void;
@@ -30,6 +47,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
   const [message, setMessage] = useState('');
   const [webStatus, setWebStatus] = useState<'idle' | 'checking' | 'updated' | 'none' | 'error'>('idle');
   const [webBundles, setWebBundles] = useState<{ current: string | null; next: string | null } | null>(null);
+  const [diag, setDiag] = useState<DiagResult | null>(null);
+  const [diagRunning, setDiagRunning] = useState(false);
   const checkingRef = useRef(false);
 
   const check = useCallback(async () => {
@@ -110,6 +129,69 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
 
   const applyWebUpdate = async () => {
     await applyPendingBundle();
+  };
+
+  const runDiagnostics = async () => {
+    setDiagRunning(true);
+    const status = getSyncStatus();
+    const testFetch = async (url: string, headers?: Record<string, string>) => {
+      try {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 12000);
+        const response = await fetch(url, {
+          headers,
+          cache: 'no-store',
+          signal: controller.signal
+        });
+        window.clearTimeout(timer);
+        return `HTTP ${response.status}`;
+      } catch (error) {
+        return `ERREUR ${error instanceof Error ? error.message : String(error)}`;
+      }
+    };
+
+    const server = await testFetch(`${REMOTE_APP_URL}/bundle.json`);
+    const database = supabaseUrl && supabaseAnonKey
+      ? await testFetch(`${supabaseUrl}/rest/v1/app_state?select=key&limit=1`, {
+          apikey: supabaseAnonKey
+        })
+      : 'non configure';
+
+    let storageKb = -1;
+    try {
+      let bytes = 0;
+      for (let index = 0; index < localStorage.length; index += 1) {
+        const key = localStorage.key(index);
+        if (!key) continue;
+        bytes += key.length + (localStorage.getItem(key)?.length ?? 0);
+      }
+      storageKb = Math.round(bytes / 1024);
+    } catch {
+      storageKb = -1;
+    }
+
+    let storageWrite = false;
+    try {
+      localStorage.setItem('fiaram_diag_test', '1');
+      localStorage.removeItem('fiaram_diag_test');
+      storageWrite = true;
+    } catch {
+      storageWrite = false;
+    }
+
+    setDiag({
+      online: typeof navigator !== 'undefined' ? navigator.onLine : false,
+      realtime: status.realtime,
+      lastHydrateAt: status.lastHydrateAt,
+      lastHydrateError: status.lastHydrateError,
+      server,
+      database,
+      members: StorageService.getMembres().length,
+      messages: StorageService.getMessages().length,
+      storageKb,
+      storageWrite
+    });
+    setDiagRunning(false);
   };
 
   const statusLabel = status === 'checking'
@@ -336,6 +418,56 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
                 <span>{webStatus === 'checking' ? t('update.webChecking') : t('update.webUpdate')}</span>
               </button>
             )}
+
+            <div style={{
+              marginTop: '6px',
+              paddingTop: '10px',
+              borderTop: '1px dashed var(--border-color)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '5px',
+              fontSize: '0.68rem',
+              color: 'var(--text-muted)'
+            }}>
+              <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.72rem' }}>
+                {t('update.diagTitle')}
+              </div>
+              <div>
+                {t('update.diagNetwork')} : {diag ? (diag.online ? t('update.diagOnline') : t('update.diagOffline')) : '—'}
+              </div>
+              <div>
+                {t('update.diagRealtime')} : {diag?.realtime ?? getSyncStatus().realtime}
+              </div>
+              <div>
+                {t('update.diagLastSync')} : {diag?.lastHydrateAt ? new Date(diag.lastHydrateAt).toLocaleTimeString() : t('update.diagNever')}
+                {diag?.lastHydrateError ? ` (${diag.lastHydrateError})` : ''}
+              </div>
+              <div>{t('update.diagServer')} : {diag?.server ?? '—'}</div>
+              <div>{t('update.diagDatabase')} : {diag?.database ?? '—'}</div>
+              <div>
+                {t('update.diagStorage')} : {diag ? `${diag.storageKb < 0 ? '?' : diag.storageKb} Ko ${diag.storageWrite ? 'OK' : t('update.diagFull')}` : '—'}
+              </div>
+              <div>{t('update.diagData')} : {diag ? `${diag.members} / ${diag.messages}` : '—'}</div>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => void runDiagnostics()}
+                disabled={diagRunning}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', marginTop: '2px' }}
+              >
+                <RefreshCw size={15} />
+                <span>{diagRunning ? t('update.diagRunning') : t('update.diagRun')}</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => window.location.reload()}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}
+              >
+                <RefreshCw size={15} />
+                <span>{t('update.diagReload')}</span>
+              </button>
+            </div>
           </div>
         )}
 

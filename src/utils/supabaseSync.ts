@@ -4,6 +4,26 @@ import { deletedIdsFor, isTombstoneKey, pruneDeletedFromCollections } from './to
 import { readCachedImageRow, setCachedImageRow } from './imageRowCache';
 
 const TABLE = 'app_state';
+
+export interface SyncStatus {
+  realtime: string;
+  lastHydrateAt: number | null;
+  lastHydrateError: string | null;
+}
+
+let syncStatus: SyncStatus = {
+  realtime: 'idle',
+  lastHydrateAt: null,
+  lastHydrateError: null
+};
+
+export function getSyncStatus(): SyncStatus {
+  return { ...syncStatus };
+}
+
+function setSyncStatus(patch: Partial<SyncStatus>): void {
+  syncStatus = { ...syncStatus, ...patch };
+}
 const pushTimers: Record<string, number> = {};
 
 // Pushes stay disabled until the first successful hydration. Otherwise the
@@ -868,6 +888,7 @@ export async function hydrateFromSupabase(): Promise<void> {
   if (!isSupabaseConfigured || !supabase) {
     hydrationReady = true;
     queuedPushes.clear();
+    setSyncStatus({ lastHydrateError: 'Supabase non configure' });
     return;
   }
   try {
@@ -880,6 +901,7 @@ export async function hydrateFromSupabase(): Promise<void> {
       .in('key', SYNCED_KEYS);
     if (error) {
       console.warn('[Supabase] hydrate failed:', error.message);
+      setSyncStatus({ lastHydrateError: error.message });
       return;
     }
 
@@ -910,10 +932,12 @@ export async function hydrateFromSupabase(): Promise<void> {
     }
     queuedPushes.clear();
     retryPendingImageUploads();
+    setSyncStatus({ lastHydrateAt: Date.now(), lastHydrateError: null });
   } catch (err) {
     // Keep pushes disabled: the next successful hydration (on resume/online)
     // will merge the real remote data before anything is overwritten.
     console.warn('[Supabase] hydrate error:', err);
+    setSyncStatus({ lastHydrateError: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -991,7 +1015,9 @@ export function subscribeToSupabase(onRemoteChange: (key: string) => void): () =
         }
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      setSyncStatus({ realtime: status });
+    });
 
   return () => {
     void client.removeChannel(channel);

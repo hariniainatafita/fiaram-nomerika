@@ -273,5 +273,80 @@ export const common: TranslationDictionary = {
     mg: 'Ao anaty APK',
     fr: 'Intégrées à l’APK',
     en: 'Embedded in the APK'
+  },
+  'update.diagTitle': {
+    mg: 'Fanamarinana fifandraisana',
+    fr: 'Diagnostic connexion',
+    en: 'Connection diagnostics'
+  },
+  'update.diagRun': {
+    mg: 'Andramo ny fifandraisana',
+    fr: 'Tester la connexion',
+    en: 'Test connection'
+  },
+  'update.diagRunning': {
+    mg: 'Eo amana…',
+    fr: 'Test en cours…',
+    en: 'Testing…'
+  },
+  'update.diagNetwork': {
+    mg: 'Rete',
+    fr: 'Réseau',
+    en: 'Network'
+  },
+  'update.diagOnline': {
+    mg: 'mandeha',
+    fr: 'en ligne',
+    en: 'online'
+  },
+  'update.diagOffline': {
+    mg: 'tsy mandeha',
+    fr: 'hors ligne',
+    en: 'offline'
+  },
+  'update.diagRealtime': {
+    mg: 'Mivantana',
+    fr: 'Temps réel',
+    en: 'Realtime'
+  },
+  'update.diagLastSync': {
+    mg: 'Fanavaozana farany',
+    fr: 'Dernière synchro',
+    en: 'Last sync'
+  },
+  'update.diagNever': {
+    mg: 'tsy mbola',
+    fr: 'jamais',
+    en: 'never'
+  },
+  'update.diagServer': {
+    mg: 'Sehatra web',
+    fr: 'Serveur web',
+    en: 'Web server'
+  },
+  'update.diagDatabase': {
+    mg: 'Tahiry',
+    fr: 'Base de données',
+    en: 'Database'
+  },
+  'update.diagStorage': {
+    mg: 'Fitehirizana',
+    fr: 'Stockage',
+    en: 'Storage'
+  },
+  'update.diagFull': {
+    mg: 'feno',
+    fr: 'PLEIN',
+    en: 'FULL'
+  },
+  'update.diagData': {
+    mg: 'Angona eo an-toerana',
+    fr: 'Données locales',
+    en: 'Local data'
+  },
+  'update.diagReload': {
+    mg: 'Avereno indray',
+    fr: 'Recharger l’app',
+    en: 'Reload app'
   }
 };
