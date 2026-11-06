@@ -48,6 +48,7 @@ export interface VoiceCallController {
   hangUp: () => void;
   toggleMute: () => void;
   toggleCamera: () => void;
+  switchCamera: () => void;
   dismiss: () => void;
 }
 
@@ -154,6 +155,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
   const displayPeerRef = useRef<VoiceCallPeer | null>(null);
   const sendChannelsRef = useRef<Map<string, SendChannel>>(new Map());
   const resetTimerRef = useRef<number | null>(null);
+  const cameraFacingRef = useRef<'user' | 'environment'>('user');
   const ringIntervalRef = useRef<number | null>(null);
   const ringCtxRef = useRef<AudioContext | null>(null);
   const signalHandlerRef = useRef<(event: string, payload: SignalPayload) => void>(() => {});
@@ -304,7 +306,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     }
     const videoConstraints: MediaTrackConstraints | boolean =
       callType === 'video'
-        ? { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        ? { facingMode: { ideal: cameraFacingRef.current }, width: { ideal: 1280 }, height: { ideal: 720 } }
         : false;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -530,6 +532,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
       startedAt: null
     };
     sessionRef.current = session;
+    cameraFacingRef.current = 'user';
     commit({ status: 'outgoing', peer, callType, muted: false, cameraOn: callType === 'video', durationSeconds: 0, error: null });
     startRingtone();
 
@@ -599,6 +602,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
       startedAt: null
     };
     sessionRef.current = session;
+    cameraFacingRef.current = 'user';
     commit({
       status: 'connecting',
       peer: pending.peer,
@@ -683,6 +687,54 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
       track.enabled = nextOn;
     });
     patch({ cameraOn: nextOn });
+  }
+
+  async function switchCamera(): Promise<void> {
+    const session = sessionRef.current;
+    if (!session?.localStream) return;
+    const oldTrack = session.localStream.getVideoTracks()[0];
+    if (!oldTrack || typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter((device) => device.kind === 'videoinput');
+      let nextConstraints: MediaTrackConstraints;
+      if (videoDevices.length > 1) {
+        const currentDeviceId = oldTrack.getSettings().deviceId;
+        const currentIndex = videoDevices.findIndex((device) => device.deviceId === currentDeviceId);
+        const next = videoDevices[(currentIndex + 1) % videoDevices.length];
+        nextConstraints = next?.deviceId
+          ? { deviceId: { exact: next.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+          : { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } };
+      } else {
+        nextConstraints = {
+          facingMode: { ideal: cameraFacingRef.current === 'user' ? 'environment' : 'user' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        };
+      }
+      const nextStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: nextConstraints });
+      const newTrack = nextStream.getVideoTracks()[0];
+      if (!newTrack) {
+        nextStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      if (session.pc) {
+        const sender = session.pc.getSenders().find((entry) => entry.track?.kind === 'video');
+        if (sender && typeof sender.replaceTrack === 'function') {
+          await sender.replaceTrack(newTrack);
+        } else {
+          session.pc.addTrack(newTrack, session.localStream);
+        }
+      }
+      const audioTracks = session.localStream.getAudioTracks();
+      oldTrack.stop();
+      const combined = new MediaStream([...audioTracks, newTrack]);
+      session.localStream = combined;
+      setLocalStream(combined);
+      cameraFacingRef.current = cameraFacingRef.current === 'user' ? 'environment' : 'user';
+    } catch {
+      /* keep the current camera when switching fails */
+    }
   }
 
   function dismiss(): void {
@@ -929,6 +981,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     hangUp,
     toggleMute,
     toggleCamera,
+    switchCamera,
     dismiss
   };
 }

@@ -1,6 +1,6 @@
 {
-  "versionCode": 17,
-  "versionName": "1.16",
+  "versionCode": 18,
+  "versionName": "1.17",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Appel vidéo WebRTC : boutons vidéo en discussion et profil, invitation vidéo, vidéo distante et aperçu local, bascule caméra. Bulles Messenger et photos inchangées."
+  "notes": "Appel vidéo : agrandir/réduire la vidéo distante, aperçu local plus grand en mode agrandi, bascule caméra avant/arrière. Appel vocal et bulles inchangés."
 }

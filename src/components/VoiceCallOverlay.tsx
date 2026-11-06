@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Phone, PhoneOff, Video, VideoOff, Volume2 } from 'lucide-react';
+import { Maximize2, Mic, MicOff, Minimize2, Phone, PhoneOff, SwitchCamera, Video, VideoOff, Volume2 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { useLanguage } from '../i18n';
 import type { VoiceCallController } from '../utils/voiceCall';
@@ -36,6 +36,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const [audioBlocked, setAudioBlocked] = useState(false);
+  const [videoLarge, setVideoLarge] = useState(false);
   const visible = state.status !== 'idle';
 
   useEffect(() => {
@@ -149,7 +150,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
         className="fiaram-call-card"
         onClick={(event) => event.stopPropagation()}
         style={{
-          width: 'min(400px, 100%)',
+          width: videoLarge ? 'min(560px, 100%)' : 'min(400px, 100%)',
           maxHeight: 'calc(100dvh - 32px)',
           overflowY: 'auto',
           overflowX: 'hidden',
@@ -166,7 +167,13 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
           color: '#f8fafc'
         }}
       >
-        <div style={{ position: 'relative', width: '132px', height: '132px', marginBottom: '20px' }}>
+        <div style={{
+          position: 'relative',
+          width: videoLarge ? 'min(82vw, 420px)' : '132px',
+          height: videoLarge ? 'min(52vh, 380px)' : '132px',
+          marginBottom: '20px',
+          borderRadius: videoLarge ? '24px' : '50%'
+        }}>
           {(isIncoming || isRinging) && (
             <span
               className="fiaram-call-pulse"
@@ -184,7 +191,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
             style={{
               width: '100%',
               height: '100%',
-              borderRadius: '50%',
+              borderRadius: videoLarge ? '24px' : '50%',
               objectFit: 'cover',
               border: '3px solid rgba(16, 185, 129, 0.7)',
               position: 'relative',
@@ -201,7 +208,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
                 inset: 0,
                 width: '100%',
                 height: '100%',
-                borderRadius: '50%',
+                borderRadius: videoLarge ? '24px' : '50%',
                 objectFit: 'cover',
                 background: '#000000'
               }}
@@ -215,11 +222,11 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
               muted
               style={{
                 position: 'absolute',
-                right: '-16px',
-                bottom: '-8px',
-                width: '58px',
-                height: '58px',
-                borderRadius: '16px',
+                right: videoLarge ? '14px' : '-16px',
+                bottom: videoLarge ? '14px' : '-8px',
+                width: videoLarge ? '92px' : '58px',
+                height: videoLarge ? '92px' : '58px',
+                borderRadius: videoLarge ? '22px' : '16px',
                 objectFit: 'cover',
                 border: '2px solid rgba(255, 255, 255, 0.35)',
                 background: '#111827'
@@ -331,27 +338,67 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
           {isActive && (
             <>
               {isVideoCall && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                  <button
-                    type="button"
-                    className="fiaram-call-action"
-                    onClick={call.toggleCamera}
-                    title={state.cameraOn ? t('calls.cameraOff') : t('calls.cameraOn')}
-                    aria-label={state.cameraOn ? t('calls.cameraOff') : t('calls.cameraOn')}
-                    style={{
-                      ...roundButton,
-                      background: state.cameraOn
-                        ? 'rgba(255, 255, 255, 0.12)'
-                        : 'linear-gradient(135deg, #f59e0b, #b45309)',
-                      border: '1px solid rgba(255, 255, 255, 0.16)'
-                    }}
-                  >
-                    {state.cameraOn ? <Video size={24} /> : <VideoOff size={24} />}
-                  </button>
-                  <span style={{ fontSize: '0.72rem', color: 'rgba(226, 232, 240, 0.75)' }}>
-                    {state.cameraOn ? t('calls.cameraOff') : t('calls.cameraOn')}
-                  </span>
-                </div>
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="fiaram-call-action"
+                      onClick={() => setVideoLarge((large) => !large)}
+                      title={videoLarge ? t('calls.minimizeVideo') : t('calls.enlargeVideo')}
+                      aria-label={videoLarge ? t('calls.minimizeVideo') : t('calls.enlargeVideo')}
+                      style={{
+                        ...roundButton,
+                        background: videoLarge ? 'rgba(14, 165, 233, 0.24)' : 'rgba(255, 255, 255, 0.12)',
+                        border: '1px solid rgba(255, 255, 255, 0.16)'
+                      }}
+                    >
+                      {videoLarge ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
+                    </button>
+                    <span style={{ fontSize: '0.72rem', color: 'rgba(226, 232, 240, 0.75)' }}>
+                      {videoLarge ? t('calls.minimizeVideo') : t('calls.enlargeVideo')}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="fiaram-call-action"
+                      onClick={call.toggleCamera}
+                      title={state.cameraOn ? t('calls.cameraOff') : t('calls.cameraOn')}
+                      aria-label={state.cameraOn ? t('calls.cameraOff') : t('calls.cameraOn')}
+                      style={{
+                        ...roundButton,
+                        background: state.cameraOn
+                          ? 'rgba(255, 255, 255, 0.12)'
+                          : 'linear-gradient(135deg, #f59e0b, #b45309)',
+                        border: '1px solid rgba(255, 255, 255, 0.16)'
+                      }}
+                    >
+                      {state.cameraOn ? <Video size={24} /> : <VideoOff size={24} />}
+                    </button>
+                    <span style={{ fontSize: '0.72rem', color: 'rgba(226, 232, 240, 0.75)' }}>
+                      {state.cameraOn ? t('calls.cameraOff') : t('calls.cameraOn')}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="fiaram-call-action"
+                      onClick={call.switchCamera}
+                      title={t('calls.switchCamera')}
+                      aria-label={t('calls.switchCamera')}
+                      style={{
+                        ...roundButton,
+                        background: 'rgba(255, 255, 255, 0.12)',
+                        border: '1px solid rgba(255, 255, 255, 0.16)'
+                      }}
+                    >
+                      <SwitchCamera size={24} />
+                    </button>
+                    <span style={{ fontSize: '0.72rem', color: 'rgba(226, 232, 240, 0.75)' }}>
+                      {t('calls.switchCamera')}
+                    </span>
+                  </div>
+                </>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <button

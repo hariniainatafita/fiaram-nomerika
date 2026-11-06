@@ -118,5 +118,8 @@ export const calls: TranslationDictionary = {
     en: 'Camera access denied. Allow the camera for a video call.'
   },
   'calls.cameraOn': { mg: 'Alefaso ny fakantsary', fr: 'Allumer la caméra', en: 'Turn camera on' },
-  'calls.cameraOff': { mg: 'Maty ny fakantsary', fr: 'Éteindre la caméra', en: 'Turn camera off' }
+  'calls.cameraOff': { mg: 'Maty ny fakantsary', fr: 'Éteindre la caméra', en: 'Turn camera off' },
+  'calls.enlargeVideo': { mg: 'Halefaso ny video hafa', fr: 'Agrandir la vidéo', en: 'Enlarge video' },
+  'calls.minimizeVideo': { mg: 'Henao ny video hafa', fr: 'Réduire la vidéo', en: 'Shrink video' },
+  'calls.switchCamera': { mg: 'Mifamadika fakantsary', fr: 'Basculer la caméra', en: 'Switch camera' }
 };
