@@ -99,25 +99,27 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
 
-      - name: Build Android release APK
+      - name: Build Android release APK (GitHub flavor)
         run: |
           cd android
-          bash ./gradlew assembleRelease --no-daemon --stacktrace
+          bash ./gradlew assembleGithubRelease --no-daemon --stacktrace
 
       - name: Verify APK signature
         run: |
+          apk=android/app/build/outputs/apk/github/release/app-github-release.apk
           apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n1)
-          signature=$("$apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | grep -m1 'SHA-256')
+          signature=$("$apksigner" verify --print-certs "$apk" | grep -m1 'SHA-256')
           echo "::notice::APK signing certificate ${signature}"
 
       - name: Prepare release assets
         run: |
+          apk=android/app/build/outputs/apk/github/release/app-github-release.apk
           mkdir -p release-assets dist/downloads
-          cp android/app/build/outputs/apk/release/app-release.apk release-assets/app-release.apk
+          cp "$apk" release-assets/app-release.apk
           # Keep the old asset name so installs that still check app-debug.apk
           # receive this release build instead of a 404.
-          cp android/app/build/outputs/apk/release/app-release.apk release-assets/app-debug.apk
-          cp android/app/build/outputs/apk/release/app-release.apk dist/downloads/FIARAM-NOMERIKA-latest.apk
+          cp "$apk" release-assets/app-debug.apk
+          cp "$apk" dist/downloads/FIARAM-NOMERIKA-latest.apk
 
       - name: Publish APK as a GitHub Release
         uses: softprops/action-gh-release@v2

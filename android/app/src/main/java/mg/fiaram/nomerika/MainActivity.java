@@ -1,5 +1,6 @@
 package mg.fiaram.nomerika;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.webkit.WebView;
 
@@ -12,6 +13,26 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(AppUpdaterPlugin.class);
         registerPlugin(MessengerBubblePlugin.class);
         super.onCreate(savedInstanceState);
+        handleChatIntent(getIntent());
+    }
+
+    @Override
+    public void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleChatIntent(intent);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        BubbleSession.setAppForeground(this, true);
+    }
+
+    @Override
+    public void onPause() {
+        BubbleSession.setAppForeground(this, false);
+        super.onPause();
     }
 
     @Override
@@ -24,5 +45,13 @@ public class MainActivity extends BridgeActivity {
             return;
         }
         super.onBackPressed();
+    }
+
+    private void handleChatIntent(Intent intent) {
+        if (intent == null) return;
+        String chatId = intent.getStringExtra(MessageNotifier.EXTRA_CHAT_ID);
+        if (chatId == null || chatId.isEmpty()) return;
+        String chatType = intent.getStringExtra(MessageNotifier.EXTRA_CHAT_TYPE);
+        BubbleSession.setPendingChat(this, chatType == null ? "direct" : chatType, chatId);
     }
 }

@@ -86,27 +86,25 @@ public class MessengerBubblePlugin extends Plugin {
             call.reject("Session incomplète");
             return;
         }
-        JSObject result = new JSObject();
-        if (!Settings.canDrawOverlays(getContext())) {
-            result.put("started", false);
-            result.put("needsOverlayPermission", true);
-            call.resolve(result);
-            return;
-        }
+        BubbleSession.setBubbleEnabled(getContext(), true);
+        boolean overlay = Settings.canDrawOverlays(getContext());
         BubbleService.start(getContext());
+        JSObject result = new JSObject();
         result.put("started", true);
+        result.put("needsOverlayPermission", !overlay);
         call.resolve(result);
     }
 
     @PluginMethod
     public void stopBubble(PluginCall call) {
+        BubbleSession.setBubbleEnabled(getContext(), false);
         BubbleService.stop(getContext());
         call.resolve();
     }
 
     @PluginMethod
     public void showMessage(PluginCall call) {
-        if (!Settings.canDrawOverlays(getContext())) {
+        if (!BubbleSession.isBubbleEnabled(getContext())) {
             call.resolve();
             return;
         }
@@ -125,6 +123,23 @@ public class MessengerBubblePlugin extends Plugin {
     @PluginMethod
     public void clearMessages(PluginCall call) {
         BubbleService.clearUnread(getContext());
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void consumePendingChat(PluginCall call) {
+        JSObject result = new JSObject();
+        String[] pending = BubbleSession.consumePendingChat(getContext());
+        if (pending != null) {
+            result.put("type", pending[0]);
+            result.put("id", pending[1]);
+        }
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void refreshBubble(PluginCall call) {
+        BubbleService.refresh(getContext());
         call.resolve();
     }
 
@@ -163,7 +178,9 @@ public class MessengerBubblePlugin extends Plugin {
                 call.getString("userName", ""),
                 call.getString("photoUrl", ""),
                 call.getString("supabaseUrl", ""),
-                call.getString("supabaseAnonKey", "")
+                call.getString("supabaseAnonKey", ""),
+                call.getString("role", ""),
+                call.getString("groupeId", "")
         );
     }
 

@@ -34,6 +34,7 @@ public class AppUpdaterPlugin extends Plugin {
             JSObject result = new JSObject();
             result.put("versionCode", getCurrentVersionCode());
             result.put("versionName", getCurrentVersionName());
+            result.put("selfUpdate", BuildConfig.SELF_UPDATE);
             resolve(call, result);
         } catch (Exception e) {
             reject(call, e.getMessage());
@@ -42,6 +43,19 @@ public class AppUpdaterPlugin extends Plugin {
 
     @PluginMethod
     public void checkForUpdate(PluginCall call) {
+        if (!BuildConfig.SELF_UPDATE) {
+            JSObject result = new JSObject();
+            result.put("available", false);
+            result.put("currentVersionCode", getCurrentVersionCode());
+            result.put("currentVersionName", getCurrentVersionName());
+            result.put("latestVersionCode", 0);
+            result.put("latestVersionName", "");
+            result.put("notes", "");
+            result.put("apkUrl", "");
+            result.put("selfUpdate", false);
+            resolve(call, result);
+            return;
+        }
         String updateUrl = call.getString("updateUrl");
         if (updateUrl == null || updateUrl.isEmpty()) {
             call.reject("updateUrl is required");
@@ -80,6 +94,7 @@ public class AppUpdaterPlugin extends Plugin {
                 result.put("latestVersionName", versionName != null ? versionName : "");
                 result.put("notes", notes != null ? notes : "");
                 result.put("apkUrl", apkUrl);
+                result.put("selfUpdate", true);
                 resolve(call, result);
             } catch (Exception e) {
                 reject(call, e.getMessage());
@@ -89,6 +104,10 @@ public class AppUpdaterPlugin extends Plugin {
 
     @PluginMethod
     public void downloadAndInstall(PluginCall call) {
+        if (!BuildConfig.SELF_UPDATE) {
+            call.reject("Les mises a jour passent par le Play Store");
+            return;
+        }
         String apkUrl = call.getString("apkUrl");
         if (apkUrl == null || apkUrl.isEmpty()) {
             call.reject("apkUrl required");

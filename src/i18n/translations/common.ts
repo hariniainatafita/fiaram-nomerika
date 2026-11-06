@@ -234,6 +234,11 @@ export const common: TranslationDictionary = {
     fr: 'Installez l’application sur votre téléphone pour ne plus consommer de données.',
     en: 'Install the app on your phone to stop consuming mobile data.'
   },
+  'update.playStoreManaged': {
+    mg: 'Ny fanavaozana dia atao avy amin’ny Google Play.',
+    fr: 'Les mises à jour sont gérées par le Google Play Store.',
+    en: 'Updates are handled by the Google Play Store.'
+  },
   'update.webHint': {
     mg: 'Ampidino ny APK ary apetraho amin’ny findaina Android.',
     fr: 'Téléchargez le fichier APK puis installez-le sur votre téléphone Android.',

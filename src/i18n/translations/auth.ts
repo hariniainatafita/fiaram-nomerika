@@ -41,6 +41,16 @@ export const auth: TranslationDictionary = {
     fr: 'Se connecter au compte',
     en: 'Sign in to account'
   },
+  'auth.loginInProgress': {
+    mg: 'Miditra...',
+    fr: 'Connexion en cours...',
+    en: 'Signing in...'
+  },
+  'auth.loginTechnicalError': {
+    mg: "Tsy afaka niditra: nisy olana ara-teknika. Andramo indray na ampiasao ny 'Hadino ny tenimiafina'.",
+    fr: "Connexion impossible : erreur technique. Réessayez ou utilisez « Mot de passe oublié ».",
+    en: 'Sign-in failed: technical error. Try again or use “Forgot password”.'
+  },
   'auth.defaultAdminTitle': {
     mg: 'Kaonty Mpandrindra (Admin voalohany)',
     fr: 'Compte administrateur (Admin par défaut)',

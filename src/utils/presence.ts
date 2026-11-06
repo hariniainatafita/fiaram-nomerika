@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { pushKey } from './supabaseSync';
 import { STORAGE_KEYS } from './storageKeys';
+import { isMessengerBubbleAvailable, isMessengerBubbleEnabled } from './messengerBubble';
 
 export type PresenceMap = Record<string, number>;
 
@@ -86,6 +87,9 @@ export function usePresence(currentUserId?: string): PresenceMap {
     };
 
     const handlePageHide = () => {
+      // The Android bubble service keeps beating even when the WebView is
+      // backgrounded or destroyed, so leaving the page must not log us out.
+      if (isMessengerBubbleAvailable() && isMessengerBubbleEnabled()) return;
       markOffline(currentUserId);
     };
 

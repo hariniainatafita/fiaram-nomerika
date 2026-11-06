@@ -87,18 +87,19 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
 
-      - name: Build release APK
+      - name: Build release APK (GitHub flavor)
         run: |
           cd android
-          bash ./gradlew assembleRelease --no-daemon --stacktrace
+          bash ./gradlew assembleGithubRelease --no-daemon --stacktrace
 
       - name: Verify APK signature
         run: |
+          apk=android/app/build/outputs/apk/github/release/app-github-release.apk
           apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n1)
-          signature=$("$apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | grep -m1 'SHA-256')
+          signature=$("$apksigner" verify --print-certs "$apk" | grep -m1 'SHA-256')
           echo "::notice::APK signing certificate ${signature}"
 
       - uses: actions/upload-artifact@v4
         with:
           name: fiaram-nomerika-release-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: android/app/build/outputs/apk/github/release/app-github-release.apk

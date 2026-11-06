@@ -53,8 +53,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Mise a jour de l'application depuis un APK telecharge -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- QR scanner (html5qrcode getUserMedia) inside the web view -->
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Appels vocaux WebRTC (microphone dans la web view) -->

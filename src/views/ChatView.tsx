@@ -54,6 +54,7 @@ interface ChatViewProps {
   onRefreshMessages: () => void;
   onRefreshGroupes: () => void;
   openPeerId?: string;
+  openGroupId?: string;
   focusKey?: number;
   listKey?: number;
   onConversationChange?: (open: boolean) => void;
@@ -70,6 +71,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onRefreshMessages,
   onRefreshGroupes,
   openPeerId,
+  openGroupId,
   focusKey,
   listKey,
   onConversationChange,
@@ -157,7 +159,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
       userName: `${currentUser.prenom} ${currentUser.nom}`.trim(),
       photoUrl: currentUser.photo_url,
       supabaseUrl,
-      supabaseAnonKey
+      supabaseAnonKey,
+      role: currentUser.role,
+      groupeId: currentUser.groupe_id
     };
     try {
       const result = await MessengerBubble.startBubble(session);
@@ -356,6 +360,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // Sans cible (clic sur l'icône « messages »), on revient à la liste des
   // discussions : on n'atterrit plus dans la conversation d'un utilisateur.
   useEffect(() => {
+    if (openGroupId) {
+      setActiveChannelType('group');
+      setActiveChannelId(openGroupId);
+      setIsMobileConversation(true);
+      return;
+    }
     if (!openPeerId) {
       setIsMobileConversation(false);
       return;
@@ -363,7 +373,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setActiveChannelType('direct');
     setActiveChannelId(openPeerId);
     setIsMobileConversation(true);
-  }, [openPeerId, focusKey, listKey]);
+  }, [openPeerId, openGroupId, focusKey, listKey]);
 
   // Per-conversation unread helpers
   const unreadDirectCount = (peerId: string): number =>

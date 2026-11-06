@@ -35,7 +35,7 @@ import {
 import { deletedIdsFor, markDeleted } from './tombstones';
 import { getReactionType } from './reactions';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { createPasswordHash, verifyPassword } from '../utils/crypto';
+import { createPasswordHash, needsPasswordHashUpgrade, verifyPassword, PasswordCheckTimeoutError } from '../utils/crypto';
 
 const DEFAULT_RESSOURCE_CATEGORIES: CategorieChanson[] = [
   { id: 'cat_doc', nom: 'Documents' },
@@ -559,37 +559,55 @@ export const StorageService = {
     // the network (this is what made the login screen feel slow before).
     const hashes = getPasswordHashes();
     let user: Membre | undefined;
+    let passwordCheckBlocked = false;
 
     for (const candidate of matches) {
-      if (await verifyPassword(password, hashes[candidate.id])) {
-        user = candidate;
-        // Upgrade old SHA-256 hashes to the synced PBKDF2 format.
-        if (!hashes[candidate.id].startsWith('pbkdf2$')) {
-          hashes[candidate.id] = await createPasswordHash(password);
-          setPasswordHashes(hashes);
+      try {
+        if (await verifyPassword(password, hashes[candidate.id])) {
+          user = candidate;
+          break;
         }
-        break;
+      } catch (err) {
+        if (err instanceof PasswordCheckTimeoutError) passwordCheckBlocked = true;
       }
+    }
+
+    if (user && needsPasswordHashUpgrade(hashes[user.id])) {
+      const userId = user.id;
+      void createPasswordHash(password)
+        .then((hash) => {
+          const latest = getPasswordHashes();
+          if (latest[userId] !== hashes[userId]) return;
+          latest[userId] = hash;
+          setPasswordHashes(latest);
+        })
+        .catch(() => { /* existing hash still works for this sign-in */ });
     }
 
     // 2) Legacy accounts: the password may still live in the raw stored array
     // from before hashing. Accept it once, then persist the hash.
     const raw = getStoredItem<Array<Membre & { password?: string }>>(STORAGE_KEYS.MEMBRES, []);
-    if (!user) {
+    if (!user && !passwordCheckBlocked) {
       const legacy = matches.find((m) => {
         const stored = raw.find((row) => row.id === m.id);
         return Boolean(stored && stored.password && stored.password === password);
       });
       if (legacy) {
-        hashes[legacy.id] = await createPasswordHash(password);
-        setPasswordHashes(hashes);
         user = legacy;
+        const legacyId = legacy.id;
+        void createPasswordHash(password)
+          .then((hash) => {
+            const latest = getPasswordHashes();
+            latest[legacyId] = hash;
+            setPasswordHashes(latest);
+          })
+          .catch(() => { /* the session is already open */ });
       }
     }
 
     // 3) Supabase Auth only as a fallback, with a timeout so a slow connection
     // can never block the login screen.
-    if (!user && isSupabaseConfigured && supabase) {
+    if (!user && !passwordCheckBlocked && isSupabaseConfigured && supabase) {
       const email = matches.find((m) => m.email && m.email.includes('@'))?.email;
       if (email) {
         try {
@@ -600,9 +618,14 @@ export const StorageService = {
           if (result && !result.error && result.data?.user) {
             user = matches.find((m) => m.email.toLowerCase() === email.toLowerCase()) || matches[0];
             if (user) {
-              const latest = getPasswordHashes();
-              latest[user.id] = await createPasswordHash(password);
-              setPasswordHashes(latest);
+              const userId = user.id;
+              void createPasswordHash(password)
+                .then((hash) => {
+                  const latest = getPasswordHashes();
+                  latest[userId] = hash;
+                  setPasswordHashes(latest);
+                })
+                .catch(() => { /* the session is already open */ });
             }
           }
         } catch {
@@ -612,6 +635,12 @@ export const StorageService = {
     }
 
     if (!user) {
+      if (passwordCheckBlocked) {
+        return {
+          success: false,
+          message: "La vérification du mot de passe est bloquée sur ce téléphone. Utilisez « Mot de passe oublié » pour définir un nouveau mot de passe, ou connectez-vous une fois sur le site web."
+        };
+      }
       const noPasswordAtAll = matches.every((m) => {
         if (hashes[m.id]) return false;
         const stored = raw.find((row) => row.id === m.id);

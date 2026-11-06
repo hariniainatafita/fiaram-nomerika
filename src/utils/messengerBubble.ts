@@ -13,6 +13,8 @@ export interface BubbleSessionOptions {
   photoUrl?: string;
   supabaseUrl: string;
   supabaseAnonKey: string;
+  role?: string;
+  groupeId?: string;
 }
 
 export interface BubbleMessageOptions {
@@ -25,6 +27,11 @@ export interface BubbleMessageOptions {
   photoUrl?: string;
 }
 
+export interface PendingChat {
+  type?: 'direct' | 'group';
+  id?: string;
+}
+
 export interface MessengerBubblePlugin {
   getBubblePermissions(): Promise<BubblePermissions>;
   requestOverlayPermission(): Promise<{ requested: boolean; granted: boolean }>;
@@ -33,6 +40,8 @@ export interface MessengerBubblePlugin {
   stopBubble(): Promise<void>;
   showMessage(options: BubbleMessageOptions): Promise<void>;
   clearMessages(): Promise<void>;
+  consumePendingChat(): Promise<PendingChat>;
+  refreshBubble(): Promise<void>;
   registerPushToken(options: BubbleSessionOptions): Promise<{ registered: boolean }>;
 }
 

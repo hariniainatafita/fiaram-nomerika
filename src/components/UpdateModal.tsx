@@ -5,6 +5,7 @@ import {
   AppUpdater,
   AppUpdateManifest,
   fetchAppUpdateManifest,
+  getAppUpdateManifestUrl,
   getCurrentAppVersion,
   isAppUpdaterAvailable,
   resolveApkUrl
@@ -52,6 +53,10 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
   const [webBundles, setWebBundles] = useState<{ current: string | null; next: string | null } | null>(null);
   const [diag, setDiag] = useState<DiagResult | null>(null);
   const [diagRunning, setDiagRunning] = useState(false);
+  // Play Store builds do not allow in-app APK installation, so the plugin
+  // reports "no update" even when the public manifest is newer.
+  const [selfUpdateAvailable, setSelfUpdateAvailable] = useState(true);
+  const [selfUpdateSupported, setSelfUpdateSupported] = useState(true);
   const checkingRef = useRef(false);
 
   const check = useCallback(async () => {
@@ -64,6 +69,20 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
         fetchAppUpdateManifest(),
         getCurrentAppVersion()
       ]);
+      setSelfUpdateSupported(current.selfUpdate !== false);
+      if (isAppUpdaterAvailable()) {
+        try {
+          const info = await AppUpdater.checkForUpdate({
+            updateUrl: getAppUpdateManifestUrl()
+          });
+          setSelfUpdateAvailable(Boolean(info.available));
+          if (typeof info.selfUpdate === 'boolean') {
+            setSelfUpdateSupported(info.selfUpdate);
+          }
+        } catch {
+          setSelfUpdateAvailable(false);
+        }
+      }
       setManifest(latest);
       setCurrentVersionCode(current.versionCode);
       setCurrentVersion(
@@ -92,10 +111,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
   const isNative = isAppUpdaterAvailable();
   // Sur Android on ne propose l'installation que si le manifeste est plus
   // recent que l'APK installe. Sur le web, le bouton telecharge l'APK.
+  const storeManaged = isNative && !selfUpdateSupported;
   const hasUpdate = Boolean(manifest) && (
-    isNative ? manifest!.versionCode > currentVersionCode : true
+    isNative ? !storeManaged && selfUpdateAvailable && manifest!.versionCode > currentVersionCode : true
   );
-  const upToDate = Boolean(manifest) && isNative && !hasUpdate && status === 'idle';
+  const upToDate = Boolean(manifest) && isNative && !storeManaged && !hasUpdate && status === 'idle';
 
   const install = async () => {
     if (!manifest) return;
@@ -345,6 +365,12 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
         {upToDate && (
           <div style={{ marginTop: '10px', fontSize: '0.78rem', color: '#34d399', lineHeight: 1.45 }}>
             {t('update.upToDate')}
+          </div>
+        )}
+
+        {storeManaged && (
+          <div style={{ marginTop: '10px', fontSize: '0.78rem', color: '#60a5fa', lineHeight: 1.45 }}>
+            {t('update.playStoreManaged')}
           </div>
         )}
 

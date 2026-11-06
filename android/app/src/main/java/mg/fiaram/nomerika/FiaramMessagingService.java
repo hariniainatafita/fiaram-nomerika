@@ -1,17 +1,5 @@
 package mg.fiaram.nomerika;
 
-import android.Manifest;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.os.Build;
-import android.provider.Settings;
-
-import androidx.core.app.NotificationCompat;
-import androidx.core.content.ContextCompat;
-
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
@@ -20,10 +8,10 @@ import java.util.Map;
 /**
  * Recoit les notifications push quand l'application est fermee ou en
  * arriere-plan, met a jour la bulle et affiche une notification systeme.
+ * Le service de veille (BubbleService) reste la source principale quand
+ * Firebase n'est pas configure.
  */
 public class FiaramMessagingService extends FirebaseMessagingService {
-    private static final String CHANNEL_ID = "fiaram_messages";
-    private static final int NOTIFICATION_ID = 7302;
 
     @Override
     public void onNewToken(String token) {
@@ -47,7 +35,7 @@ public class FiaramMessagingService extends FirebaseMessagingService {
         String messageId = value(data, "messageId");
         if (text.isEmpty() && senderName.isEmpty()) return;
 
-        if (Settings.canDrawOverlays(this)) {
+        if (BubbleSession.isBubbleEnabled(this)) {
             BubbleService.showMessage(
                     this,
                     messageId,
@@ -58,52 +46,11 @@ public class FiaramMessagingService extends FirebaseMessagingService {
                     text
             );
         }
-        showNotification(senderName, text);
-    }
 
-    private void showNotification(String senderName, String text) {
-        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        if (manager == null) return;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-        createChannel(manager);
-
-        Intent openIntent = new Intent(this, MainActivity.class);
-        openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent pendingIntent = PendingIntent.getActivity(
-                this,
-                0,
-                openIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT
-                        | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
-        );
-
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_stat_fiaram)
-                .setContentTitle(senderName.isEmpty() ? "Nouveau message" : senderName)
-                .setContentText(text)
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
-                .setContentIntent(pendingIntent)
-                .setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-                .setDefaults(NotificationCompat.DEFAULT_ALL);
-
-        manager.notify(NOTIFICATION_ID, builder.build());
-    }
-
-    private void createChannel(NotificationManager manager) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
-        NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID,
-                "Messages FIARAM",
-                NotificationManager.IMPORTANCE_HIGH
-        );
-        channel.setDescription("Notifications des nouveaux messages");
-        manager.createNotificationChannel(channel);
+        if (BubbleSession.isAppForeground(this)) return;
+        String chatType = groupId.isEmpty() ? "direct" : "group";
+        String chatId = groupId.isEmpty() ? peerId : groupId;
+        MessageNotifier.showMessage(this, chatType, chatId, senderName, "", text, messageId);
     }
 
     private static String value(Map<String, String> data, String key) {

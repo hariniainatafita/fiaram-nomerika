@@ -13,6 +13,13 @@ export interface AppUpdateInfo {
   latestVersionName: string;
   notes: string;
   apkUrl: string;
+  selfUpdate?: boolean;
+}
+
+export interface AppVersionInfo {
+  versionCode: number;
+  versionName: string;
+  selfUpdate?: boolean;
 }
 
 export interface AppUpdateManifest {
@@ -28,7 +35,7 @@ export interface AppUpdaterPlugin {
     started: boolean;
     needsPermission?: boolean;
   }>;
-  getVersion(): Promise<{ versionCode: number; versionName: string }>;
+  getVersion(): Promise<AppVersionInfo>;
 }
 
 export const AppUpdater = registerPlugin<AppUpdaterPlugin>('AppUpdater');
@@ -63,7 +70,7 @@ export async function fetchAppUpdateManifest(): Promise<AppUpdateManifest> {
   };
 }
 
-export async function getCurrentAppVersion(): Promise<{ versionCode: number; versionName: string }> {
+export async function getCurrentAppVersion(): Promise<AppVersionInfo> {
   if (isAppUpdaterAvailable()) {
     try {
       return await AppUpdater.getVersion();
@@ -71,7 +78,7 @@ export async function getCurrentAppVersion(): Promise<{ versionCode: number; ver
       /* plugin indisponible : on retombe sur le web */
     }
   }
-  return { versionCode: 0, versionName: 'web' };
+  return { versionCode: 0, versionName: 'web', selfUpdate: false };
 }
 
 export function requestAppUpdateCheck(): void {

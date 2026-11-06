@@ -106,8 +106,12 @@ export function App() {
   // Mobile sidebar state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
-  // Deep link into a direct chat conversation (from the members directory)
-  const [chatFocus, setChatFocus] = useState<{ peerId: string; nonce: number } | null>(null);
+  // Deep link into a direct or group chat conversation.
+  const [chatFocus, setChatFocus] = useState<{
+    peerId?: string;
+    groupId?: string;
+    nonce: number;
+  } | null>(null);
   // Incrémenté à chaque clic sur l'icône Messages pour forcer la liste des
   // discussions, même si l'utilisateur était déjà dans la vue chat.
   const [chatListNonce, setChatListNonce] = useState(0);
@@ -172,10 +176,50 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
       userName: `${currentUser.prenom} ${currentUser.nom}`.trim(),
       photoUrl: currentUser.photo_url,
       supabaseUrl,
-      supabaseAnonKey
+      supabaseAnonKey,
+      role: currentUser.role,
+      groupeId: currentUser.groupe_id
     };
     void MessengerBubble.startBubble(session).catch(() => { /* permission refusée */ });
     void MessengerBubble.registerPushToken(session).catch(() => { /* Firebase non configuré */ });
+  }, [currentUser]);
+
+  // Chat ouvert depuis une bulle ou une notification Android : le service
+  // natif depose la cible dans les preferences, le pont web la consomme.
+  useEffect(() => {
+    if (!isMessengerBubbleAvailable()) return;
+    let cancelled = false;
+    const consume = async () => {
+      try {
+        const pending = await MessengerBubble.consumePendingChat();
+        if (cancelled || !pending?.id) return;
+        setChatFocus({
+          peerId: pending.type === 'group' ? undefined : pending.id,
+          groupId: pending.type === 'group' ? pending.id : undefined,
+          nonce: Date.now()
+        });
+        setActiveView('chat');
+      } catch {
+        /* service absent */
+      }
+    };
+    void consume();
+    const handleVisible = () => {
+      if (document.visibilityState === 'visible') void consume();
+    };
+    // A notification tapped while the app is already visible does not always
+    // fire visibilitychange/focus, so poll the pending target while shown.
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void consume();
+    }, 4000);
+    document.addEventListener('visibilitychange', handleVisible);
+    window.addEventListener('focus', handleVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVisible);
+      window.removeEventListener('focus', handleVisible);
+    };
   }, [currentUser]);
 
   // Téléchargement silencieux des médias déjà partagés (une fois par jour) :
@@ -1069,6 +1113,7 @@ const refreshStories = () => {
                 refreshMembres();
               }}
               openPeerId={chatFocus?.peerId}
+              openGroupId={chatFocus?.groupId}
               focusKey={chatFocus?.nonce}
               listKey={chatListNonce}
               onConversationChange={setChatFocusMode}

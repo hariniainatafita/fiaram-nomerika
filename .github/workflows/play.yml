@@ -1,0 +1,85 @@
+name: Build Play Store AAB
+
+on:
+  workflow_dispatch:
+
+# Produit un App Bundle signe pour Google Play. La variante "play" n'inclut
+# pas REQUEST_INSTALL_PACKAGES et desactive la mise a jour APK interne.
+# Secrets requis :
+#   ANDROID_KEYSTORE_BASE64   (fichier .jks encode en base64)
+#   ANDROID_KEYSTORE_PASSWORD
+#   ANDROID_KEY_ALIAS
+#   ANDROID_KEY_PASSWORD
+concurrency:
+  group: fiaram-play-aab
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    env:
+      VITE_APP_BUILD_ID: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check app version consistency
+        run: node scripts/check-version.mjs
+
+      - name: Build web assets
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Copy web assets into the Android project
+        run: npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+
+      - name: Restore Play signing key
+        run: |
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 is not set in the repository secrets."
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/play-keystore.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/play-keystore.jks" >> "$GITHUB_ENV"
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+
+      - name: Build Play Store AAB
+        run: |
+          cd android
+          bash ./gradlew bundlePlayRelease --no-daemon --stacktrace
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Verify AAB
+        run: |
+          aab=android/app/build/outputs/bundle/playRelease/app-play-release.aab
+          test -f "$aab" || (echo "::error::AAB introuvable" && exit 1)
+          ls -lh "$aab"
+          jarsigner -verify "$aab"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fiaram-nomerika-play-aab
+          path: android/app/build/outputs/bundle/playRelease/app-play-release.aab

@@ -24,6 +24,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [loginSubmitting, setLoginSubmitting] = useState(false);
 
   // First sign-in / forgotten password (phone + member code)
   const [recoveryOpen, setRecoveryOpen] = useState(false);
@@ -57,13 +58,22 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loginSubmitting) return;
     setErrorMsg(null);
+    setLoginSubmitting(true);
 
-    const res = await StorageService.login(loginIdentifier, loginPassword);
-    if (!res.success) {
-      setErrorMsg(res.message);
-    } else if (res.user) {
-      onLoginSuccess(res.user);
+    try {
+      const res = await StorageService.login(loginIdentifier, loginPassword);
+      if (!res.success) {
+        setErrorMsg(res.message);
+      } else if (res.user) {
+        onLoginSuccess(res.user);
+      }
+    } catch (err) {
+      console.error('Login failed:', err);
+      setErrorMsg(t('auth.loginTechnicalError'));
+    } finally {
+      setLoginSubmitting(false);
     }
   };
 
@@ -438,9 +448,10 @@ export const LoginView: React.FC<LoginViewProps> = ({
             <button
               type="submit"
               className="btn btn-primary"
-              style={{ width: '100%', padding: '12px', marginTop: '6px', fontSize: '0.95rem' }}
+              disabled={loginSubmitting}
+              style={{ width: '100%', padding: '12px', marginTop: '6px', fontSize: '0.95rem', opacity: loginSubmitting ? 0.7 : 1 }}
             >
-              <span>{t('auth.loginButton')}</span>
+              <span>{loginSubmitting ? t('auth.loginInProgress') : t('auth.loginButton')}</span>
               <ArrowRight size={16} />
             </button>
 
