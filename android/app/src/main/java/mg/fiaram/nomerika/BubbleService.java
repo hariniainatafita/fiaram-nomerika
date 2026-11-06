@@ -1085,15 +1085,10 @@ public class BubbleService extends Service {
 
     private void persistPosition() {
         if (windowParams == null) return;
-        if (isFinishingOrDestroyed()) return;
         getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                 .putInt("x", windowParams.x)
                 .putInt("y", windowParams.y)
                 .apply();
-    }
-
-    private boolean isFinishingOrDestroyed() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && isDestroyed();
     }
 
     private SharedPosition loadPosition() {
