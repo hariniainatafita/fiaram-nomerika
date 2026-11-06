@@ -177,6 +177,11 @@ export const chat: TranslationDictionary = {
     fr: 'En ligne maintenant ({count})',
     en: 'Online now ({count})'
   },
+  'chat.noOneOnline': {
+    mg: 'Tsy misy mpikambana hafa ao amin’ny aterineto izao.',
+    fr: 'Aucun autre membre en ligne pour le moment.',
+    en: 'No other member is online right now.'
+  },
   'chat.quickLike': {
     mg: 'J’aime haingana',
     fr: "J'aime (envoi rapide)",

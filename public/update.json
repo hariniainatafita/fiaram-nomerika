@@ -1,6 +1,6 @@
 {
-  "versionCode": 9,
-  "versionName": "1.8",
+  "versionCode": 10,
+  "versionName": "1.9",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Nouvelle messagerie : membres en ligne en haut de la liste, conversation plein écran, bouton J'aime rapide, indicateur de saisie, photo et administrateurs des groupes Messenger. La section d'introduction des publications a été retirée."
+  "notes": "Messagerie : membres en ligne en haut de la liste, conversation plein écran aussi sur ordinateur, bouton J'aime rapide, indicateur de saisie, photo et administrateurs des groupes Messenger. L'introduction des publications a ete retiree."
 }

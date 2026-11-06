@@ -106,6 +106,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   // On phones, show either the contact list or the active conversation
   const [isMobileConversation, setIsMobileConversation] = useState(false);
+  // Sur ordinateur, la conversation est toujours visible à côté de la liste :
+  // on masque aussi la navbar et le footer pour un vrai plein écran.
+  const [isWideViewport, setIsWideViewport] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 901px)').matches
+  );
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 901px)');
+    const handleChange = (event: MediaQueryListEvent) => setIsWideViewport(event.matches);
+    media.addEventListener('change', handleChange);
+    return () => media.removeEventListener('change', handleChange);
+  }, []);
 
   // Bulle Messenger Android (au-dessus des autres applications)
   const [bubbleEnabled, setBubbleEnabled] = useState<boolean>(() => isMessengerBubbleEnabled());
@@ -191,9 +202,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
   );
 
   // Mode « conversation » : l'application masque sa navbar et son footer.
+  // Sur mobile uniquement quand une conversation est ouverte ; sur ordinateur
+  // dès que la vue Messages est affichée (la liste reste dans la sidebar).
   useEffect(() => {
-    onConversationChange?.(isMobileConversation);
-  }, [isMobileConversation, onConversationChange]);
+    onConversationChange?.(isMobileConversation || isWideViewport);
+  }, [isMobileConversation, isWideViewport, onConversationChange]);
 
   // Le champ de saisie grandit avec le texte (retours à la ligne autorisés).
   useEffect(() => {
@@ -830,6 +843,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {onlineMembers.length === 0 && allMembres.length > 1 && (
+              <div style={{
+                padding: '2px 8px 10px',
+                fontSize: '0.72rem',
+                color: 'var(--text-muted)',
+                borderBottom: '1px solid var(--border-color)',
+                marginBottom: '4px'
+              }}>
+                {t('chat.noOneOnline')}
               </div>
             )}
 
