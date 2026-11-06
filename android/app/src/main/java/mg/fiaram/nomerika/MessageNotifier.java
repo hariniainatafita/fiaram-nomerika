@@ -27,6 +27,7 @@ final class MessageNotifier {
     static final String EXTRA_MESSAGE_ID = "message_id";
 
     private static final int SERVICE_NOTIFICATION_ID = 7301;
+    private static final int INCOMING_CALL_NOTIFICATION_ID = 8200;
     private static final int MESSAGE_BASE_ID = 8100;
     private static final String GROUP_KEY = "fiaram_messages_group";
 
@@ -127,6 +128,50 @@ final class MessageNotifier {
                 .setDefaults(NotificationCompat.DEFAULT_ALL);
 
         manager.notify(id, builder.build());
+    }
+
+    static void showIncomingCall(Context context, String peerId, String peerName, String callType) {
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        ensureChannels(context);
+        Intent openIntent = new Intent(context, MainActivity.class);
+        openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        if (peerId != null && !peerId.isEmpty()) {
+            openIntent.putExtra(EXTRA_CHAT_TYPE, "direct");
+            openIntent.putExtra(EXTRA_CHAT_ID, peerId);
+        }
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                context,
+                INCOMING_CALL_NOTIFICATION_ID,
+                openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+                        | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
+        );
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_MESSAGES)
+                .setSmallIcon(R.drawable.ic_stat_fiaram)
+                .setContentTitle(peerName == null || peerName.isEmpty() ? "Appel entrant" : peerName)
+                .setContentText("video".equals(callType) ? "Appel vidéo entrant…" : "Appel entrant…")
+                .setContentIntent(pendingIntent)
+                .setFullScreenIntent(pendingIntent, true)
+                .setOngoing(true)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setDefaults(NotificationCompat.DEFAULT_ALL);
+        manager.notify(INCOMING_CALL_NOTIFICATION_ID, builder.build());
+    }
+
+    static void cancelIncomingCall(Context context) {
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+        manager.cancel(INCOMING_CALL_NOTIFICATION_ID);
     }
 
     static void cancelChat(Context context, String chatType, String chatId) {

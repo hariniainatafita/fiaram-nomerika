@@ -121,6 +121,29 @@ public class MessengerBubblePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void showIncomingCall(PluginCall call) {
+        if (!BubbleSession.isBubbleEnabled(getContext())) {
+            call.resolve();
+            return;
+        }
+        BubbleService.showIncomingCall(
+                getContext(),
+                call.getString("peerId", ""),
+                call.getString("peerName", ""),
+                call.getString("peerPhoto", ""),
+                call.getString("callType", "voice")
+        );
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void hideIncomingCall(PluginCall call) {
+        BubbleService.hideIncomingCall(getContext());
+        MessageNotifier.cancelIncomingCall(getContext());
+        call.resolve();
+    }
+
+    @PluginMethod
     public void clearMessages(PluginCall call) {
         BubbleService.clearUnread(getContext());
         call.resolve();

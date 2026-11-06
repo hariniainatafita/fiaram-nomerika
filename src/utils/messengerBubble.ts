@@ -32,6 +32,13 @@ export interface PendingChat {
   id?: string;
 }
 
+export interface IncomingCallOptions {
+  peerId: string;
+  peerName?: string;
+  peerPhoto?: string;
+  callType?: 'voice' | 'video';
+}
+
 export interface MessengerBubblePlugin {
   getBubblePermissions(): Promise<BubblePermissions>;
   requestOverlayPermission(): Promise<{ requested: boolean; granted: boolean }>;
@@ -39,6 +46,8 @@ export interface MessengerBubblePlugin {
   startBubble(options: BubbleSessionOptions): Promise<{ started: boolean; needsOverlayPermission?: boolean }>;
   stopBubble(): Promise<void>;
   showMessage(options: BubbleMessageOptions): Promise<void>;
+  showIncomingCall(options: IncomingCallOptions): Promise<void>;
+  hideIncomingCall(): Promise<void>;
   clearMessages(): Promise<void>;
   consumePendingChat(): Promise<PendingChat>;
   refreshBubble(): Promise<void>;

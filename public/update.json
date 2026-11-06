@@ -1,6 +1,6 @@
 {
-  "versionCode": 18,
-  "versionName": "1.17",
+  "versionCode": 19,
+  "versionName": "1.18",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Appel vidéo : agrandir/réduire la vidéo distante, aperçu local plus grand en mode agrandi, bascule caméra avant/arrière. Appel vocal et bulles inchangés."
+  "notes": "Appel vidéo plein écran, appel entrant visible hors de l'application comme une bulle/notification, et signal de fin d'appel ou d'appel manqué dans la discussion."
 }

@@ -53,6 +53,8 @@ public class BubbleService extends Service {
     static final String ACTION_REFRESH = "mg.fiaram.nomerika.BUBBLE_REFRESH";
     static final String ACTION_PICK_BUBBLE_PHOTO = "mg.fiaram.nomerika.PICK_BUBBLE_PHOTO";
     static final String ACTION_SEND_BUBBLE_PHOTO = "mg.fiaram.nomerika.SEND_BUBBLE_PHOTO";
+    static final String ACTION_SHOW_CALL = "mg.fiaram.nomerika.BUBBLE_SHOW_CALL";
+    static final String ACTION_HIDE_CALL = "mg.fiaram.nomerika.BUBBLE_HIDE_CALL";
 
     private static final String EXTRA_MESSAGE_ID = "message_id";
     private static final String EXTRA_PEER_ID = "peer_id";
@@ -61,6 +63,8 @@ public class BubbleService extends Service {
     private static final String EXTRA_SENDER_NAME = "sender_name";
     private static final String EXTRA_TEXT = "text";
     private static final String EXTRA_DATA_URL = "data_url";
+    private static final String EXTRA_PEER_PHOTO = "peer_photo";
+    private static final String EXTRA_CALL_TYPE = "call_type";
 
     private static final long POLL_INTERVAL_MS = 30_000L;
     private static final int MAX_HEADS = 5;
@@ -93,6 +97,7 @@ public class BubbleService extends Service {
     private boolean headsOpen;
     private View headsBackdrop;
     private WindowManager.LayoutParams headsBackdropParams;
+    private IncomingCallState incomingCall;
     private boolean dragging;
     private boolean pollInFlight;
     private volatile boolean firstPollDone;
@@ -147,6 +152,23 @@ public class BubbleService extends Service {
         startSafely(context, intent);
     }
 
+    static void showIncomingCall(Context context, String peerId, String peerName, String peerPhoto, String callType) {
+        if (peerId == null || peerId.isEmpty()) return;
+        Intent intent = new Intent(context, BubbleService.class);
+        intent.setAction(ACTION_SHOW_CALL);
+        intent.putExtra(EXTRA_PEER_ID, peerId);
+        intent.putExtra(EXTRA_SENDER_NAME, peerName == null ? "" : peerName);
+        intent.putExtra(EXTRA_PEER_PHOTO, peerPhoto == null ? "" : peerPhoto);
+        intent.putExtra(EXTRA_CALL_TYPE, callType == null ? "voice" : callType);
+        startSafely(context, intent);
+    }
+
+    static void hideIncomingCall(Context context) {
+        Intent intent = new Intent(context, BubbleService.class);
+        intent.setAction(ACTION_HIDE_CALL);
+        startSafely(context, intent);
+    }
+
     private static void startSafely(Context context, Intent intent) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -190,6 +212,28 @@ public class BubbleService extends Service {
             }
             String dataUrl = safe(intent.getStringExtra(EXTRA_DATA_URL));
             if (!dataUrl.isEmpty()) sendPhotoFromBubble(dataUrl);
+        } else if (ACTION_SHOW_CALL.equals(action) && intent != null) {
+            if (!BubbleSession.isBubbleEnabled(this)) {
+                stopSelf(startId);
+                return START_NOT_STICKY;
+            }
+            String peerId = safe(intent.getStringExtra(EXTRA_PEER_ID));
+            if (!peerId.isEmpty()) {
+                incomingCall = new IncomingCallState(
+                        peerId,
+                        safe(intent.getStringExtra(EXTRA_SENDER_NAME)),
+                        safe(intent.getStringExtra(EXTRA_PEER_PHOTO)),
+                        safe(intent.getStringExtra(EXTRA_CALL_TYPE))
+                );
+                if (root == null && Settings.canDrawOverlays(this)) showOverlay();
+                MessageNotifier.showIncomingCall(this, peerId, incomingCall.peerName, incomingCall.callType);
+                renderStack();
+            }
+        } else if (ACTION_HIDE_CALL.equals(action)) {
+            incomingCall = null;
+            MessageNotifier.cancelIncomingCall(this);
+            renderStack();
+            if (!BubbleSession.isBubbleEnabled(this)) stopSelf(startId);
         } else if (ACTION_CLEAR.equals(action)) {
             cancelAllChatNotifications();
             if (!BubbleSession.isBubbleEnabled(this)) stopSelf(startId);
@@ -480,8 +524,15 @@ public class BubbleService extends Service {
         if (stackView == null) return;
         stackView.removeAllViews();
         updateHeadsBackdrop();
+        if (incomingCall != null && !headsOpen) {
+            stackView.addView(buildIncomingCallHead());
+            return;
+        }
+        if (incomingCall != null) {
+            stackView.addView(buildIncomingCallHead());
+        }
         if (chats.isEmpty()) {
-            stackView.addView(buildEmptyBubble());
+            if (incomingCall == null) stackView.addView(buildEmptyBubble());
             return;
         }
         if (!headsOpen) {
@@ -535,6 +586,74 @@ public class BubbleService extends Service {
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         holder.setOnTouchListener((view, event) -> onHeadTouch(null, event));
         return holder;
+    }
+
+    private View buildIncomingCallHead() {
+        FrameLayout holder = new FrameLayout(this);
+        holder.setLayoutParams(headParams(dp(6)));
+        View circle = buildCircle(
+                incomingCall.peerPhoto,
+                incomingCall.peerId,
+                initial(incomingCall.peerName),
+                "video".equals(incomingCall.callType) ? "#0ea5e9" : "#ef4444"
+        );
+        holder.addView(circle, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        TextView badge = new TextView(this);
+        badge.setText("!");
+        badge.setTextColor(Color.WHITE);
+        badge.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        badge.setTypeface(Typeface.DEFAULT_BOLD);
+        badge.setGravity(Gravity.CENTER);
+        GradientDrawable badgeBackground = new GradientDrawable();
+        badgeBackground.setShape(GradientDrawable.OVAL);
+        badgeBackground.setColor(Color.parseColor("#dc2626"));
+        badge.setBackground(badgeBackground);
+        FrameLayout.LayoutParams badgeParams = new FrameLayout.LayoutParams(dp(20), dp(20));
+        badgeParams.gravity = Gravity.TOP | Gravity.END;
+        holder.addView(badge, badgeParams);
+        holder.setOnTouchListener((view, event) -> onIncomingCallTouch(event));
+        return holder;
+    }
+
+    private boolean onIncomingCallTouch(MotionEvent event) {
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                dragging = false;
+                touchStartX = windowParams != null ? windowParams.x : 0;
+                touchStartY = windowParams != null ? windowParams.y : 0;
+                downRawX = event.getRawX();
+                downRawY = event.getRawY();
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                if (windowParams == null) return true;
+                float deltaX = event.getRawX() - downRawX;
+                float deltaY = event.getRawY() - downRawY;
+                if (Math.abs(deltaX) > dp(5) || Math.abs(deltaY) > dp(5)) dragging = true;
+                if (dragging) {
+                    int screenWidth = getResources().getDisplayMetrics().widthPixels;
+                    int screenHeight = getResources().getDisplayMetrics().heightPixels;
+                    windowParams.x = clamp((int) (touchStartX + deltaX), 0,
+                            Math.max(0, screenWidth - contentWidth()));
+                    windowParams.y = clamp((int) (touchStartY + deltaY), 0,
+                            Math.max(0, screenHeight - contentHeight()));
+                    updateLayout();
+                }
+                return true;
+            case MotionEvent.ACTION_UP:
+                if (!dragging) {
+                    if (incomingCall == null || incomingCall.peerId == null || incomingCall.peerId.isEmpty()) {
+                        openApp("list", "list");
+                    } else {
+                        openApp("direct", incomingCall.peerId);
+                    }
+                } else {
+                    persistPosition();
+                }
+                return true;
+            default:
+                return false;
+        }
     }
 
     private View buildOverflowBubble(int extraCount) {
@@ -1416,6 +1535,20 @@ public class BubbleService extends Service {
         String lastSender = "";
         String lastAt = "";
         int unread;
+    }
+
+    private static final class IncomingCallState {
+        final String peerId;
+        final String peerName;
+        final String peerPhoto;
+        final String callType;
+
+        IncomingCallState(String peerId, String peerName, String peerPhoto, String callType) {
+            this.peerId = peerId == null ? "" : peerId;
+            this.peerName = peerName == null ? "" : peerName;
+            this.peerPhoto = peerPhoto == null ? "" : peerPhoto;
+            this.callType = "video".equals(callType) ? "video" : "voice";
+        }
     }
 
     private static final class SharedPosition {

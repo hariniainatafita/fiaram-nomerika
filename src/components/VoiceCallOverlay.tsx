@@ -36,7 +36,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const [audioBlocked, setAudioBlocked] = useState(false);
-  const [videoLarge, setVideoLarge] = useState(false);
+  const [videoLarge, setVideoLarge] = useState(true);
   const visible = state.status !== 'idle';
 
   useEffect(() => {
@@ -90,6 +90,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
   const isFinished = state.status === 'ended' || state.status === 'error';
   const isError = state.status === 'error';
   const isVideoCall = state.callType === 'video';
+  const isFullscreenVideo = isVideoCall && isActive && videoLarge;
 
   const statusText = isIncoming
     ? t(isVideoCall ? 'calls.incomingVideo' : 'calls.incoming')
@@ -119,11 +120,12 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '24px',
-        background:
-          'radial-gradient(circle at 50% 18%, rgba(16, 185, 129, 0.22), rgba(2, 6, 23, 0.94) 58%)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)'
+        padding: isFullscreenVideo ? '0px' : '24px',
+        background: isFullscreenVideo
+          ? '#000000'
+          : 'radial-gradient(circle at 50% 18%, rgba(16, 185, 129, 0.22), rgba(2, 6, 23, 0.94) 58%)',
+        backdropFilter: isFullscreenVideo ? 'none' : 'blur(10px)',
+        WebkitBackdropFilter: isFullscreenVideo ? 'none' : 'blur(10px)'
       }}
     >
       <style>{`
@@ -150,29 +152,37 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
         className="fiaram-call-card"
         onClick={(event) => event.stopPropagation()}
         style={{
-          width: videoLarge ? 'min(560px, 100%)' : 'min(400px, 100%)',
-          maxHeight: 'calc(100dvh - 32px)',
-          overflowY: 'auto',
+          position: 'relative',
+          width: isFullscreenVideo ? '100vw' : videoLarge ? 'min(560px, 100%)' : 'min(400px, 100%)',
+          height: isFullscreenVideo ? '100dvh' : undefined,
+          maxHeight: isFullscreenVideo ? '100dvh' : 'calc(100dvh - 32px)',
+          overflow: isFullscreenVideo ? 'hidden' : 'auto',
           overflowX: 'hidden',
-          WebkitOverflowScrolling: 'touch',
-          padding: '34px 26px 30px',
-          borderRadius: '28px',
-          background: 'linear-gradient(180deg, rgba(17, 24, 39, 0.97), rgba(2, 6, 23, 0.98))',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 30px 70px rgba(0, 0, 0, 0.55)',
+          WebkitOverflowScrolling: isFullscreenVideo ? 'auto' : 'touch',
+          padding: isFullscreenVideo ? '0px' : '34px 26px 30px',
+          borderRadius: isFullscreenVideo ? '0px' : '28px',
+          background: isFullscreenVideo
+            ? '#000000'
+            : 'linear-gradient(180deg, rgba(17, 24, 39, 0.97), rgba(2, 6, 23, 0.98))',
+          border: isFullscreenVideo ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: isFullscreenVideo ? 'none' : '0 30px 70px rgba(0, 0, 0, 0.55)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
+          justifyContent: isFullscreenVideo ? 'flex-end' : 'flex-start',
           textAlign: 'center',
           color: '#f8fafc'
         }}
       >
         <div style={{
-          position: 'relative',
-          width: videoLarge ? 'min(82vw, 420px)' : '132px',
-          height: videoLarge ? 'min(52vh, 380px)' : '132px',
-          marginBottom: '20px',
-          borderRadius: videoLarge ? '24px' : '50%'
+          position: isFullscreenVideo ? 'absolute' : 'relative',
+          inset: isFullscreenVideo ? '0px' : undefined,
+          width: isFullscreenVideo ? '100%' : videoLarge ? 'min(82vw, 420px)' : '132px',
+          height: isFullscreenVideo ? '100%' : videoLarge ? 'min(52vh, 380px)' : '132px',
+          marginBottom: isFullscreenVideo ? '0px' : '20px',
+          borderRadius: isFullscreenVideo ? '0px' : videoLarge ? '24px' : '50%',
+          overflow: 'hidden',
+          background: isFullscreenVideo ? '#000000' : undefined
         }}>
           {(isIncoming || isRinging) && (
             <span
@@ -191,9 +201,9 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
             style={{
               width: '100%',
               height: '100%',
-              borderRadius: videoLarge ? '24px' : '50%',
+              borderRadius: isFullscreenVideo ? '0px' : videoLarge ? '24px' : '50%',
               objectFit: 'cover',
-              border: '3px solid rgba(16, 185, 129, 0.7)',
+              border: isFullscreenVideo ? 'none' : '3px solid rgba(16, 185, 129, 0.7)',
               position: 'relative',
               background: '#111827'
             }}
@@ -208,7 +218,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
                 inset: 0,
                 width: '100%',
                 height: '100%',
-                borderRadius: videoLarge ? '24px' : '50%',
+                borderRadius: isFullscreenVideo ? '0px' : videoLarge ? '24px' : '50%',
                 objectFit: 'cover',
                 background: '#000000'
               }}
@@ -235,36 +245,56 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
           )}
         </div>
 
-        <div style={{ fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
+        <div style={{
+          fontSize: '1.35rem',
+          fontWeight: 800,
+          letterSpacing: '-0.01em',
+          position: isFullscreenVideo ? 'absolute' : 'static',
+          top: isFullscreenVideo ? '28px' : undefined,
+          left: isFullscreenVideo ? '0px' : undefined,
+          right: isFullscreenVideo ? '0px' : undefined,
+          textAlign: 'center',
+          textShadow: isFullscreenVideo ? '0 2px 14px rgba(0,0,0,0.65)' : undefined,
+          zIndex: 2
+        }}>
           {peerName}
         </div>
 
         <div
           style={{
-            marginTop: '8px',
+            marginTop: isFullscreenVideo ? '0px' : '8px',
+            position: isFullscreenVideo ? 'absolute' : 'static',
+            top: isFullscreenVideo ? '64px' : undefined,
+            left: isFullscreenVideo ? '0px' : undefined,
+            right: isFullscreenVideo ? '0px' : undefined,
+            textAlign: 'center',
             fontSize: isActive ? '1.45rem' : '0.92rem',
             fontWeight: isActive ? 700 : 600,
             color: isError ? '#f87171' : isActive ? '#34d399' : 'rgba(226, 232, 240, 0.86)',
-            fontVariantNumeric: 'tabular-nums'
+            fontVariantNumeric: 'tabular-nums',
+            textShadow: isFullscreenVideo ? '0 2px 14px rgba(0,0,0,0.65)' : undefined,
+            zIndex: 2
           }}
         >
           {statusText}
         </div>
 
-        <div
-          style={{
-            marginTop: '14px',
-            fontSize: '0.72rem',
-            lineHeight: 1.5,
-            color: 'rgba(148, 163, 184, 0.9)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
-        >
-          <span aria-hidden="true">🌐</span>
-          <span>{t('calls.freeNote')}</span>
-        </div>
+        {!isFullscreenVideo && (
+          <div
+            style={{
+              marginTop: '14px',
+              fontSize: '0.72rem',
+              lineHeight: 1.5,
+              color: 'rgba(148, 163, 184, 0.9)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span aria-hidden="true">🌐</span>
+            <span>{t('calls.freeNote')}</span>
+          </div>
+        )}
 
         {isActive && audioBlocked && (
           <button
@@ -292,12 +322,17 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
 
         <div
           style={{
-            marginTop: '30px',
+            marginTop: isFullscreenVideo ? '0px' : '30px',
+            position: isFullscreenVideo ? 'absolute' : 'static',
+            left: isFullscreenVideo ? '0px' : undefined,
+            right: isFullscreenVideo ? '0px' : undefined,
+            bottom: isFullscreenVideo ? '28px' : undefined,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: isIncoming || isActive ? '34px' : '18px',
-            flexWrap: 'wrap'
+            flexWrap: 'wrap',
+            zIndex: 2
           }}
         >
           {isIncoming && (

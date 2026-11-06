@@ -3,7 +3,9 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { Membre } from '../types';
 import { useLanguage } from '../i18n';
+import { StorageService } from './storage';
 import { getCurrentAppVersion, isAppUpdaterAvailable } from './appUpdate';
+import { isMessengerBubbleAvailable, isMessengerBubbleEnabled, MessengerBubble } from './messengerBubble';
 
 // Premiere APK qui declare l'autorisation RECORD_AUDIO. Sur une version
 // anterieure, le bundle web peut s'afficher mais le micro reste refuse par
@@ -137,6 +139,13 @@ function memberToPeer(member: Membre): VoiceCallPeer {
     name: `${member.prenom} ${member.nom}`.trim(),
     photo: member.photo_url
   };
+}
+
+function formatCallDuration(totalSeconds: number): string {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
@@ -290,6 +299,22 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     }
   }
 
+  function showNativeIncomingCall(peer: VoiceCallPeer, callType: CallType): void {
+    if (!isMessengerBubbleAvailable() || !isMessengerBubbleEnabled()) return;
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') return;
+    void MessengerBubble.showIncomingCall({
+      peerId: peer.id,
+      peerName: peer.name,
+      peerPhoto: peer.photo,
+      callType
+    }).catch(() => undefined);
+  }
+
+  function hideNativeIncomingCall(): void {
+    if (!isMessengerBubbleAvailable()) return;
+    void MessengerBubble.hideIncomingCall().catch(() => undefined);
+  }
+
   async function needsNativeUpdate(): Promise<boolean> {
     if (!isAppUpdaterAvailable()) return false;
     try {
@@ -375,6 +400,29 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     setLocalStream(null);
   }
 
+  function logCallEnd(session: CallSession, status: 'ended' | 'error'): void {
+    if (!currentUserId || session.role !== 'caller') return;
+    const duration = session.startedAt
+      ? Math.max(0, Math.floor((Date.now() - session.startedAt) / 1000))
+      : 0;
+    let text: string | null = null;
+    if (session.startedAt !== null && status === 'ended') {
+      text = session.callType === 'video'
+        ? tRef.current('calls.logEndedVideo', { duration: formatCallDuration(duration) })
+        : tRef.current('calls.logEndedVoice', { duration: formatCallDuration(duration) });
+    } else if (status === 'ended') {
+      text = session.callType === 'video'
+        ? tRef.current('calls.logMissedVideo')
+        : tRef.current('calls.logMissedVoice');
+    }
+    if (!text) return;
+    try {
+      StorageService.sendMessage(currentUserId, text, session.peerId);
+    } catch {
+      /* the call log must never break the call */
+    }
+  }
+
   function finish(
     status: 'ended' | 'error',
     message: string | null,
@@ -384,6 +432,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     if (session && notifyPeer) {
       void sendToPeer(session.peerId, 'hangup', { callId: session.callId });
     }
+    if (session) logCallEnd(session, status);
     cleanupSession();
     stopRingtone();
     commit({
@@ -578,6 +627,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     if (pending.timer !== null) window.clearTimeout(pending.timer);
     pendingIncomingRef.current = null;
     stopRingtone();
+    hideNativeIncomingCall();
 
     if (typeof RTCPeerConnection === 'undefined') {
       void sendToPeer(pending.peer.id, 'hangup', { callId: pending.callId });
@@ -648,6 +698,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     if (pending.timer !== null) window.clearTimeout(pending.timer);
     pendingIncomingRef.current = null;
     stopRingtone();
+    hideNativeIncomingCall();
     void sendToPeer(pending.peer.id, 'decline', { callId: pending.callId });
     displayPeerRef.current = null;
     commit(INITIAL_STATE);
@@ -787,6 +838,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
         if (!pending || pending.callId !== callId) return;
         pendingIncomingRef.current = null;
         stopRingtone();
+        hideNativeIncomingCall();
         void sendToPeer(peer.id, 'decline', { callId, reason: 'timeout' });
         displayPeerRef.current = null;
         commit(INITIAL_STATE);
@@ -803,6 +855,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
         error: null
       });
       startRingtone();
+      showNativeIncomingCall(peer, callType);
       return;
     }
 
@@ -826,6 +879,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
         if (pending.timer !== null) window.clearTimeout(pending.timer);
         pendingIncomingRef.current = null;
         stopRingtone();
+        hideNativeIncomingCall();
         displayPeerRef.current = null;
         commit(INITIAL_STATE);
         return;
