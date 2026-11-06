@@ -1,6 +1,6 @@
 {
-  "versionCode": 15,
-  "versionName": "1.14",
+  "versionCode": 16,
+  "versionName": "1.15",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Messenger : bulles flottantes empilees (4 conversations recentes), aperçu et reponse directe, badges non lus persistants, notifications et presence en ligne meme lorsque l'application est en arriere-plan. Correctif de connexion PBKDF2 et distribution Play Store / GitHub separee."
+  "notes": "Bulles Messenger : une seule bulle principale, 5 avatars recents avec badges, bulle +N vers liste complete, repli au clic exterieur, envoi et affichage de photos dans la bulle."
 }
