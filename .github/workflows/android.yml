@@ -12,6 +12,8 @@ concurrency:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    env:
+      VITE_APP_BUILD_ID: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
 

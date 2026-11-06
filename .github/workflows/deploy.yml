@@ -18,6 +18,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      VITE_APP_BUILD_ID: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +41,11 @@ jobs:
 
       - name: Copy web assets into the Android project
         run: npx cap sync android
+
+      # Le zip OTA est généré après la copie dans l'APK : il n'alourdit donc
+      # pas l'application et sert uniquement aux mises à jour web.
+      - name: Build OTA web bundle
+        run: npm run build:bundle
 
       - uses: actions/setup-java@v4
         with:

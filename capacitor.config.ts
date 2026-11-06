@@ -10,6 +10,16 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https'
   },
+  plugins: {
+    LiveUpdate: {
+      // Télécharge uniquement les fichiers web qui ont changé, puis applique
+      // le bundle au prochain démarrage. Rollback automatique si l'app ne
+      // signale pas qu'elle est prête dans les 10 secondes.
+      autoBlockRolledBackBundles: true,
+      autoDeleteBundles: true,
+      readyTimeout: 10000
+    }
+  },
   android: {
     allowMixedContent: false
   }

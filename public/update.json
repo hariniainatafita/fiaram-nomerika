@@ -1,6 +1,6 @@
 {
-  "versionCode": 10,
-  "versionName": "1.9",
+  "versionCode": 11,
+  "versionName": "1.10",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Messagerie : membres en ligne en haut de la liste, conversation plein écran aussi sur ordinateur, bouton J'aime rapide, indicateur de saisie, photo et administrateurs des groupes Messenger. L'introduction des publications a ete retiree."
+  "notes": "Mise a jour importante : l'application telecharge automatiquement les nouvelles versions des pages web sans reinstaller l'APK. Cette version installe le systeme de mise a jour OTA ; les prochaines modifications web seront appliquees au prochain demarrage."
 }
