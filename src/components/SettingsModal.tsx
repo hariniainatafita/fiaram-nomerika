@@ -547,6 +547,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <Download size={14} />
                     <span>{t('update.checkButton')}</span>
                   </button>
+                  <div style={{ marginTop: '10px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}
+                      onClick={() => window.open('https://fiaram-nomerika.pages.dev/privacy-policy.html', '_blank', 'noopener')}
+                    >
+                      <span>Politique de confidentialité</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Fichiers hors ligne */}
