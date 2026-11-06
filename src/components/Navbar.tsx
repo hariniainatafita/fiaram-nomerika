@@ -12,6 +12,7 @@ import {
   Menu,
   LogOut,
   Search,
+  Bell,
   X
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
@@ -37,6 +38,9 @@ interface NavbarProps {
   allPublications: Publication[];
   allChansons: Chanson[];
   allQuizzes: Quiz[];
+  notificationUnreadCount: number;
+  notificationsOpen: boolean;
+  onOpenNotifications: () => void;
   onLogout: () => void;
 }
 
@@ -66,6 +70,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   allPublications,
   allChansons,
   allQuizzes,
+  notificationUnreadCount,
+  notificationsOpen,
+  onOpenNotifications,
   onLogout
 }) => {
   const { t } = useLanguage();
@@ -286,6 +293,46 @@ export const Navbar: React.FC<NavbarProps> = ({
           <Wifi size={13} />
           <span style={{ fontWeight: 600 }}>{t('nav.active')}</span>
         </div>
+
+        <button
+          onClick={() => {
+            closeSearch();
+            onOpenNotifications();
+          }}
+          className="btn btn-ghost"
+          style={{
+            width: '38px',
+            height: '38px',
+            padding: 0,
+            borderRadius: '50%',
+            position: 'relative',
+            color: notificationsOpen ? 'var(--accent-gold)' : undefined
+          }}
+          title={t('nav.notifications')}
+          aria-label={t('nav.notifications')}
+        >
+          <Bell size={18} />
+          {notificationUnreadCount > 0 && (
+            <span style={{
+              position: 'absolute',
+              top: '-4px',
+              right: '-6px',
+              minWidth: '16px',
+              height: '16px',
+              padding: '0 4px',
+              borderRadius: '999px',
+              background: '#ef4444',
+              color: '#ffffff',
+              fontSize: '0.6rem',
+              fontWeight: 800,
+              lineHeight: '16px',
+              textAlign: 'center',
+              boxShadow: '0 0 0 2px var(--bg-secondary, #111827)'
+            }}>
+              {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
+            </span>
+          )}
+        </button>
 
         <div className="nav-search" style={{ position: 'relative' }}>
           <button

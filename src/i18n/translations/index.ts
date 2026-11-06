@@ -17,6 +17,7 @@ import { admin } from './admin';
 import { badges } from './badges';
 import { settings } from './settings';
 import { scanner } from './scanner';
+import { notifications } from './notifications';
 
 export const translations: TranslationDictionary = {
   ...common,
@@ -36,5 +37,6 @@ export const translations: TranslationDictionary = {
   ...admin,
   ...badges,
   ...settings,
-  ...scanner
+  ...scanner,
+  ...notifications
 };

@@ -18,6 +18,7 @@ import {
   Settings,
   UsersRound,
   BrainCircuit,
+  Bell,
   Download
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
@@ -39,6 +40,9 @@ interface SidebarProps {
   publicationUnreadCount: number;
   quizUnreadCount: number;
   feedUnreadCount: number;
+  notificationUnreadCount: number;
+  notificationsOpen: boolean;
+  onOpenNotifications: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -50,7 +54,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   unreadCount,
   quizUnreadCount,
-  feedUnreadCount
+  feedUnreadCount,
+  notificationUnreadCount,
+  notificationsOpen,
+  onOpenNotifications
 }) => {
   const { t } = useLanguage();
   const isAdminUser = isAdmin(currentUser);
@@ -64,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
 const navItems = [
     { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, hidden: !hasGroupAccess },
+    { id: 'notifications', label: t('nav.notifications'), icon: Bell, badge: notificationUnreadCount },
     { id: 'publications', label: t('nav.publications'), icon: Camera, badge: feedUnreadCount },
     { id: 'quiz', label: t('nav.quiz'), icon: BrainCircuit, badge: quizUnreadCount },
     { id: 'members', label: t('nav.members'), icon: UsersRound, hidden: !hasGroupAccess },
@@ -186,13 +194,18 @@ const navItems = [
         <nav style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {navItems.filter((i) => !i.hidden).map((item) => {
             const Icon = item.icon;
-            const isActive = activeView === item.id;
+            const isNotifications = item.id === 'notifications';
+            const isActive = isNotifications ? notificationsOpen : activeView === item.id;
 
             return (
               <button
                 key={item.id}
                 onClick={() => {
-                  onSelectView(item.id);
+                  if (isNotifications) {
+                    onOpenNotifications();
+                  } else {
+                    onSelectView(item.id);
+                  }
                   onCloseMobile();
                 }}
                 style={{

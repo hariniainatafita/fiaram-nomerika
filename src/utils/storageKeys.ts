@@ -16,6 +16,7 @@ export const STORAGE_KEYS = {
   EVENEMENTS: 'fiaram_evenements_v2',
   PUBLICATIONS: 'fiaram_publications_v1',
   PUBLICATIONS_SEEN: 'fiaram_publications_seen_v1',
+  NOTIFICATIONS: 'fiaram_notifications_v1',
   PUBLICATIONS_DELETED: 'fiaram_publications_deleted_v1',
   GROUPES_DELETED: 'fiaram_groupes_deleted_v1',
   CHANSONS_DELETED: 'fiaram_chansons_deleted_v1',

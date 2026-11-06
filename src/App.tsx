@@ -5,12 +5,23 @@ import { subscribeToSupabase, hydrateFromSupabase } from './utils/supabaseSync';
 import { usePresence } from './utils/presence';
 import { canAccessGroupData, canAccessView, canViewPublication, getVisibleGroupIds } from './utils/permissions';
 import { STORAGE_KEYS } from './utils/storageKeys';
-import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication, Story, Quiz, QuizResult } from './types';
+import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication, Story, Quiz, QuizResult, ReactionType } from './types';
 import {useLanguage} from './i18n';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
 import { MessageToastList, MessageToastData } from './components/MessageToast';
+import { NotificationPanel } from './components/NotificationPanel';
+import {
+  addNotifications,
+  clearNotifications,
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  subscribeNotifications
+} from './utils/notifications';
+import type { AppNotification, AppNotificationInput } from './utils/notifications';
+import { getReactionEntries, getReactionOption } from './utils/reactions';
 import { playMessageNotification } from './utils/notificationSound';
 import {
   getBrowserNotificationPermission,
@@ -47,6 +58,28 @@ import { UpdateModal } from './components/UpdateModal';
 import { OPEN_APP_UPDATE_EVENT } from './utils/appUpdate';
 import { autoPrecacheIfNeeded } from './utils/mediaCache';
 import { isNativeApp } from './lib/appConfig';
+
+interface PublicationNotificationSnapshot {
+  reactions: Map<string, ReactionType>;
+  commentIds: Set<string>;
+}
+
+function buildPublicationNotificationSnapshot(
+  publications: Publication[]
+): Map<string, PublicationNotificationSnapshot> {
+  return new Map(
+    publications.map((publication) => [
+      publication.id,
+      {
+        reactions: new Map<string, ReactionType>(
+          getReactionEntries(publication.liked_by, publication.reactions)
+            .map((entry): [string, ReactionType] => [entry.membreId, entry.type])
+        ),
+        commentIds: new Set(publication.commentaires.map((comment) => comment.id))
+      }
+    ])
+  );
+}
 
 export function App() {
   const { t } = useLanguage();
@@ -98,6 +131,10 @@ export function App() {
 
   // Fenêtre de mise à jour (ouverte depuis le menu ou les paramètres)
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+
+  // Centre de notifications persistant (une liste par compte, locale à l'appareil).
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useEffect(() => {
     const handleOpenUpdate = () => setShowUpdateModal(true);
@@ -248,6 +285,7 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
   // Navigation depuis la barre / le menu : on repart toujours de la liste des
   // discussions, jamais de la dernière conversation privée ouverte.
   const handleSelectView = (view: string) => {
+    setNotificationsOpen(false);
     setChatFocus(null);
     if (view === 'chat') setChatListNonce((nonce) => nonce + 1);
     setActiveView(view);
@@ -287,6 +325,45 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
 
   const closeToast = (toastId: string) => {
     setMessageToasts((prev) => prev.filter((t) => t.id !== toastId));
+  };
+
+  const handleOpenNotifications = () => {
+    setNotificationsOpen((open) => !open);
+    setIsMobileSidebarOpen(false);
+  };
+
+  const handleCloseNotifications = () => {
+    setNotificationsOpen(false);
+  };
+
+  const handleSelectNotification = (notification: AppNotification) => {
+    if (!currentUser) return;
+    markNotificationRead(currentUser.id, notification.id);
+    setNotificationsOpen(false);
+
+    if (notification.kind === 'update' && notification.targetView === 'update') {
+      setShowUpdateModal(true);
+      return;
+    }
+    if (notification.kind === 'message' || notification.kind === 'group') {
+      if (notification.peerId) {
+        openChatWithMember(notification.peerId);
+      } else {
+        handleSelectView('chat');
+      }
+      return;
+    }
+    if (notification.targetView) {
+      handleSelectView(notification.targetView);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = () => {
+    if (currentUser) markAllNotificationsRead(currentUser.id);
+  };
+
+  const handleClearNotifications = () => {
+    if (currentUser) clearNotifications(currentUser.id);
   };
 
   const openOwnProfile = () => {
@@ -449,6 +526,10 @@ const refreshStories = () => {
 
   // Badge du fil d'actualité (même source que Publications).
   const feedUnreadCount = publicationUnreadCount;
+  const notificationUnreadCount = notifications.reduce(
+    (count, notification) => count + (notification.read ? 0 : 1),
+    0
+  );
 
   // Ouvrir le fil marque les publications comme vues (le badge disparaît).
   useEffect(() => {
@@ -476,6 +557,7 @@ const refreshStories = () => {
   const seenMessageIdsRef = React.useRef<Set<string> | null>(null);
   const seenPublicationIdsRef = React.useRef<Set<string> | null>(null);
   const seenEventIdsRef = React.useRef<Set<string> | null>(null);
+  const previousPublicationsRef = useRef<Map<string, PublicationNotificationSnapshot> | null>(null);
   const pendingMembersRef = React.useRef<number>(-1);
   const unviewedByKindRef = React.useRef<Record<MessageToastData['kind'], number>>({
     message: 0, group: 0, publication: 0, event: 0, member: 0
@@ -508,11 +590,24 @@ const refreshStories = () => {
     countUnviewed();
   }, [countUnviewed]);
 
+  const notificationUserId = currentUser?.id;
+  useEffect(() => {
+    if (!notificationUserId) {
+      setNotifications([]);
+      setNotificationsOpen(false);
+      return;
+    }
+    const refresh = () => setNotifications(getNotifications(notificationUserId));
+    refresh();
+    return subscribeNotifications(refresh);
+  }, [notificationUserId]);
+
   useEffect(() => {
     if (!currentUser) {
       seenMessageIdsRef.current = null;
       seenPublicationIdsRef.current = null;
       seenEventIdsRef.current = null;
+      previousPublicationsRef.current = null;
       pendingMembersRef.current = -1;
       unviewedByKindRef.current = { message: 0, group: 0, publication: 0, event: 0, member: 0 };
       setUnviewedNotifications(0);
@@ -520,6 +615,7 @@ const refreshStories = () => {
     }
 
     const items: MessageToastData[] = [];
+    const appNotifications: AppNotificationInput[] = [];
 
     // ---- Messages privés et de groupe ----
     const seenMsg = seenMessageIdsRef.current ?? new Set<string>(StorageService.getMessages().map((m) => m.id));
@@ -550,6 +646,7 @@ const refreshStories = () => {
           : msg.file_type === 'document'
             ? `📄 ${msg.file_name ?? msg.message ?? ''}`.trim()
             : (msg.message ?? '');
+      const notificationPreview = preview.length > 160 ? `${preview.slice(0, 157)}…` : preview;
       items.push({
         id: msg.id,
         kind,
@@ -558,6 +655,21 @@ const refreshStories = () => {
         text: preview,
         groupName: group?.nom_groupe,
         peerId: msg.group_id ? undefined : msg.sender_id
+      });
+
+      appNotifications.push({
+        id: `message:${msg.id}`,
+        kind,
+        title: group
+          ? t('notifications.group.title', { group: group.nom_groupe })
+          : t('notifications.message.title', { name: `${sender.prenom} ${sender.nom}`.trim() }),
+        body: group
+          ? `${sender.prenom} ${sender.nom} : ${notificationPreview}`
+          : notificationPreview,
+        targetView: 'chat',
+        actorId: sender.id,
+        peerId: msg.group_id ? undefined : msg.sender_id,
+        groupName: group?.nom_groupe
       });
 
       if (isMessengerBubbleAvailable() && isMessengerBubbleEnabled()) {
@@ -593,7 +705,74 @@ const refreshStories = () => {
         senderPhoto: author.photo_url,
         text: (pub.contenu ?? '').slice(0, 90)
       });
+
+      appNotifications.push({
+        id: `publication:${pub.id}`,
+        kind: 'publication',
+        title: t('notifications.publication.title', {
+          name: `${author.prenom} ${author.nom}`.trim()
+        }),
+        body: (pub.contenu ?? '').slice(0, 90),
+        targetView: 'publications',
+        actorId: author.id
+      });
     });
+
+    // ---- Réactions et commentaires sur mes publications ----
+    if (previousPublicationsRef.current === null) {
+      if (allPublications.length > 0) {
+        previousPublicationsRef.current = buildPublicationNotificationSnapshot(allPublications);
+      }
+    } else {
+      const previous = previousPublicationsRef.current;
+      allPublications.forEach((publication) => {
+        if (publication.auteur_id !== currentUser.id) return;
+        const snapshot = previous.get(publication.id);
+        if (!snapshot) return;
+
+        const currentReactions = new Map<string, ReactionType>(
+          getReactionEntries(publication.liked_by, publication.reactions)
+            .map((entry): [string, ReactionType] => [entry.membreId, entry.type])
+        );
+        currentReactions.forEach((type, membreId) => {
+          if (membreId === currentUser.id) return;
+          if (snapshot.reactions.get(membreId) === type) return;
+          const actor = allMembres.find((member) => member.id === membreId);
+          if (!actor) return;
+          const option = getReactionOption(type);
+          const reactionAt = publication.reactions_updated_at?.[membreId] ?? publication.created_at;
+          appNotifications.push({
+            id: `reaction:${publication.id}:${membreId}:${type}:${reactionAt}`,
+            kind: 'reaction',
+            title: t('notifications.reaction.title', {
+              name: `${actor.prenom} ${actor.nom}`.trim(),
+              emoji: option?.emoji ?? '👍'
+            }),
+            body: (publication.contenu ?? '').slice(0, 90),
+            targetView: 'publications',
+            actorId: actor.id
+          });
+        });
+
+        publication.commentaires.forEach((comment) => {
+          if (snapshot.commentIds.has(comment.id)) return;
+          if (comment.auteur_id === currentUser.id) return;
+          const actor = allMembres.find((member) => member.id === comment.auteur_id);
+          if (!actor) return;
+          appNotifications.push({
+            id: `comment:${comment.id}`,
+            kind: 'comment',
+            title: t('notifications.comment.title', {
+              name: `${actor.prenom} ${actor.nom}`.trim()
+            }),
+            body: comment.contenu.slice(0, 120),
+            targetView: 'publications',
+            actorId: actor.id
+          });
+        });
+      });
+      previousPublicationsRef.current = buildPublicationNotificationSnapshot(allPublications);
+    }
 
     // ---- Événements ----
     const seenEv = seenEventIdsRef.current ?? new Set<string>(StorageService.getEvenements().map((e) => e.id));
@@ -607,6 +786,14 @@ const refreshStories = () => {
         label: 'Nouvel événement',
         senderName: event.nom,
         text: event.date_evenement ? event.date_evenement : ''
+      });
+
+      appNotifications.push({
+        id: `event:${event.id}`,
+        kind: 'event',
+        title: t('notifications.event.title', { name: event.nom }),
+        body: event.date_evenement || '',
+        targetView: 'events'
       });
     });
 
@@ -624,9 +811,18 @@ const refreshStories = () => {
           senderPhoto: undefined,
           text: 'En attente de validation de dossier'
         });
+
+        appNotifications.push({
+          id: `member:${Date.now()}`,
+          kind: 'member',
+          title: t('notifications.member.title'),
+          body: t('notifications.member.body', { count: pendingCount - previous }),
+          targetView: 'admin'
+        });
       }
     }
 
+    if (appNotifications.length) addNotifications(currentUser.id, appNotifications);
     if (!items.length) return;
     pushMessageToasts(items);
     items.forEach((item) => {
@@ -637,7 +833,7 @@ const refreshStories = () => {
       );
     });
     if (StorageService.getAdminSettings().notifications_sonores) playMessageNotification();
-  }, [allMessages, allMembres, allGroupes, allPublications, allEvenements, currentUser, pushMessageToasts, bumpUnviewed]);
+  }, [allMessages, allMembres, allGroupes, allPublications, allEvenements, currentUser, pushMessageToasts, bumpUnviewed, t]);
 
   // Vue effectivement affichée (identique à allowedView, calculé avant le
   // premier rendu protégé — nécessaire pour les hooks).
@@ -721,6 +917,9 @@ const refreshStories = () => {
         publicationUnreadCount={publicationUnreadCount}
         quizUnreadCount={quizUnreadCount}
         feedUnreadCount={feedUnreadCount}
+        notificationUnreadCount={notificationUnreadCount}
+        notificationsOpen={notificationsOpen}
+        onOpenNotifications={handleOpenNotifications}
       />
 
       {/* Main Content Area */}
@@ -739,6 +938,9 @@ const refreshStories = () => {
           allPublications={allPublications}
           allChansons={allChansons}
           allQuizzes={allQuizzes}
+          notificationUnreadCount={notificationUnreadCount}
+          notificationsOpen={notificationsOpen}
+          onOpenNotifications={handleOpenNotifications}
           onLogout={() => {
             setConfirmLogout(true);
           }}
@@ -898,8 +1100,23 @@ const refreshStories = () => {
           onSelectView={handleSelectView}
           unreadCount={unreadCount}
           publicationUnreadCount={publicationUnreadCount}
+          notificationUnreadCount={notificationUnreadCount}
+          notificationsOpen={notificationsOpen}
+          onOpenNotifications={handleOpenNotifications}
           currentUser={currentUser}
         />
+
+        {/* Centre de notifications */}
+        {notificationsOpen && (
+          <NotificationPanel
+            notifications={notifications}
+            members={allMembres}
+            onClose={handleCloseNotifications}
+            onSelect={handleSelectNotification}
+            onMarkAllRead={handleMarkAllNotificationsRead}
+            onClear={handleClearNotifications}
+          />
+        )}
 
         {/* Bulles de notification des nouveaux messages */}
         <MessageToastList toasts={messageToasts} onOpen={openToastChat} onClose={closeToast} />

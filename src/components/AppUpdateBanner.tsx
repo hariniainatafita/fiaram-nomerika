@@ -10,6 +10,8 @@ import {
   isAppUpdaterAvailable,
   isAppUpdateDismissed
 } from '../utils/appUpdate';
+import { StorageService } from '../utils/storage';
+import { addNotification } from '../utils/notifications';
 
 type UpdateStatus = 'idle' | 'downloading' | 'installing' | 'permission' | 'error';
 
@@ -38,6 +40,20 @@ export const AppUpdateBanner: React.FC = () => {
         if (manual) showNotice(t('update.upToDate'));
         return;
       }
+
+      const user = StorageService.getCurrentUser();
+      if (user) {
+        addNotification(user.id, {
+          id: `update:apk:${result.latestVersionCode}`,
+          kind: 'update',
+          title: t('notifications.update.title'),
+          body: t('notifications.update.body', {
+            version: result.latestVersionName || String(result.latestVersionCode)
+          }),
+          targetView: 'update'
+        });
+      }
+
       if (!manual && isAppUpdateDismissed(result.latestVersionCode)) return;
       setInfo(result);
       setStatus('idle');

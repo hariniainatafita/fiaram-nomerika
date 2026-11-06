@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, QrCode, Wallet, Music, MessageSquare, Camera, UsersRound, BrainCircuit } from 'lucide-react';
+import { LayoutDashboard, QrCode, Wallet, Bell, MessageSquare, Camera, UsersRound, BrainCircuit } from 'lucide-react';
 import { Membre } from '../types';
 import { canAccessGroupData } from '../utils/permissions';
 import { useLanguage } from '../i18n';
@@ -9,6 +9,9 @@ interface BottomNavProps {
   onSelectView: (view: string) => void;
   unreadCount: number;
   publicationUnreadCount: number;
+  notificationUnreadCount: number;
+  notificationsOpen: boolean;
+  onOpenNotifications: () => void;
   currentUser: Membre;
 }
 
@@ -17,6 +20,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onSelectView,
   unreadCount,
   publicationUnreadCount,
+  notificationUnreadCount,
+  notificationsOpen,
+  onOpenNotifications,
   currentUser
 }) => {
   const { t } = useLanguage();
@@ -28,7 +34,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           { id: 'presence', label: t('nav.short.presence'), icon: QrCode },
           { id: 'cotisations', label: t('nav.short.cotisations'), icon: Wallet }
         ]
-      : [{ id: 'songs', label: t('nav.short.resources'), icon: Music }]),
+      : [{ id: 'notifications', label: t('nav.short.notifications'), icon: Bell, badge: notificationUnreadCount }]),
     { id: 'publications', label: t('nav.short.publications'), icon: Camera, badge: publicationUnreadCount },
     { id: 'quiz', label: t('nav.short.quiz'), icon: BrainCircuit },
     { id: 'members', label: t('nav.short.members'), icon: UsersRound },
@@ -56,12 +62,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     >
       {items.map((item) => {
         const Icon = item.icon;
-        const isActive = activeView === item.id;
+        const isNotifications = item.id === 'notifications';
+        const isActive = isNotifications ? notificationsOpen : activeView === item.id;
 
         return (
           <button
             key={item.id}
-            onClick={() => onSelectView(item.id)}
+            onClick={() => (isNotifications ? onOpenNotifications() : onSelectView(item.id))}
             style={{
               display: 'flex',
               flexDirection: 'column',

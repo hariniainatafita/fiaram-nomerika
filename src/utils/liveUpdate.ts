@@ -1,5 +1,8 @@
 import { LiveUpdate } from '@capawesome/capacitor-live-update';
 import { isNativeApp, REMOTE_APP_URL } from '../lib/appConfig';
+import { StorageService } from './storage';
+import { addNotification, removeNotification } from './notifications';
+import { translate } from '../i18n';
 
 interface LiveUpdateManifest {
   bundleId: string;
@@ -52,6 +55,7 @@ export async function checkLiveUpdate(force = false): Promise<{ updated: boolean
 
       const current = await LiveUpdate.getCurrentBundle();
       const currentId = current.bundleId;
+      const user = StorageService.getCurrentUser();
 
       // L'APK embarque déjà exactement ce build : inutile de le re-télécharger.
       if (
@@ -62,7 +66,10 @@ export async function checkLiveUpdate(force = false): Promise<{ updated: boolean
         return { updated: false };
       }
 
-      if (currentId === manifest.bundleId) return { updated: false };
+      if (currentId === manifest.bundleId) {
+        if (user) removeNotification(user.id, `update:ota:${manifest.bundleId}`);
+        return { updated: false };
+      }
 
       if (manifest.minNativeVersionCode) {
         const version = await LiveUpdate.getVersionCode();
@@ -75,6 +82,15 @@ export async function checkLiveUpdate(force = false): Promise<{ updated: boolean
         checksum: manifest.checksum
       });
       await LiveUpdate.setNextBundle({ bundleId: manifest.bundleId });
+      if (user) {
+        addNotification(user.id, {
+          id: `update:ota:${manifest.bundleId}`,
+          kind: 'update',
+          title: translate('notifications.ota.title'),
+          body: translate('notifications.ota.body'),
+          targetView: 'publications'
+        });
+      }
       return { updated: true, bundleId: manifest.bundleId };
     } catch (error) {
       console.warn('Vérification du bundle web impossible', error);
