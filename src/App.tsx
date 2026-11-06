@@ -12,6 +12,8 @@ import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
 import { MessageToastList, MessageToastData } from './components/MessageToast';
 import { NotificationPanel } from './components/NotificationPanel';
+import { VoiceCallOverlay } from './components/VoiceCallOverlay';
+import { useVoiceCall } from './utils/voiceCall';
 import {
   addNotifications,
   clearNotifications,
@@ -255,6 +257,15 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
 
   // Live presence: only members with a recent heartbeat are shown online
   const presenceMap = usePresence(currentUser?.id);
+
+  // Appels vocaux gratuits (WebRTC, sans credit telephonique). Le service vit
+  // au niveau de l'application : un appel continue meme si l'on change d'ecran.
+  const voiceCall = useVoiceCall(currentUser);
+  const voiceCallBusy =
+    voiceCall.state.status === 'outgoing' ||
+    voiceCall.state.status === 'incoming' ||
+    voiceCall.state.status === 'connecting' ||
+    voiceCall.state.status === 'active';
 
   // Initialize theme on mount
   useEffect(() => {
@@ -1037,6 +1048,11 @@ const refreshStories = () => {
               focusKey={chatFocus?.nonce}
               listKey={chatListNonce}
               onConversationChange={setChatFocusMode}
+              onStartVoiceCall={(peerId) => {
+                const peer = allMembres.find((membre) => membre.id === peerId);
+                if (peer) voiceCall.startCall(peer);
+              }}
+              voiceCallBusy={voiceCallBusy}
             />
           )}
 
@@ -1118,6 +1134,9 @@ const refreshStories = () => {
           />
         )}
 
+        {/* Appel vocal entrant / en cours (WebRTC, sans credit telephonique) */}
+        <VoiceCallOverlay call={voiceCall} />
+
         {/* Bulles de notification des nouveaux messages */}
         <MessageToastList toasts={messageToasts} onOpen={openToastChat} onClose={closeToast} />
 
@@ -1130,6 +1149,12 @@ const refreshStories = () => {
             stories={allStories}
             onClose={closeMemberProfile}
             onOpenChat={openChatFromMemberProfile}
+            onStartVoiceCall={(membreId) => {
+              const peer = allMembres.find((membre) => membre.id === membreId);
+              closeMemberProfile();
+              if (peer) voiceCall.startCall(peer);
+            }}
+            voiceCallBusy={voiceCallBusy}
           />
         )}
 

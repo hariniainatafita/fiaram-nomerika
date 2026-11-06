@@ -9,9 +9,6 @@ import { StorageService } from './utils/storage'
 import { checkLiveUpdate, markLiveUpdateReady } from './utils/liveUpdate'
 
 async function bootstrap() {
-  // Doit être appelé avant toute autre méthode du plugin LiveUpdate.
-  void markLiveUpdateReady()
-
   // Pull shared data from Supabase before the first render so every device
   // starts from the same accounts / presences / settings. A timeout keeps a
   // slow or unreachable network from freezing the login screen.
@@ -34,8 +31,12 @@ async function bootstrap() {
     </StrictMode>,
   )
 
+  // Le bundle OTA est déclaré sain seulement après le premier rendu : si un
+  // bundle casse l'application, le plugin revient automatiquement au précédent.
+  window.setTimeout(() => { void markLiveUpdateReady() }, 800)
+
   // Vérification OTA des fichiers web : uniquement si le bundle a changé.
-  window.setTimeout(() => { void checkLiveUpdate() }, 5000)
+  window.setTimeout(() => { void checkLiveUpdate(false, true) }, 5000)
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void checkLiveUpdate()
   })

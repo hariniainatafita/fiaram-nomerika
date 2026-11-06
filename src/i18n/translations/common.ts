@@ -238,5 +238,40 @@ export const common: TranslationDictionary = {
     mg: 'Ampidino ny APK ary apetraho amin’ny findaina Android.',
     fr: 'Téléchargez le fichier APK puis installez-le sur votre téléphone Android.',
     en: 'Download the APK and install it on your Android phone.'
+  },
+  'update.webUpdate': {
+    mg: 'Havaozy ny pejy web',
+    fr: 'Mettre à jour les pages web',
+    en: 'Update web pages'
+  },
+  'update.webChecking': {
+    mg: 'Eo am-pikarohana…',
+    fr: 'Recherche…',
+    en: 'Checking…'
+  },
+  'update.webUpToDate': {
+    mg: 'Vaovao ny pejy web.',
+    fr: 'Les pages web sont à jour.',
+    en: 'Web pages are up to date.'
+  },
+  'update.webReady': {
+    mg: 'Voatahiry ny fanavaozana. Avereno hiasa ny application.',
+    fr: 'Mise à jour téléchargée. Redémarrez l’application pour l’appliquer.',
+    en: 'Update downloaded. Restart the app to apply it.'
+  },
+  'update.webApply': {
+    mg: 'Avereno hiasa',
+    fr: 'Redémarrer maintenant',
+    en: 'Restart now'
+  },
+  'update.webBundle': {
+    mg: 'Pejy web entana',
+    fr: 'Pages web chargées',
+    en: 'Loaded web pages'
+  },
+  'update.webBundleEmbedded': {
+    mg: 'Ao anaty APK',
+    fr: 'Intégrées à l’APK',
+    en: 'Embedded in the APK'
   }
 };

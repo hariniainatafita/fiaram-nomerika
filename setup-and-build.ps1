@@ -184,7 +184,24 @@ Write-Log "✅ Icônes générées pour : $($densities.Keys -join ', ')"
 # -------------------------------------------------
 # 6. Compilation de l’APK debug
 Write-Log "--- Étape 5 : Compilation de l’APK debug ---"
-# On suppose que le projet Capacitor a déjà été sync’ (npm run build && npm run cap:sync)
+# Reconstruit les fichiers web puis les copie dans le projet Android AVANT
+# Gradle : sans cette étape l’APK peut embarquer une ancienne interface même
+# si le site web affiche déjà les nouveautés.
+Write-Log "--- Étape 4b : Build web + synchronisation Capacitor ---"
+Push-Location "E:\FIARAM NOMERIKA"
+try {
+    npm run build
+    if ($LASTEXITCODE -ne 0) { throw "npm run build a échoué" }
+    npx cap sync android
+    if ($LASTEXITCODE -ne 0) { throw "npx cap sync android a échoué" }
+}
+catch {
+    Write-Log "❌ $($_.Exception.Message)"
+    Pop-Location
+    exit 1
+}
+Pop-Location
+
 # On lance gradle depuis le répertoire android
 $gradlew = "E:\FIARAM NOMERIKA\android\gradlew.bat"
 if (-NOT (Test-Path $gradlew)) {

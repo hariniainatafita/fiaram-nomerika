@@ -18,7 +18,8 @@ import {
   MessageSquare,
   ThumbsUp,
   Crown,
-  ShieldCheck
+  ShieldCheck,
+  Phone
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
@@ -56,6 +57,8 @@ interface ChatViewProps {
   focusKey?: number;
   listKey?: number;
   onConversationChange?: (open: boolean) => void;
+  onStartVoiceCall?: (peerId: string) => void;
+  voiceCallBusy?: boolean;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -69,7 +72,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
   openPeerId,
   focusKey,
   listKey,
-  onConversationChange
+  onConversationChange,
+  onStartVoiceCall,
+  voiceCallBusy
 }) => {
   const visibleGroupIds = getVisibleGroupIds(currentUser, allGroupes);
   const visibleGroupes = allGroupes.filter((g) => visibleGroupIds.includes(g.id));
@@ -1241,6 +1246,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {activeChannelType === 'direct' && activePeer && onStartVoiceCall && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={voiceCallBusy}
+                  style={{
+                    padding: '6px',
+                    color: voiceCallBusy ? 'var(--text-dim)' : '#10b981',
+                    opacity: voiceCallBusy ? 0.5 : 1
+                  }}
+                  title={t('calls.start')}
+                  aria-label={t('calls.start')}
+                  onClick={() => onStartVoiceCall(activePeer.id)}
+                >
+                  <Phone size={16} />
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-ghost"

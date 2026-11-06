@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:bundle": "node scripts/build-live-bundle.mjs",
+    "build:ota": "npm run build && npm run build:bundle",
+    "apk:release": "npm run build && cap sync android && npm run build:bundle && cd android && gradlew.bat assembleRelease",
     "lint": "eslint .",
     "preview": "vite preview",
     "cap:sync": "cap sync android"

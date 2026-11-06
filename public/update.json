@@ -1,6 +1,6 @@
 {
-  "versionCode": 11,
-  "versionName": "1.10",
+  "versionCode": 12,
+  "versionName": "1.11",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Mise a jour importante : l'application telecharge automatiquement les nouvelles versions des pages web sans reinstaller l'APK. Cette version installe le systeme de mise a jour OTA ; les prochaines modifications web seront appliquees au prochain demarrage."
+  "notes": "Nouveaute : appels vocaux gratuits entre membres (voix sur Internet, sans credit telephonique). Cette version ajoute l'autorisation microphone necessaire ; installez-la pour passer et recevoir des appels. Ensuite, les prochaines nouveautes web s'installent automatiquement sans reinstalation."
 }

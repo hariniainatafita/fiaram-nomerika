@@ -9,6 +9,11 @@ import {
   isAppUpdaterAvailable,
   resolveApkUrl
 } from '../utils/appUpdate';
+import {
+  applyPendingBundle,
+  checkLiveUpdate,
+  getCurrentWebBundle
+} from '../utils/liveUpdate';
 
 type UpdateStatus = 'idle' | 'checking' | 'downloading' | 'installing' | 'permission' | 'error';
 
@@ -23,6 +28,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
   const [currentVersionCode, setCurrentVersionCode] = useState(0);
   const [status, setStatus] = useState<UpdateStatus>('checking');
   const [message, setMessage] = useState('');
+  const [webStatus, setWebStatus] = useState<'idle' | 'checking' | 'updated' | 'none' | 'error'>('idle');
+  const [webBundles, setWebBundles] = useState<{ current: string | null; next: string | null } | null>(null);
   const checkingRef = useRef(false);
 
   const check = useCallback(async () => {
@@ -55,6 +62,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
     void check();
   }, [check]);
 
+  useEffect(() => {
+    if (!isAppUpdaterAvailable()) return;
+    void getCurrentWebBundle().then(setWebBundles).catch(() => setWebBundles(null));
+  }, []);
+
   const isNative = isAppUpdaterAvailable();
   // Sur Android on ne propose l'installation que si le manifeste est plus
   // recent que l'APK installe. Sur le web, le bouton telecharge l'APK.
@@ -83,6 +95,21 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
       setStatus('error');
       setMessage(t('update.error'));
     }
+  };
+
+  const checkWebUpdate = async () => {
+    setWebStatus('checking');
+    try {
+      const result = await checkLiveUpdate(true, false);
+      setWebStatus(result.updated ? 'updated' : 'none');
+      setWebBundles(await getCurrentWebBundle());
+    } catch {
+      setWebStatus('error');
+    }
+  };
+
+  const applyWebUpdate = async () => {
+    await applyPendingBundle();
   };
 
   const statusLabel = status === 'checking'
@@ -247,6 +274,56 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
             <RefreshCw size={15} />
           </button>
         </div>
+
+        {isNative && (
+          <div style={{
+            marginTop: '14px',
+            paddingTop: '12px',
+            borderTop: '1px solid var(--border-color)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', lineHeight: 1.45 }}>
+              {t('update.webBundle')} :{' '}
+              <code style={{ fontSize: '0.7rem' }}>
+                {webBundles?.current || t('update.webBundleEmbedded')}
+              </code>
+              {webBundles?.next ? (
+                <span> → {webBundles.next}</span>
+              ) : null}
+            </div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+              {webStatus === 'updated'
+                ? t('update.webReady')
+                : webStatus === 'none'
+                  ? t('update.webUpToDate')
+                  : t('update.webUpdate')}
+            </div>
+            {webStatus === 'updated' ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}
+                onClick={() => void applyWebUpdate()}
+              >
+                <RefreshCw size={16} />
+                <span>{t('update.webApply')}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}
+                onClick={() => void checkWebUpdate()}
+                disabled={webStatus === 'checking'}
+              >
+                <RefreshCw size={16} />
+                <span>{webStatus === 'checking' ? t('update.webChecking') : t('update.webUpdate')}</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {!isNative && (
           <div style={{

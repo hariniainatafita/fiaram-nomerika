@@ -14,10 +14,11 @@ const config: CapacitorConfig = {
     LiveUpdate: {
       // Télécharge uniquement les fichiers web qui ont changé, puis applique
       // le bundle au prochain démarrage. Rollback automatique si l'app ne
-      // signale pas qu'elle est prête dans les 10 secondes.
+      // signale pas qu'elle est prête dans les 20 secondes (marge pour les
+      // téléphones lents qui chargent les données Supabase au démarrage).
       autoBlockRolledBackBundles: true,
       autoDeleteBundles: true,
-      readyTimeout: 10000
+      readyTimeout: 20000
     }
   },
   android: {

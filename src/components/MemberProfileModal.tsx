@@ -9,7 +9,8 @@ import {
   Image as ImageIcon,
   ImagePlus,
   Sparkles,
-  Send
+  Send,
+  Phone
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
@@ -23,6 +24,8 @@ interface MemberProfileModalProps {
   stories: Story[];
   onClose: () => void;
   onOpenChat: (membreId: string) => void;
+  onStartVoiceCall?: (membreId: string) => void;
+  voiceCallBusy?: boolean;
 }
 
 export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
@@ -31,7 +34,9 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
   publications,
   stories,
   onClose,
-  onOpenChat
+  onOpenChat,
+  onStartVoiceCall,
+  voiceCallBusy
 }) => {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'posts' | 'activity'>('posts');
@@ -247,18 +252,42 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             </div>
 
             {!isSelf && (
-              <button
-                type="button"
-                onClick={() => {
-                  onOpenChat(membre.id);
-                  onClose();
-                }}
-                className="btn btn-primary"
-                style={{ fontSize: '0.85rem', padding: '10px 14px', marginBottom: '4px' }}
-              >
-                <Send size={15} />
-                <span>{t('members.sendMessage')}</span>
-              </button>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenChat(membre.id);
+                    onClose();
+                  }}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.85rem', padding: '10px 14px' }}
+                >
+                  <Send size={15} />
+                  <span>{t('members.sendMessage')}</span>
+                </button>
+                {onStartVoiceCall && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onStartVoiceCall(membre.id);
+                      onClose();
+                    }}
+                    disabled={voiceCallBusy}
+                    className="btn btn-ghost"
+                    title={t('calls.start')}
+                    aria-label={t('calls.start')}
+                    style={{
+                      fontSize: '0.85rem',
+                      padding: '10px 14px',
+                      color: voiceCallBusy ? 'var(--text-dim)' : '#10b981',
+                      opacity: voiceCallBusy ? 0.5 : 1
+                    }}
+                  >
+                    <Phone size={15} />
+                    <span>{t('calls.start')}</span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
