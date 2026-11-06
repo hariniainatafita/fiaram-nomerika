@@ -148,6 +148,48 @@ final class SupabaseRest {
         }, "fiaram-bubble-reply").start();
     }
 
+    static void sendPhotoReply(Context context, String receiverId, String groupId, String dataUrl, Callback callback) {
+        final String userId = BubbleSession.userId(context);
+        if (userId.isEmpty() || !BubbleSession.isReady(context)) {
+            post(callback, false, "session incomplete");
+            return;
+        }
+        new Thread(() -> {
+            try {
+                String messageId = "msg_" + System.currentTimeMillis() + "_"
+                        + Long.toString(System.nanoTime(), 36);
+                saveValue(context, "fiaram_msgimg_" + messageId, dataUrl);
+
+                Row row = fetchRow(context, MESSAGES_KEY);
+                JSONArray current = row.exists ? asArray(row.value) : new JSONArray();
+
+                JSONObject message = new JSONObject();
+                message.put("id", messageId);
+                message.put("sender_id", userId);
+                if (receiverId != null && !receiverId.isEmpty()) {
+                    message.put("receiver_id", receiverId);
+                }
+                if (groupId != null && !groupId.isEmpty()) {
+                    message.put("group_id", groupId);
+                }
+                message.put("message", "");
+                message.put("status", "sent");
+                message.put("is_deleted", false);
+                message.put("is_edited", false);
+                message.put("sent_at", nowMinute());
+                message.put("image_ref", messageId);
+                message.put("file_type", "image");
+                current.put(message);
+
+                saveValue(context, MESSAGES_KEY, current);
+                post(callback, true, null);
+            } catch (Exception error) {
+                Log.w(TAG, "sendPhotoReply", error);
+                post(callback, false, error.getMessage());
+            }
+        }, "fiaram-bubble-photo").start();
+    }
+
     static void markDirectRead(Context context, String peerId, Callback callback) {
         final String userId = BubbleSession.userId(context);
         if (userId.isEmpty() || peerId == null || peerId.isEmpty() || !BubbleSession.isReady(context)) {

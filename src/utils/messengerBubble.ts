@@ -28,7 +28,7 @@ export interface BubbleMessageOptions {
 }
 
 export interface PendingChat {
-  type?: 'direct' | 'group';
+  type?: 'direct' | 'group' | 'list';
   id?: string;
 }
 

@@ -193,6 +193,11 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
       try {
         const pending = await MessengerBubble.consumePendingChat();
         if (cancelled || !pending?.id) return;
+        if (pending.type === 'list' || pending.id === 'list') {
+          setChatFocus({ nonce: Date.now() });
+          setActiveView('chat');
+          return;
+        }
         setChatFocus({
           peerId: pending.type === 'group' ? undefined : pending.id,
           groupId: pending.type === 'group' ? pending.id : undefined,

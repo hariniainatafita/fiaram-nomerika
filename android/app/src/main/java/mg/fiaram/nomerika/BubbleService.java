@@ -47,10 +47,12 @@ import java.util.concurrent.Executors;
 public class BubbleService extends Service {
     private static final String PREFS = "fiaram_bubble_position";
 
-    private static final String ACTION_START = "mg.fiaram.nomerika.BUBBLE_START";
-    private static final String ACTION_SHOW = "mg.fiaram.nomerika.BUBBLE_SHOW";
-    private static final String ACTION_CLEAR = "mg.fiaram.nomerika.BUBBLE_CLEAR";
-    private static final String ACTION_REFRESH = "mg.fiaram.nomerika.BUBBLE_REFRESH";
+    static final String ACTION_START = "mg.fiaram.nomerika.BUBBLE_START";
+    static final String ACTION_SHOW = "mg.fiaram.nomerika.BUBBLE_SHOW";
+    static final String ACTION_CLEAR = "mg.fiaram.nomerika.BUBBLE_CLEAR";
+    static final String ACTION_REFRESH = "mg.fiaram.nomerika.BUBBLE_REFRESH";
+    static final String ACTION_PICK_BUBBLE_PHOTO = "mg.fiaram.nomerika.PICK_BUBBLE_PHOTO";
+    static final String ACTION_SEND_BUBBLE_PHOTO = "mg.fiaram.nomerika.SEND_BUBBLE_PHOTO";
 
     private static final String EXTRA_MESSAGE_ID = "message_id";
     private static final String EXTRA_PEER_ID = "peer_id";
@@ -58,9 +60,10 @@ public class BubbleService extends Service {
     private static final String EXTRA_SENDER_ID = "sender_id";
     private static final String EXTRA_SENDER_NAME = "sender_name";
     private static final String EXTRA_TEXT = "text";
+    private static final String EXTRA_DATA_URL = "data_url";
 
     private static final long POLL_INTERVAL_MS = 30_000L;
-    private static final int MAX_HEADS = 4;
+    private static final int MAX_HEADS = 5;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private ExecutorService executor;
@@ -87,6 +90,9 @@ public class BubbleService extends Service {
     private String selectedType = "";
     private String selectedId = "";
     private boolean expanded;
+    private boolean headsOpen;
+    private View headsBackdrop;
+    private WindowManager.LayoutParams headsBackdropParams;
     private boolean dragging;
     private boolean pollInFlight;
     private volatile boolean firstPollDone;
@@ -133,6 +139,14 @@ public class BubbleService extends Service {
         context.stopService(new Intent(context, BubbleService.class));
     }
 
+    static void sendPhotoResult(Context context, String dataUrl) {
+        if (dataUrl == null || dataUrl.isEmpty()) return;
+        Intent intent = new Intent(context, BubbleService.class);
+        intent.setAction(ACTION_SEND_BUBBLE_PHOTO);
+        intent.putExtra(EXTRA_DATA_URL, dataUrl);
+        startSafely(context, intent);
+    }
+
     private static void startSafely(Context context, Intent intent) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -169,6 +183,13 @@ public class BubbleService extends Service {
             }
             handlePushedMessage(intent);
             pollOnce();
+        } else if (ACTION_SEND_BUBBLE_PHOTO.equals(action) && intent != null) {
+            if (!BubbleSession.isBubbleEnabled(this)) {
+                stopSelf(startId);
+                return START_NOT_STICKY;
+            }
+            String dataUrl = safe(intent.getStringExtra(EXTRA_DATA_URL));
+            if (!dataUrl.isEmpty()) sendPhotoFromBubble(dataUrl);
         } else if (ACTION_CLEAR.equals(action)) {
             cancelAllChatNotifications();
             if (!BubbleSession.isBubbleEnabled(this)) stopSelf(startId);
@@ -397,9 +418,6 @@ public class BubbleService extends Service {
 
         List<ChatHead> list = new ArrayList<>(map.values());
         Collections.sort(list, (left, right) -> right.lastAt.compareTo(left.lastAt));
-        if (list.size() > MAX_HEADS) {
-            return new ArrayList<>(list.subList(0, MAX_HEADS));
-        }
         return list;
     }
 
@@ -461,12 +479,46 @@ public class BubbleService extends Service {
     private void renderStack() {
         if (stackView == null) return;
         stackView.removeAllViews();
+        updateHeadsBackdrop();
         if (chats.isEmpty()) {
             stackView.addView(buildEmptyBubble());
             return;
         }
-        for (ChatHead chat : chats) {
-            stackView.addView(buildChatHead(chat));
+        if (!headsOpen) {
+            stackView.addView(buildChatHead(chats.get(0), totalUnread()));
+            return;
+        }
+        int shown = Math.min(chats.size(), MAX_HEADS - (chats.size() > MAX_HEADS ? 1 : 0));
+        for (int i = 0; i < shown; i++) {
+            stackView.addView(buildChatHead(chats.get(i), chats.get(i).unread));
+        }
+        if (chats.size() > MAX_HEADS) {
+            stackView.addView(buildOverflowBubble(chats.size() - shown));
+        }
+    }
+
+    private int totalUnread() {
+        int total = 0;
+        for (ChatHead chat : chats) total += Math.max(0, chat.unread);
+        return total;
+    }
+
+    private void updateHeadsBackdrop() {
+        if (headsBackdrop != null) {
+            headsBackdrop.setVisibility(headsOpen && !expanded ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private boolean onOverflowTouch(MotionEvent event) {
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+            case MotionEvent.ACTION_MOVE:
+                return true;
+            case MotionEvent.ACTION_UP:
+                openApp("list", "list");
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -485,7 +537,31 @@ public class BubbleService extends Service {
         return holder;
     }
 
-    private View buildChatHead(ChatHead chat) {
+    private View buildOverflowBubble(int extraCount) {
+        FrameLayout holder = new FrameLayout(this);
+        holder.setLayoutParams(headParams(dp(6)));
+        FrameLayout frame = new FrameLayout(this);
+        GradientDrawable ring = new GradientDrawable();
+        ring.setShape(GradientDrawable.OVAL);
+        ring.setColor(Color.parseColor("#334155"));
+        ring.setStroke(dp(2), Color.parseColor("#94a3b8"));
+        frame.setBackground(ring);
+        frame.setElevation(dp(6));
+        TextView label = new TextView(this);
+        label.setText("+" + extraCount);
+        label.setTextColor(Color.WHITE);
+        label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        label.setTypeface(Typeface.DEFAULT_BOLD);
+        label.setGravity(Gravity.CENTER);
+        frame.addView(label, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        holder.addView(frame, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        holder.setOnTouchListener((view, event) -> onOverflowTouch(event));
+        return holder;
+    }
+
+    private View buildChatHead(ChatHead chat, int badgeCount) {
         FrameLayout holder = new FrameLayout(this);
         holder.setLayoutParams(headParams(dp(8)));
 
@@ -498,9 +574,9 @@ public class BubbleService extends Service {
         holder.addView(circle, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
-        if (chat.unread > 0) {
+        if (badgeCount > 0) {
             TextView badge = new TextView(this);
-            badge.setText(chat.unread > 99 ? "99+" : String.valueOf(chat.unread));
+            badge.setText(badgeCount > 99 ? "99+" : String.valueOf(badgeCount));
             badge.setTextColor(Color.WHITE);
             badge.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9);
             badge.setTypeface(Typeface.DEFAULT_BOLD);
@@ -580,6 +656,37 @@ public class BubbleService extends Service {
         windowParams.x = clamp(position.x, 0, Math.max(0, screenWidth - dp(62)));
         windowParams.y = clamp(position.y, 0, Math.max(0, screenHeight - dp(90)));
 
+        headsBackdrop = new View(this);
+        headsBackdrop.setBackgroundColor(Color.TRANSPARENT);
+        headsBackdrop.setVisibility(View.GONE);
+        headsBackdrop.setClickable(true);
+        headsBackdrop.setOnClickListener(view -> {
+            if (expanded) {
+                collapse();
+            } else if (headsOpen) {
+                headsOpen = false;
+                renderStack();
+            }
+        });
+        headsBackdropParams = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                        ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                        : WindowManager.LayoutParams.TYPE_PHONE,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT
+        );
+        headsBackdropParams.gravity = Gravity.TOP | Gravity.START;
+        try {
+            windowManager.addView(headsBackdrop, headsBackdropParams);
+        } catch (Exception ignored) {
+            headsBackdrop = null;
+            headsBackdropParams = null;
+        }
+
         root = new FrameLayout(this);
         root.setClipChildren(false);
 
@@ -596,6 +703,14 @@ public class BubbleService extends Service {
         try {
             windowManager.addView(root, windowParams);
         } catch (Exception error) {
+            if (headsBackdrop != null && windowManager != null) {
+                try {
+                    windowManager.removeView(headsBackdrop);
+                } catch (Exception ignored) {
+                }
+            }
+            headsBackdrop = null;
+            headsBackdropParams = null;
             root = null;
             stackView = null;
             panel = null;
@@ -686,6 +801,23 @@ public class BubbleService extends Service {
         inputRow.addView(replyInput, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
+        TextView photoButton = new TextView(this);
+        photoButton.setText("Photo");
+        photoButton.setTextColor(Color.WHITE);
+        photoButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        photoButton.setTypeface(Typeface.DEFAULT_BOLD);
+        photoButton.setGravity(Gravity.CENTER);
+        photoButton.setPadding(dp(8), dp(9), dp(8), dp(9));
+        GradientDrawable photoBackground = new GradientDrawable();
+        photoBackground.setCornerRadius(dp(14));
+        photoBackground.setColor(Color.parseColor("#0ea5e9"));
+        photoButton.setBackground(photoBackground);
+        photoButton.setOnClickListener(view -> pickPhoto());
+        LinearLayout.LayoutParams photoParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        photoParams.leftMargin = dp(8);
+        inputRow.addView(photoButton, photoParams);
+
         sendButton = new TextView(this);
         sendButton.setText("Envoyer");
         sendButton.setTextColor(Color.WHITE);
@@ -734,8 +866,12 @@ public class BubbleService extends Service {
                 return true;
             case MotionEvent.ACTION_UP:
                 if (!dragging) {
-                    if (chat == null) {
-                        openApp("", "");
+                    if (!headsOpen) {
+                        headsOpen = true;
+                        renderStack();
+                        updateLayout();
+                    } else if (chat == null) {
+                        openApp("list", "list");
                     } else {
                         openChat(chat);
                     }
@@ -786,6 +922,8 @@ public class BubbleService extends Service {
         selectedId = chat.id;
         chat.unread = 0;
         expanded = true;
+        headsOpen = false;
+        updateHeadsBackdrop();
 
         MessageNotifier.cancelChat(this, chat.type, chat.id);
         stackView.setVisibility(View.GONE);
@@ -814,7 +952,9 @@ public class BubbleService extends Service {
     }
 
     private void collapse() {
-        if (!expanded || panel == null || root == null) return;
+        headsOpen = false;
+        updateHeadsBackdrop();
+        if (panel == null || root == null) return;
         expanded = false;
         InputMethodManager keyboard =
                 (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -822,8 +962,8 @@ public class BubbleService extends Service {
             keyboard.hideSoftInputFromWindow(replyInput.getWindowToken(), 0);
             replyInput.clearFocus();
         }
-        panel.setVisibility(View.GONE);
-        stackView.setVisibility(View.VISIBLE);
+        if (panel != null) panel.setVisibility(View.GONE);
+        if (stackView != null) stackView.setVisibility(View.VISIBLE);
         if (windowParams != null) {
             windowParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
@@ -898,6 +1038,10 @@ public class BubbleService extends Service {
 
     private View buildMessageRow(JSONObject message, String me) {
         boolean mine = me.equals(message.optString("sender_id"));
+        boolean hasImage = !message.optString("image_ref", "").isEmpty()
+                || !message.optString("image_url", "").isEmpty()
+                || ("image".equals(message.optString("file_type", ""))
+                        && !message.optString("file_url", "").isEmpty());
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(mine ? Gravity.END : Gravity.START);
@@ -923,12 +1067,34 @@ public class BubbleService extends Service {
             bubble.addView(sender);
         }
 
-        TextView text = new TextView(this);
-        text.setText(preview(message));
-        text.setTextColor(Color.WHITE);
-        text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        text.setMaxWidth(dp(210));
-        bubble.addView(text);
+        if (hasImage) {
+            String imageRef = message.optString("image_ref", "");
+            String imageUrl = message.optString("image_url", "");
+            String fileUrl = message.optString("file_url", "");
+            ImageView image = new ImageView(this);
+            image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            image.setVisibility(View.GONE);
+            LinearLayout.LayoutParams imageParams = new LinearLayout.LayoutParams(dp(190), dp(140));
+            imageParams.bottomMargin = dp(6);
+            image.setLayoutParams(imageParams);
+            bubble.addView(image);
+            AvatarLoader.loadImage(this, imageRef, imageUrl, fileUrl, bitmap -> {
+                if (bitmap == null) return;
+                image.setImageBitmap(bitmap);
+                image.setVisibility(View.VISIBLE);
+            });
+        }
+
+        String caption = message.optString("message", "").trim();
+        String textContent = hasImage ? caption : preview(message);
+        if (!hasImage || !caption.isEmpty()) {
+            TextView text = new TextView(this);
+            text.setText(textContent);
+            text.setTextColor(Color.WHITE);
+            text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            text.setMaxWidth(dp(210));
+            bubble.addView(text);
+        }
 
         TextView time = new TextView(this);
         String sentAt = message.optString("sent_at", "");
@@ -973,6 +1139,62 @@ public class BubbleService extends Service {
             }
         }
         renderStack();
+    }
+
+    private void pickPhoto() {
+        if (selectedId.isEmpty()) {
+            Toast.makeText(this, "Ouvrez d'abord une discussion.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setAction(ACTION_PICK_BUBBLE_PHOTO);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        try {
+            startActivity(intent);
+        } catch (Exception ignored) {
+            Toast.makeText(this, "Galerie indisponible.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void sendPhotoFromBubble(String dataUrl) {
+        if (selectedId.isEmpty()) {
+            Toast.makeText(this, "Ouvrez d'abord une discussion.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!BubbleSession.isReady(this)) {
+            Toast.makeText(this, "Session indisponible, ouvrez l'application.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final String peerId = "direct".equals(selectedType) ? selectedId : "";
+        final String groupId = "group".equals(selectedType) ? selectedId : "";
+        String messageId = "msg_local_" + System.currentTimeMillis();
+        try {
+            JSONObject optimistic = new JSONObject();
+            optimistic.put("id", messageId);
+            optimistic.put("sender_id", BubbleSession.userId(this));
+            if (!peerId.isEmpty()) optimistic.put("receiver_id", peerId);
+            if (!groupId.isEmpty()) optimistic.put("group_id", groupId);
+            optimistic.put("message", "");
+            optimistic.put("status", "sent");
+            optimistic.put("is_deleted", false);
+            optimistic.put("is_edited", false);
+            optimistic.put("sent_at", SupabaseRest.nowMinute());
+            optimistic.put("image_url", dataUrl);
+            optimistic.put("file_type", "image");
+            cachedMessages.put(optimistic);
+            renderConversation(true);
+        } catch (Exception ignored) {
+        }
+        SupabaseRest.sendPhotoReply(this, peerId, groupId, dataUrl, (success, error) -> {
+            if (success) {
+                mainHandler.postDelayed(this::pollOnce, 700);
+            } else {
+                Toast.makeText(BubbleService.this, "Envoi photo impossible, reessayez.",
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void sendReply() {
@@ -1075,9 +1297,16 @@ public class BubbleService extends Service {
             try {
                 windowManager.removeView(root);
             } catch (Exception ignored) {
-                /* deja retiree */
             }
         }
+        if (headsBackdrop != null && windowManager != null) {
+            try {
+                windowManager.removeView(headsBackdrop);
+            } catch (Exception ignored) {
+            }
+        }
+        headsBackdrop = null;
+        headsBackdropParams = null;
         root = null;
         stackView = null;
         panel = null;
