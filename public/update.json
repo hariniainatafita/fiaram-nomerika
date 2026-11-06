@@ -1,6 +1,6 @@
 {
-  "versionCode": 12,
-  "versionName": "1.11",
+  "versionCode": 13,
+  "versionName": "1.12",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Nouveaute : appels vocaux gratuits entre membres (voix sur Internet, sans credit telephonique). Cette version ajoute l'autorisation microphone necessaire ; installez-la pour passer et recevoir des appels. Ensuite, les prochaines nouveautes web s'installent automatiquement sans reinstalation."
+  "notes": "Correctif Android : les messages, la presence en ligne et les photos de profil se mettent maintenant a jour regulierement, meme si la connexion temps reel se coupe. Ajout d'un diagnostic de connexion dans la fenetre de mise a jour pour verifier reseau, base de donnees et stockage."
 }
