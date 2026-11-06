@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Membre, Groupe, Message } from '../types';
-import { 
-  Send, 
-  Image as ImageIcon, 
-  Search, 
-  Users, 
+import {
+  Send,
+  Image as ImageIcon,
+  Search,
+  Users,
   Check,
-  CheckCheck, 
+  CheckCheck,
   X,
   Maximize2,
   Download,
@@ -15,7 +15,10 @@ import {
   Pencil,
   Trash2,
   Settings,
-  MessageSquare
+  MessageSquare,
+  ThumbsUp,
+  Crown,
+  ShieldCheck
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
@@ -23,7 +26,14 @@ import { compressImage } from '../utils/imageCompressor';
 import { uploadDataUrl, downloadMedia } from '../utils/media';
 import { isMemberOnline, PresenceMap } from '../utils/presence';
 import { useLanguage } from '../i18n';
-import { getVisibleGroupIds, isAdmin } from '../utils/permissions';
+import {
+  canManageMessengerGroup,
+  getVisibleGroupIds,
+  isAdmin,
+  isMessengerGroupAdmin,
+  isMessengerGroupOwner
+} from '../utils/permissions';
+import { useTypingIndicator } from '../utils/typing';
 import { fetchMessageImageIfMissing } from '../utils/supabaseSync';
 import { openMemberProfile } from '../utils/memberProfileNav';
 import {
@@ -45,6 +55,7 @@ interface ChatViewProps {
   openPeerId?: string;
   focusKey?: number;
   listKey?: number;
+  onConversationChange?: (open: boolean) => void;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -57,7 +68,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onRefreshGroupes,
   openPeerId,
   focusKey,
-  listKey
+  listKey,
+  onConversationChange
 }) => {
   const visibleGroupIds = getVisibleGroupIds(currentUser, allGroupes);
   const visibleGroupes = allGroupes.filter((g) => visibleGroupIds.includes(g.id));
@@ -157,14 +169,31 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [manageGroupId, setManageGroupId] = useState<string | null>(null);
   const [manageName, setManageName] = useState('');
   const [manageMemberIds, setManageMemberIds] = useState<string[]>([]);
+  const [manageAdminIds, setManageAdminIds] = useState<string[]>([]);
+  const [managePhotoUrl, setManagePhotoUrl] = useState<string | undefined>(undefined);
+  const [isProcessingGroupPhoto, setIsProcessingGroupPhoto] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const groupPhotoInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messageSwipeRef = useRef<{ id: string; x: number; y: number; triggered: boolean } | null>(null);
   const lastSwipeAtRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { t } = useLanguage();
+
+  const currentUserName = `${currentUser.prenom} ${currentUser.nom}`.trim();
+  const { typingNames, notifyTyping } = useTypingIndicator(
+    currentUser.id,
+    currentUserName,
+    activeChannelType,
+    activeChannelId
+  );
+
+  // Mode « conversation » : l'application masque sa navbar et son footer.
+  useEffect(() => {
+    onConversationChange?.(isMobileConversation);
+  }, [isMobileConversation, onConversationChange]);
 
   // Le champ de saisie grandit avec le texte (retours à la ligne autorisés).
   useEffect(() => {
@@ -239,6 +268,44 @@ export const ChatView: React.FC<ChatViewProps> = ({
     ? allMembres.find((m) => m.id === activeChannelId) 
     : null;
   const isPeerOnline = isMemberOnline(presence, activePeer?.id);
+
+  // Membres actuellement en ligne : affichés en haut de la liste des messages.
+  const onlineMembers = React.useMemo(
+    () =>
+      allMembres
+        .filter(
+          (m) =>
+            m.id !== currentUser.id &&
+            m.is_approved !== false &&
+            !m.is_blocked &&
+            isMemberOnline(presence, m.id)
+        )
+        .slice()
+        .sort((a, b) => (presence[b.id] || 0) - (presence[a.id] || 0)),
+    [allMembres, currentUser.id, presence]
+  );
+
+  const typingLabel =
+    typingNames.length === 0
+      ? ''
+      : typingNames.length === 1
+        ? t('chat.typing', { name: typingNames[0] })
+        : t('chat.typingMultiple', { names: typingNames.slice(0, 2).join(', ') });
+
+  const openDirectChannel = (memberId: string) => {
+    setActiveChannelType('direct');
+    setActiveChannelId(memberId);
+    setIsMobileConversation(true);
+  };
+
+  const openManageGroup = () => {
+    if (!activeGroup || !canManageActiveGroup) return;
+    setManageGroupId(activeGroup.id);
+    setManageName(activeGroup.nom_groupe);
+    setManageMemberIds(activeGroup.membre_ids || []);
+    setManageAdminIds(activeGroup.admin_ids || []);
+    setManagePhotoUrl(activeGroup.photo_url);
+  };
 
   // Filter messages for current channel
   const channelMessages = messages.filter((m) => {
@@ -445,10 +512,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // Groupes Messenger (créés librement) vs groupes officiels de l'application
   const orderedMessengerGroupes = orderedGroupes.filter((g) => g.is_messenger);
   const orderedOfficialGroupes = orderedGroupes.filter((g) => !g.is_messenger);
-  const canManageActiveGroup = Boolean(
-    activeGroup?.is_messenger &&
-      (activeGroup.chef_id === currentUser.id || isAdmin(currentUser))
-  );
+  const canManageActiveGroup = canManageMessengerGroup(activeGroup, currentUser);
+
+  const manageGroup = manageGroupId ? allGroupes.find((g) => g.id === manageGroupId) : null;
+  const manageGroupOwner = isMessengerGroupOwner(manageGroup, currentUser.id);
+  const manageGroupAdmin = isMessengerGroupAdmin(manageGroup, currentUser.id);
+  const canManageGroupSettings = Boolean(manageGroup && (manageGroupOwner || isAdmin(currentUser)));
+  const canManageGroupPhoto = Boolean(manageGroup && (canManageGroupSettings || manageGroupAdmin));
+  const canManageGroupMembers = canManageGroupSettings;
+  const canManageGroupAdmins = canManageGroupSettings;
+  const canAddGroupMembers = Boolean(manageGroup && (canManageGroupSettings || manageGroupAdmin));
 
   // Handle local image file selection with canvas compression
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -477,6 +550,24 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // Remove staged image
   const handleRemoveStagedImage = () => {
     setStagedImage(null);
+  };
+
+  // Photo du groupe Messenger (compressée puis envoyée sur le stockage média).
+  const handleGroupPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsProcessingGroupPhoto(true);
+      const compressed = await compressImage(file, 512, 512, 0.78);
+      const uploaded = await uploadDataUrl(compressed, 'image');
+      setManagePhotoUrl(uploaded || compressed);
+    } catch (err) {
+      console.error('Erreur photo groupe:', err);
+      alert(t('chat.imageProcessError'));
+    } finally {
+      setIsProcessingGroupPhoto(false);
+      e.target.value = '';
+    }
   };
 
   // Send message
@@ -538,6 +629,39 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
+  // Bouton « J'aime » rapide quand le champ est vide (comme Messenger).
+  const handleQuickLike = () => {
+    if (isProcessingImage) return;
+    const replyPayload = replyingTo ? {
+      id: replyingTo.id,
+      sender_id: replyingTo.sender_id,
+      text: getMessagePreviewText(replyingTo)
+    } : undefined;
+    if (activeChannelType === 'group') {
+      StorageService.sendMessage(
+        currentUser.id,
+        '👍',
+        undefined,
+        activeChannelId,
+        undefined,
+        undefined,
+        replyPayload
+      );
+    } else {
+      StorageService.sendMessage(
+        currentUser.id,
+        '👍',
+        activeChannelId,
+        undefined,
+        undefined,
+        undefined,
+        replyPayload
+      );
+    }
+    setReplyingTo(null);
+    onRefreshMessages();
+  };
+
   // Create Messenger Group
   const handleCreateMessengerGroup = async () => {
     if (!newGroupName.trim() || newGroupMemberIds.length === 0) {
@@ -554,11 +678,43 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // Manage Group
   const handleManageGroup = async () => {
     if (!manageGroupId) return;
-    await StorageService.renameMessengerGroupe(manageGroupId, manageName);
-    await StorageService.updateMessengerGroupeMembers(manageGroupId, manageMemberIds);
+    const group = allGroupes.find((g) => g.id === manageGroupId);
+    if (!group) {
+      setManageGroupId(null);
+      return;
+    }
+    const owner = group.chef_id === currentUser.id;
+    const appAdmin = isAdmin(currentUser);
+    const groupAdmin = (group.admin_ids || []).includes(currentUser.id);
+    const canSettings = owner || appAdmin;
+    const canPhoto = canSettings || groupAdmin;
+
+    // Members first, then admins, so a newly added admin is already a member.
+    const nextMembers = canSettings
+      ? manageMemberIds
+      : [...new Set([...(group.membre_ids || []), ...manageMemberIds])];
+    if (canSettings || groupAdmin) {
+      await StorageService.updateMessengerGroupeMembers(manageGroupId, nextMembers);
+    }
+
+    if (canSettings) {
+      if (manageName.trim() && manageName.trim() !== group.nom_groupe) {
+        await StorageService.renameMessengerGroupe(manageGroupId, manageName.trim());
+      }
+      const memberSet = new Set([...nextMembers, group.chef_id]);
+      const nextAdmins = manageAdminIds.filter((id) => memberSet.has(id));
+      await StorageService.updateMessengerGroupeAdmins(manageGroupId, nextAdmins);
+    }
+
+    if (canPhoto && managePhotoUrl !== group.photo_url) {
+      await StorageService.setMessengerGroupePhoto(manageGroupId, managePhotoUrl);
+    }
+
     setManageGroupId(null);
     setManageName('');
     setManageMemberIds([]);
+    setManageAdminIds([]);
+    setManagePhotoUrl(undefined);
     onRefreshGroupes();
   };
 
@@ -618,6 +774,65 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '10px 8px' }}>
 
+            {/* Membres en ligne : accès direct à leur discussion */}
+            {onlineMembers.length > 0 && (
+              <div style={{ padding: '2px 2px 10px', marginBottom: '4px', borderBottom: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--accent-gold)', padding: '2px 8px 8px', textTransform: 'uppercase' }}>
+                  {t('chat.onlineNow', { count: onlineMembers.length })}
+                </div>
+                <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', padding: '0 4px 4px' }}>
+                  {onlineMembers.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => openDirectChannel(m.id)}
+                      title={`${m.prenom} ${m.nom} - ${t('chat.onlineStatus')}`}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px',
+                        flexShrink: 0,
+                        width: '58px'
+                      }}
+                    >
+                      <div style={{ position: 'relative' }}>
+                        <img
+                          src={m.photo_url || DEFAULT_AVATAR_IMAGE}
+                          alt={m.prenom}
+                          style={{ width: '46px', height: '46px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #10b981' }}
+                        />
+                        <span style={{
+                          position: 'absolute',
+                          right: '1px',
+                          bottom: '1px',
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          background: '#10b981',
+                          border: '2px solid var(--bg-secondary)'
+                        }} />
+                      </div>
+                      <span style={{
+                        fontSize: '0.68rem',
+                        color: 'var(--text-main)',
+                        maxWidth: '58px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {m.prenom}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Groupes Messenger (discussion libre, sans impact sur les
                 cotisations / présences) */}
             {orderedMessengerGroupes.length > 0 && (
@@ -655,19 +870,27 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         marginBottom: '2px'
                       }}
                     >
-                      <div style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '10px',
-                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(245, 158, 11, 0.25))',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#c4b5fd',
-                        flexShrink: 0
-                      }}>
-                        <MessageSquare size={18} />
-                      </div>
+                      {g.photo_url ? (
+                        <img
+                          src={g.photo_url}
+                          alt={g.nom_groupe}
+                          style={{ width: '36px', height: '36px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '10px',
+                          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(245, 158, 11, 0.25))',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#c4b5fd',
+                          flexShrink: 0
+                        }}>
+                          <MessageSquare size={18} />
+                        </div>
+                      )}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '0.86rem', fontWeight: isSelected || unread > 0 ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {g.nom_groupe}
@@ -913,19 +1136,39 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </button>
 
               {activeChannelType === 'group' ? (
-                <div style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '10px',
-                  background: 'rgba(59, 130, 246, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#3b82f6',
-                  flexShrink: 0
-                }}>
-                  <Users size={20} />
-                </div>
+                activeGroup?.photo_url ? (
+                  <img
+                    src={activeGroup.photo_url}
+                    alt={activeGroup.nom_groupe}
+                    onClick={openManageGroup}
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '10px',
+                      objectFit: 'cover',
+                      flexShrink: 0,
+                      cursor: canManageActiveGroup ? 'pointer' : 'default'
+                    }}
+                  />
+                ) : (
+                  <div
+                    onClick={openManageGroup}
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '10px',
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#3b82f6',
+                      flexShrink: 0,
+                      cursor: canManageActiveGroup ? 'pointer' : 'default'
+                    }}
+                  >
+                    <Users size={20} />
+                  </div>
+                )
               ) : (
                 <img
                   src={activePeer?.photo_url || DEFAULT_AVATAR_IMAGE}
@@ -949,7 +1192,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   alignItems: 'center',
                   gap: '5px'
                 }}>
-                  {activeChannelType === 'group' ? (
+                  {typingLabel ? (
+                    <span style={{ color: 'var(--accent-gold)', fontWeight: 600 }}>{typingLabel}</span>
+                  ) : activeChannelType === 'group' ? (
                     activeGroup?.is_messenger
                       ? t('chat.messengerGroupSubtitle', { count: (activeGroup.membre_ids || []).length })
                       : t('chat.groupSubtitle')
@@ -995,12 +1240,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   className="btn btn-ghost"
                   style={{ padding: '6px', color: 'var(--text-muted)' }}
                   title={t('chat.manageGroup')}
-                  onClick={() => {
-                    if (!activeGroup) return;
-                    setManageGroupId(activeGroup.id);
-                    setManageName(activeGroup.nom_groupe);
-                    setManageMemberIds(activeGroup.membre_ids || []);
-                  }}
+                  onClick={openManageGroup}
                 >
                   <Settings size={16} />
                 </button>
@@ -1292,6 +1532,24 @@ export const ChatView: React.FC<ChatViewProps> = ({
               })
             )}
 
+            {typingLabel && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: 'var(--text-muted)',
+                fontSize: '0.78rem',
+                padding: '2px 4px'
+              }}>
+                <span className="typing-dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+                {typingLabel}
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
 
@@ -1445,7 +1703,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   : t('chat.messagePlaceholder', { name: activeChannelType === 'group' ? activeGroup?.nom_groupe ?? '' : activePeer?.prenom ?? '' })
               }
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={(e) => {
+                setInputText(e.target.value);
+                if (e.target.value.trim()) notifyTyping();
+              }}
               className="form-input"
               style={{
                 flex: 1,
@@ -1459,20 +1720,44 @@ export const ChatView: React.FC<ChatViewProps> = ({
               }}
             />
 
-            {/* Send button */}
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={isProcessingImage || (!inputText.trim() && !stagedImage)}
-              style={{
-                padding: '10px 18px',
-                borderRadius: 'var(--radius-full)',
-                opacity: (!inputText.trim() && !stagedImage) ? 0.6 : 1
-              }}
-            >
-              <Send size={16} />
-              <span>{t('chat.send')}</span>
-            </button>
+            {/* Like rapide quand le champ est vide, sinon icône d'envoi
+                uniquement (style Messenger / Facebook). */}
+            {!inputText.trim() && !stagedImage ? (
+              <button
+                type="button"
+                onClick={handleQuickLike}
+                className="btn btn-primary"
+                disabled={isProcessingImage}
+                title={t('chat.quickLike')}
+                aria-label={t('chat.quickLike')}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-full)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <ThumbsUp size={18} />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={isProcessingImage}
+                title={t('chat.send')}
+                aria-label={t('chat.send')}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-full)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Send size={18} />
+              </button>
+            )}
           </form>
 
         </div>
@@ -1632,6 +1917,79 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </button>
             </div>
 
+            {/* Photo du groupe */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
+              <div style={{
+                position: 'relative',
+                width: '72px',
+                height: '72px',
+                borderRadius: '18px',
+                overflow: 'hidden',
+                flexShrink: 0,
+                background: 'rgba(59, 130, 246, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#3b82f6'
+              }}>
+                {managePhotoUrl ? (
+                  <img
+                    src={managePhotoUrl}
+                    alt={t('chat.groupPhotoAlt')}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <Users size={30} />
+                )}
+                {isProcessingGroupPhoto && (
+                  <div style={{
+                    position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.7rem', color: '#fff'
+                  }}>
+                    …
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>{t('chat.groupPhoto')}</div>
+                {canManageGroupPhoto ? (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <input
+                      ref={groupPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleGroupPhotoChange}
+                      style={{ display: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ padding: '6px 10px', fontSize: '0.76rem' }}
+                      onClick={() => groupPhotoInputRef.current?.click()}
+                      disabled={isProcessingGroupPhoto}
+                    >
+                      <ImageIcon size={14} /> {t('chat.changeGroupPhoto')}
+                    </button>
+                    {managePhotoUrl && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        style={{ padding: '6px 10px', fontSize: '0.76rem', color: '#f87171' }}
+                        onClick={() => setManagePhotoUrl(undefined)}
+                      >
+                        <Trash2 size={14} /> {t('chat.removeGroupPhoto')}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    {t('chat.photoAdminOnly')}
+                  </div>
+                )}
+              </div>
+            </div>
+
             <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
               {t('chat.newGroupName')}
             </label>
@@ -1641,18 +1999,39 @@ export const ChatView: React.FC<ChatViewProps> = ({
               onChange={(event) => setManageName(event.target.value)}
               className="form-input"
               maxLength={80}
-              style={{ marginTop: '6px', marginBottom: '16px' }}
+              disabled={!canManageGroupSettings}
+              style={{
+                marginTop: '6px',
+                marginBottom: '16px',
+                opacity: canManageGroupSettings ? 1 : 0.7
+              }}
             />
 
             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '8px' }}>
               {t('chat.newGroupMembers')}
             </div>
+            {!canManageGroupMembers && canAddGroupMembers && (
+              <div style={{ fontSize: '0.72rem', color: 'var(--accent-gold)', marginBottom: '8px' }}>
+                {t('chat.adminAddOnlyHint')}
+              </div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '300px', overflowY: 'auto' }}>
               {allMembres
                 .filter((m) => m.is_approved !== false && !m.is_blocked)
                 .map((m) => {
-                  const checked = manageMemberIds.includes(m.id) || m.id === currentUser.id;
-                  const locked = m.id === currentUser.id;
+                  const isOwner = manageGroup?.chef_id === m.id;
+                  const isExisting = Boolean(
+                    isOwner ||
+                      m.id === currentUser.id ||
+                      (manageGroup?.membre_ids || []).includes(m.id)
+                  );
+                  const checked = manageMemberIds.includes(m.id) || isOwner || m.id === currentUser.id;
+                  const locked =
+                    isOwner ||
+                    m.id === currentUser.id ||
+                    (!canManageGroupMembers && (isExisting || !canAddGroupMembers));
+                  const isGroupAdmin = !isOwner && checked && manageAdminIds.includes(m.id);
+                  const canToggleAdmin = canManageGroupAdmins && checked && !isOwner && !locked;
                   return (
                     <label
                       key={m.id}
@@ -1678,9 +2057,41 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         alt=""
                         style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }}
                       />
-                      <span style={{ fontSize: '0.85rem', fontWeight: checked ? 700 : 500 }}>
+                      <span style={{ flex: 1, fontSize: '0.85rem', fontWeight: checked ? 700 : 500, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         {m.prenom} {m.nom}
+                        {isOwner && (
+                          <span className="badge badge-gold" style={{ fontSize: '0.6rem' }}>
+                            <Crown size={10} /> {t('chat.groupOwner')}
+                          </span>
+                        )}
+                        {isGroupAdmin && (
+                          <span className="badge badge-gold" style={{ fontSize: '0.6rem' }}>
+                            <ShieldCheck size={10} /> {t('chat.adminBadge')}
+                          </span>
+                        )}
                       </span>
+                      {canToggleAdmin && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          title={isGroupAdmin ? t('chat.removeAdmin') : t('chat.makeAdmin')}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setManageAdminIds((ids) =>
+                              ids.includes(m.id)
+                                ? ids.filter((id) => id !== m.id)
+                                : [...ids, m.id]
+                            );
+                          }}
+                          style={{
+                            padding: '4px',
+                            color: isGroupAdmin ? 'var(--accent-gold)' : 'var(--text-muted)'
+                          }}
+                        >
+                          <Crown size={16} />
+                        </button>
+                      )}
                     </label>
                   );
                 })}
@@ -1695,26 +2106,28 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </button>
             </div>
 
-            <button
-              type="button"
-              className="btn btn-danger"
-              style={{ width: '100%', marginTop: '10px', background: '#dc2626', color: '#fff' }}
-              onClick={() => {
-                if (!window.confirm(t('chat.confirmDeleteGroup'))) return;
-                StorageService.deleteMessengerGroupe(manageGroupId);
-                setManageGroupId(null);
-                const fallback = visibleGroupes.find((g) => g.id !== manageGroupId);
-                setActiveChannelType(fallback ? 'group' : 'direct');
-                setActiveChannelId(fallback?.id || directFallbackId);
-                if (fallback) setIsMobileConversation(true);
-                else setIsMobileConversation(false);
-                onRefreshGroupes();
-                onRefreshMessages();
-              }}
-            >
-              <Trash2 size={16} />
-              {t('chat.deleteGroup')}
-            </button>
+            {canManageGroupSettings && (
+              <button
+                type="button"
+                className="btn btn-danger"
+                style={{ width: '100%', marginTop: '10px', background: '#dc2626', color: '#fff' }}
+                onClick={() => {
+                  if (!window.confirm(t('chat.confirmDeleteGroup'))) return;
+                  StorageService.deleteMessengerGroupe(manageGroupId);
+                  setManageGroupId(null);
+                  const fallback = visibleGroupes.find((g) => g.id !== manageGroupId);
+                  setActiveChannelType(fallback ? 'group' : 'direct');
+                  setActiveChannelId(fallback?.id || directFallbackId);
+                  if (fallback) setIsMobileConversation(true);
+                  else setIsMobileConversation(false);
+                  onRefreshGroupes();
+                  onRefreshMessages();
+                }}
+              >
+                <Trash2 size={16} />
+                {t('chat.deleteGroup')}
+              </button>
+            )}
           </form>
         </div>
       )}

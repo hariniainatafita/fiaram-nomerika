@@ -171,5 +171,80 @@ export const chat: TranslationDictionary = {
   'chat.messageActions': { mg: 'Safidy', fr: 'Actions', en: 'Actions' },
   'chat.groupMembersCount': { mg: '{count} mpikambana', fr: '{count} membres', en: '{count} members' },
   'chat.addMembers': { mg: 'Ampio mpikambana', fr: 'Ajouter des membres', en: 'Add members' },
-  'chat.messengerGroupsSection': { mg: 'VONDRONA MESSENGER ({count})', fr: 'GROUPES MESSENGER ({count})', en: 'MESSENGER GROUPS ({count})' }
+  'chat.messengerGroupsSection': { mg: 'VONDRONA MESSENGER ({count})', fr: 'GROUPES MESSENGER ({count})', en: 'MESSENGER GROUPS ({count})' },
+  'chat.onlineNow': {
+    mg: 'Ao amin’ny aterineto izao ({count})',
+    fr: 'En ligne maintenant ({count})',
+    en: 'Online now ({count})'
+  },
+  'chat.quickLike': {
+    mg: 'J’aime haingana',
+    fr: "J'aime (envoi rapide)",
+    en: 'Quick like'
+  },
+  'chat.typing': {
+    mg: 'Manao fanoratra i {name}…',
+    fr: '{name} est en train d’écrire…',
+    en: '{name} is typing…'
+  },
+  'chat.typingMultiple': {
+    mg: 'Manao fanoratra i {names}…',
+    fr: '{names} sont en train d’écrire…',
+    en: '{names} are typing…'
+  },
+  'chat.groupPhoto': {
+    mg: 'Sarin’ny vondrona',
+    fr: 'Photo du groupe',
+    en: 'Group photo'
+  },
+  'chat.changeGroupPhoto': {
+    mg: 'Hanova ny sary',
+    fr: 'Changer la photo',
+    en: 'Change photo'
+  },
+  'chat.removeGroupPhoto': {
+    mg: 'Hanafoana ny sary',
+    fr: 'Supprimer la photo',
+    en: 'Remove photo'
+  },
+  'chat.groupAdmins': {
+    mg: 'Mpitantana ny vondrona',
+    fr: 'Administrateurs du groupe',
+    en: 'Group admins'
+  },
+  'chat.groupOwner': {
+    mg: 'Tompon’ny vondrona',
+    fr: 'Créateur',
+    en: 'Owner'
+  },
+  'chat.adminBadge': {
+    mg: 'Mpitantana',
+    fr: 'Admin',
+    en: 'Admin'
+  },
+  'chat.adminAddOnlyHint': {
+    mg: 'Afaka mampiditra mpikambana ianao, fa ny tompon’ny vondrona ihany no afaka manala azy.',
+    fr: 'Vous pouvez ajouter des membres. Seul le créateur peut en retirer.',
+    en: 'You can add members. Only the owner can remove them.'
+  },
+  'chat.photoAdminOnly': {
+    mg: 'Ny mpitantana na ny tompon’ny vondrona ihany no afaka manova ny sary.',
+    fr: 'Seul un administrateur ou le créateur peut modifier la photo.',
+    en: 'Only an admin or the owner can change the photo.'
+  },
+  'chat.groupPhotoAlt': {
+    mg: 'Sarin’ny vondrona',
+    fr: 'Photo du groupe',
+    en: 'Group photo'
+  },
+  'chat.makeAdmin': {
+    mg: 'Ataovy mpitantana',
+    fr: 'Nommer administrateur',
+    en: 'Make admin'
+  },
+  'chat.removeAdmin': {
+    mg: 'Esory amin’ny fitantanana',
+    fr: 'Retirer des administrateurs',
+    en: 'Remove admin'
+  }
 };

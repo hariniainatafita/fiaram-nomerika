@@ -96,6 +96,31 @@ export function canManageGroup(
   return user.role === 'chef' && groupe.chef_id === user.id;
 }
 
+// Groupes Messenger : le créateur (chef_id) est propriétaire, les admin_ids
+// sont les membres qu'il a nommés administrateurs.
+export function isMessengerGroupOwner(
+  groupe: Groupe | null | undefined,
+  userId?: string
+): boolean {
+  return Boolean(userId && groupe?.is_messenger && groupe.chef_id === userId);
+}
+
+export function isMessengerGroupAdmin(
+  groupe: Groupe | null | undefined,
+  userId?: string
+): boolean {
+  if (!userId || !groupe?.is_messenger) return false;
+  return isMessengerGroupOwner(groupe, userId) || (groupe.admin_ids || []).includes(userId);
+}
+
+export function canManageMessengerGroup(
+  groupe: Groupe | null | undefined,
+  user: Membre | null | undefined
+): boolean {
+  if (!user || !groupe?.is_messenger) return false;
+  return isAdmin(user) || isMessengerGroupAdmin(groupe, user.id);
+}
+
 export function getManagedGroupIds(
   user: Membre | null | undefined,
   groupes: Groupe[]

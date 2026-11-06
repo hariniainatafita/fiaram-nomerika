@@ -1109,7 +1109,8 @@ export const StorageService = {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       is_messenger: true,
-      membre_ids: uniqueIds
+      membre_ids: uniqueIds,
+      admin_ids: []
     };
     list.push(newG);
     this.saveGroupes(list);
@@ -1122,9 +1123,40 @@ export const StorageService = {
       // The creator must always stay in the conversation.
       const ids = new Set(membreIds);
       if (list[index].chef_id) ids.add(list[index].chef_id);
+      // Administrators who were removed from the group lose that role.
+      const adminIds = (list[index].admin_ids || []).filter((id) => ids.has(id) && id !== list[index].chef_id);
       list[index] = {
         ...list[index],
         membre_ids: [...ids],
+        admin_ids: adminIds,
+        updated_at: new Date().toISOString()
+      };
+      this.saveGroupes(list);
+    }
+  },
+  setMessengerGroupePhoto(groupId: string, photoUrl?: string): void {
+    const list = this.getGroupes();
+    const index = list.findIndex((g) => g.id === groupId);
+    if (index !== -1 && list[index].is_messenger) {
+      list[index] = {
+        ...list[index],
+        photo_url: photoUrl,
+        updated_at: new Date().toISOString()
+      };
+      this.saveGroupes(list);
+    }
+  },
+  updateMessengerGroupeAdmins(groupId: string, adminIds: string[]): void {
+    const list = this.getGroupes();
+    const index = list.findIndex((g) => g.id === groupId);
+    if (index !== -1 && list[index].is_messenger) {
+      const members = new Set(list[index].membre_ids || []);
+      const owner = list[index].chef_id;
+      // Only current members can be admins, and the owner is always the owner.
+      const nextAdmins = [...new Set(adminIds)].filter((id) => id !== owner && members.has(id));
+      list[index] = {
+        ...list[index],
+        admin_ids: nextAdmins,
         updated_at: new Date().toISOString()
       };
       this.saveGroupes(list);

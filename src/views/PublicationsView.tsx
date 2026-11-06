@@ -1064,16 +1064,6 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   return (
     <div className="animate-fade-in publications-feed" style={{ padding: '24px 16px 40px', maxWidth: '760px', margin: '0 auto' }}>
 
-      <div style={{ marginBottom: '22px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="badge badge-gold">{t('publications.badge')}</span>
-        </div>
-        <h1 style={{ fontSize: '1.6rem', margin: '6px 0 0' }}>{t('publications.title')}</h1>
-        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          {t('publications.subtitle')}
-        </p>
-      </div>
-
       <div ref={storiesSectionRef} className="glass-card" style={{ padding: '14px 12px', marginBottom: '18px', scrollMarginTop: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 10px' }}>
           <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)' }}>

@@ -96,6 +96,10 @@ export interface Groupe {
   // présences / finances / cotisations. Les comptes restent inchangés.
   is_messenger?: boolean;
   membre_ids?: string[];
+  // Groupes Messenger : photo du groupe et membres nommés administrateurs.
+  // Le créateur (chef_id) reste le propriétaire et peut nommer/retirer les admins.
+  photo_url?: string;
+  admin_ids?: string[];
   // Dernière modification (nom, chef, membres) : le merge multi-appareils
   // garde la version la plus récente pour ne jamais perdre un membre ajouté.
   updated_at?: string;

@@ -76,6 +76,12 @@ export function App() {
   // Incrémenté à chaque clic sur l'icône Messages pour forcer la liste des
   // discussions, même si l'utilisateur était déjà dans la vue chat.
   const [chatListNonce, setChatListNonce] = useState(0);
+  // Conversation ouverte : masque la navbar et la barre de navigation pour
+  // laisser toute la place aux messages (style Messenger).
+  const [chatFocusMode, setChatFocusMode] = useState(false);
+  useEffect(() => {
+    if (activeView !== 'chat') setChatFocusMode(false);
+  }, [activeView]);
 
   // Cursor « dernières publications vues » : sert au badge rouge du bouton
   // Publications, comme sur Facebook quand de nouvelles publications arrivent.
@@ -702,7 +708,7 @@ const refreshStories = () => {
     : null;
 
   return (
-    <div className="app-container">
+    <div className={`app-container${chatFocusMode ? ' chat-focus-mode' : ''}`}>
       {/* Sidebar Navigation */}
       <Sidebar
         activeView={allowedView}
@@ -828,6 +834,7 @@ const refreshStories = () => {
               openPeerId={chatFocus?.peerId}
               focusKey={chatFocus?.nonce}
               listKey={chatListNonce}
+              onConversationChange={setChatFocusMode}
             />
           )}
 
