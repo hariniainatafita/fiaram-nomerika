@@ -222,8 +222,9 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
 
         {/* Identity */}
         <div style={{ padding: '0 20px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', marginTop: '-44px', flexWrap: 'wrap' }}>
+          <div className="member-profile-identity" style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', marginTop: '-44px', flexWrap: 'wrap' }}>
             <img
+              className="member-profile-avatar"
               src={membre.photo_url || DEFAULT_AVATAR_IMAGE}
               alt={`${membre.prenom} ${membre.nom}`}
               style={{
@@ -238,7 +239,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
               }}
             />
 
-            <div style={{ flex: 1, minWidth: '200px', paddingBottom: '4px' }}>
+            <div className="member-profile-name" style={{ flex: 1, minWidth: '200px', paddingBottom: '4px' }}>
               <h2 style={{ margin: '0 0 4px', fontSize: '1.45rem', lineHeight: 1.2 }}>
                 {membre.prenom} {membre.nom}
               </h2>
@@ -252,7 +253,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
             </div>
 
             {!isSelf && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '4px' }}>
+              <div className="member-profile-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '4px' }}>
                 <button
                   type="button"
                   onClick={() => {

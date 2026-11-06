@@ -122,6 +122,10 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
         onClick={(event) => event.stopPropagation()}
         style={{
           width: 'min(400px, 100%)',
+          maxHeight: 'calc(100dvh - 32px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
           padding: '34px 26px 30px',
           borderRadius: '28px',
           background: 'linear-gradient(180deg, rgba(17, 24, 39, 0.97), rgba(2, 6, 23, 0.98))',

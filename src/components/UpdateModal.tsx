@@ -139,10 +139,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
       }}
     >
       <div
-        className="glass-card animate-fade-in"
+        className="glass-card animate-fade-in update-modal-panel"
         onClick={(event) => event.stopPropagation()}
         style={{
           width: 'min(460px, 100%)',
+          maxHeight: 'calc(100dvh - 32px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
           padding: '22px',
           borderRadius: '20px',
           background: 'linear-gradient(180deg, #0e1728 0%, #070d18 100%)',
@@ -251,11 +255,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '9px', marginTop: '16px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '9px', marginTop: '16px' }}>
           <button
             type="button"
             className="btn btn-primary"
-            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}
+            style={{ flex: '1 1 160px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}
             onClick={() => void (hasUpdate ? install() : check())}
             disabled={status === 'checking' || status === 'downloading' || status === 'installing'}
           >
@@ -284,13 +288,23 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
             flexDirection: 'column',
             gap: '8px'
           }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', lineHeight: 1.45 }}>
-              {t('update.webBundle')} :{' '}
-              <code style={{ fontSize: '0.7rem' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', lineHeight: 1.5, minWidth: 0 }}>
+              <div>{t('update.webBundle')} :</div>
+              <code
+                style={{
+                  display: 'block',
+                  marginTop: '2px',
+                  fontSize: '0.7rem',
+                  overflowWrap: 'anywhere',
+                  wordBreak: 'break-all'
+                }}
+              >
                 {webBundles?.current || t('update.webBundleEmbedded')}
               </code>
               {webBundles?.next ? (
-                <span> → {webBundles.next}</span>
+                <div style={{ marginTop: '4px', overflowWrap: 'anywhere', wordBreak: 'break-all' }}>
+                  → {webBundles.next}
+                </div>
               ) : null}
             </div>
             <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>

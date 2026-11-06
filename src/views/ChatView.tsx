@@ -1154,7 +1154,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             justifyContent: 'space-between',
             background: 'rgba(255, 255, 255, 0.02)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
               <button
                 type="button"
                 onClick={() => setIsMobileConversation(false)}
@@ -1210,7 +1210,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
               <div
                 onClick={() => activeChannelType === 'direct' && activePeer && openMemberProfile(activePeer.id)}
-                style={{ minWidth: 0, cursor: activeChannelType === 'direct' ? 'pointer' : 'default' }}
+                style={{ minWidth: 0, flex: 1, overflow: 'hidden', cursor: activeChannelType === 'direct' ? 'pointer' : 'default' }}
               >
                 <div style={{ fontSize: '0.98rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {activeChannelType === 'group' ? activeGroup?.nom_groupe : `${activePeer?.prenom} ${activePeer?.nom}`}
@@ -1245,7 +1245,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </div>
             </div>
 
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', flexShrink: 0, gap: '6px' }}>
               {activeChannelType === 'direct' && activePeer && onStartVoiceCall && (
                 <button
                   type="button"
@@ -1276,7 +1276,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               >
                 <MessageSquare size={16} />
               </button>
-              <span className="badge badge-gold" style={{ fontSize: '0.65rem' }}>
+              <span className="badge badge-gold chat-header-badge" style={{ fontSize: '0.65rem' }}>
                 {activeChannelType === 'group' && activeGroup?.is_messenger
                   ? t('chat.messengerGroupBadge')
                   : t('chat.groupBadge')}

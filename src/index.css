@@ -905,3 +905,82 @@ body {
     border-radius: 18px 18px 0 0;
   }
 }
+
+/* ==================== SMALL PHONE FIT ==================== */
+
+/* Tall modals must scroll instead of being cut off on phones. */
+@media (max-width: 640px) {
+  .modal-overlay {
+    align-items: flex-start !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .update-modal-panel {
+    padding: 18px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-header-badge {
+    display: none !important;
+  }
+}
+
+/* Member profile: keep avatar + name on one line, actions on the next. */
+@media (max-width: 520px) {
+  .member-profile-identity {
+    gap: 12px !important;
+  }
+
+  .member-profile-avatar {
+    width: 82px !important;
+    height: 82px !important;
+  }
+
+  .member-profile-name {
+    min-width: 0 !important;
+  }
+
+  .member-profile-actions {
+    flex: 1 1 100%;
+  }
+
+  .member-profile-actions .btn {
+    flex: 1 1 140px;
+  }
+}
+
+/* Navbar: keep every control on screen on narrow phones. */
+@media (max-width: 640px) {
+  .nav-user-card {
+    display: none !important;
+  }
+
+  .app-navbar > div:last-child {
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-navbar > div:last-child {
+    gap: 6px !important;
+  }
+
+  .app-navbar .btn {
+    flex-shrink: 0;
+  }
+}
+
+/* Media and flex children must never widen the layout on a phone. */
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+.main-content,
+.glass-card,
+.modal-panel {
+  min-width: 0;
+}
