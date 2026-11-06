@@ -10,7 +10,8 @@ import {
   ImagePlus,
   Sparkles,
   Send,
-  Phone
+  Phone,
+  Video
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
@@ -25,6 +26,7 @@ interface MemberProfileModalProps {
   onClose: () => void;
   onOpenChat: (membreId: string) => void;
   onStartVoiceCall?: (membreId: string) => void;
+  onStartVideoCall?: (membreId: string) => void;
   voiceCallBusy?: boolean;
 }
 
@@ -36,6 +38,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
   onClose,
   onOpenChat,
   onStartVoiceCall,
+  onStartVideoCall,
   voiceCallBusy
 }) => {
   const { t } = useLanguage();
@@ -286,6 +289,28 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
                   >
                     <Phone size={15} />
                     <span>{t('calls.start')}</span>
+                  </button>
+                )}
+                {onStartVideoCall && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onStartVideoCall(membre.id);
+                      onClose();
+                    }}
+                    disabled={voiceCallBusy}
+                    className="btn btn-ghost"
+                    title={t('calls.startVideo')}
+                    aria-label={t('calls.startVideo')}
+                    style={{
+                      fontSize: '0.85rem',
+                      padding: '10px 14px',
+                      color: voiceCallBusy ? 'var(--text-dim)' : '#0ea5e9',
+                      opacity: voiceCallBusy ? 0.5 : 1
+                    }}
+                  >
+                    <Video size={15} />
+                    <span>{t('calls.startVideo')}</span>
                   </button>
                 )}
               </div>

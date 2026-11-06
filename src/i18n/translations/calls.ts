@@ -100,5 +100,23 @@ export const calls: TranslationDictionary = {
     mg: 'Mpifandray',
     fr: 'Correspondant',
     en: 'Caller'
-  }
+  },
+  'calls.startVideo': { mg: 'Hantsoana antso video', fr: 'Appeler en vidéo', en: 'Start video call' },
+  'calls.incomingVideo': {
+    mg: 'Antso video miditra…',
+    fr: 'Appel vidéo entrant…',
+    en: 'Incoming video call…'
+  },
+  'calls.noCamera': {
+    mg: 'Tsy hita ny fakantsary.',
+    fr: 'Aucune caméra détectée.',
+    en: 'No camera found.'
+  },
+  'calls.cameraDenied': {
+    mg: 'Nolavina ny fidirana amin’ny fakantsary.',
+    fr: 'Accès à la caméra refusé. Autorisez la caméra pour un appel vidéo.',
+    en: 'Camera access denied. Allow the camera for a video call.'
+  },
+  'calls.cameraOn': { mg: 'Alefaso ny fakantsary', fr: 'Allumer la caméra', en: 'Turn camera on' },
+  'calls.cameraOff': { mg: 'Maty ny fakantsary', fr: 'Éteindre la caméra', en: 'Turn camera off' }
 };

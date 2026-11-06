@@ -19,6 +19,8 @@ export type VoiceCallStatus =
   | 'ended'
   | 'error';
 
+export type CallType = 'voice' | 'video';
+
 export interface VoiceCallPeer {
   id: string;
   name: string;
@@ -28,7 +30,9 @@ export interface VoiceCallPeer {
 export interface VoiceCallState {
   status: VoiceCallStatus;
   peer: VoiceCallPeer | null;
+  callType: CallType;
   muted: boolean;
+  cameraOn: boolean;
   durationSeconds: number;
   error: string | null;
 }
@@ -36,11 +40,14 @@ export interface VoiceCallState {
 export interface VoiceCallController {
   state: VoiceCallState;
   remoteStream: MediaStream | null;
-  startCall: (member: Membre) => void;
+  localStream: MediaStream | null;
+  startCall: (member: Membre, callType?: CallType) => void;
+  startVideoCall: (member: Membre) => void;
   acceptCall: () => void;
   declineCall: () => void;
   hangUp: () => void;
   toggleMute: () => void;
+  toggleCamera: () => void;
   dismiss: () => void;
 }
 
@@ -67,7 +74,9 @@ const ENDED_RESET_MS = 3_500;
 const INITIAL_STATE: VoiceCallState = {
   status: 'idle',
   peer: null,
+  callType: 'voice',
   muted: false,
+  cameraOn: true,
   durationSeconds: 0,
   error: null
 };
@@ -79,6 +88,7 @@ interface CallSession {
   peerId: string;
   peerName: string;
   peerPhoto?: string;
+  callType: CallType;
   role: CallRole;
   pc: RTCPeerConnection | null;
   localStream: MediaStream | null;
@@ -93,11 +103,13 @@ interface CallSession {
 interface PendingIncoming {
   callId: string;
   peer: VoiceCallPeer;
+  callType: CallType;
   timer: number | null;
 }
 
 interface SignalPayload {
   callId?: string;
+  callType?: CallType;
   from?: { id?: string; name?: string; photo?: string };
   sdp?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
@@ -134,6 +146,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
   const [state, setState] = useState<VoiceCallState>(INITIAL_STATE);
   const stateRef = useRef<VoiceCallState>(INITIAL_STATE);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
   const currentUserId = currentUser?.id ?? null;
   const sessionRef = useRef<CallSession | null>(null);
@@ -168,6 +181,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
       displayPeerRef.current = null;
       commit(INITIAL_STATE);
       setRemoteStream(null);
+      setLocalStream(null);
     }, ENDED_RESET_MS);
   }
 
@@ -284,10 +298,14 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     }
   }
 
-  async function acquireMicrophone(): Promise<{ stream: MediaStream } | { error: string }> {
+  async function acquireMicrophone(callType: CallType = 'voice'): Promise<{ stream: MediaStream } | { error: string }> {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       return { error: tRef.current('calls.unsupported') };
     }
+    const videoConstraints: MediaTrackConstraints | boolean =
+      callType === 'video'
+        ? { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        : false;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -295,19 +313,19 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
           noiseSuppression: true,
           autoGainControl: true
         },
-        video: false
+        video: videoConstraints
       });
       return { stream };
     } catch (error) {
       const name = (error as DOMException | undefined)?.name;
       if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
-        return { error: tRef.current('calls.noMic') };
+        return { error: tRef.current(callType === 'video' ? 'calls.noCamera' : 'calls.noMic') };
       }
       if (await needsNativeUpdate()) {
         return { error: tRef.current('calls.updateApp') };
       }
       if (name === 'NotAllowedError' || name === 'SecurityError') {
-        return { error: tRef.current('calls.micDenied') };
+        return { error: tRef.current(callType === 'video' ? 'calls.cameraDenied' : 'calls.micDenied') };
       }
       return { error: tRef.current('calls.micError') };
     }
@@ -333,6 +351,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     pendingIncomingRef.current = null;
     if (!session) {
       setRemoteStream(null);
+      setLocalStream(null);
       return;
     }
     scheduleSendChannelRelease(session.peerId);
@@ -351,6 +370,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     }
     session.localStream?.getTracks().forEach((track) => track.stop());
     setRemoteStream(null);
+    setLocalStream(null);
   }
 
   function finish(
@@ -367,7 +387,9 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     commit({
       status,
       peer: displayPeerRef.current,
+      callType: session?.callType ?? stateRef.current.callType,
       muted: false,
+      cameraOn: false,
       durationSeconds: 0,
       error: message
     });
@@ -469,7 +491,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     return pc;
   }
 
-  function startCall(member: Membre): void {
+  function startCall(member: Membre, callType: CallType = 'voice'): void {
     if (!currentUser || member.id === currentUser.id) return;
     const currentStatus = stateRef.current.status;
     if (currentStatus !== 'idle' && currentStatus !== 'ended' && currentStatus !== 'error') return;
@@ -496,6 +518,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
       peerId: peer.id,
       peerName: peer.name,
       peerPhoto: peer.photo,
+      callType,
       role: 'caller',
       pc: null,
       localStream: null,
@@ -507,11 +530,11 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
       startedAt: null
     };
     sessionRef.current = session;
-    commit({ status: 'outgoing', peer, muted: false, durationSeconds: 0, error: null });
+    commit({ status: 'outgoing', peer, callType, muted: false, cameraOn: callType === 'video', durationSeconds: 0, error: null });
     startRingtone();
 
     void (async () => {
-      const mic = await acquireMicrophone();
+      const mic = await acquireMicrophone(callType);
       if ('error' in mic) {
         if (sessionRef.current?.callId === session.callId) failCall(mic.error, false);
         return;
@@ -521,10 +544,12 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
         return;
       }
       session.localStream = mic.stream;
+      setLocalStream(mic.stream);
       createPeerConnection(session);
 
       const delivered = await sendToPeer(session.peerId, 'invite', {
         callId: session.callId,
+        callType: session.callType,
         createdAt: Date.now(),
         from: { id: currentUser.id, name: self.name, photo: self.photo }
       });
@@ -562,6 +587,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
       peerId: pending.peer.id,
       peerName: pending.peer.name,
       peerPhoto: pending.peer.photo,
+      callType: pending.callType,
       role: 'callee',
       pc: null,
       localStream: null,
@@ -576,13 +602,15 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
     commit({
       status: 'connecting',
       peer: pending.peer,
+      callType: pending.callType,
       muted: false,
+      cameraOn: pending.callType === 'video',
       durationSeconds: 0,
       error: null
     });
 
     void (async () => {
-      const mic = await acquireMicrophone();
+      const mic = await acquireMicrophone(pending.callType);
       if ('error' in mic) {
         if (sessionRef.current?.callId === session.callId) failCall(mic.error);
         return;
@@ -592,6 +620,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
         return;
       }
       session.localStream = mic.stream;
+      setLocalStream(mic.stream);
       createPeerConnection(session);
 
       const delivered = await sendToPeer(session.peerId, 'accept', { callId: session.callId });
@@ -644,6 +673,16 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
       track.enabled = !nextMuted;
     });
     patch({ muted: nextMuted });
+  }
+
+  function toggleCamera(): void {
+    const session = sessionRef.current;
+    if (!session?.localStream) return;
+    const nextOn = !stateRef.current.cameraOn;
+    session.localStream.getVideoTracks().forEach((track) => {
+      track.enabled = nextOn;
+    });
+    patch({ cameraOn: nextOn });
   }
 
   function dismiss(): void {
@@ -700,11 +739,14 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
         displayPeerRef.current = null;
         commit(INITIAL_STATE);
       }, INCOMING_TIMEOUT_MS);
-      pendingIncomingRef.current = { callId, peer, timer };
+      const callType: CallType = payload.callType === 'video' ? 'video' : 'voice';
+      pendingIncomingRef.current = { callId, peer, callType, timer };
       commit({
         status: 'incoming',
         peer,
+        callType,
         muted: false,
+        cameraOn: callType === 'video',
         durationSeconds: 0,
         error: null
       });
@@ -751,7 +793,10 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
       void (async () => {
         try {
           const pc = session.pc ?? createPeerConnection(session);
-          const offer = await pc.createOffer({ offerToReceiveAudio: true });
+          const offer = await pc.createOffer({
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: session.callType === 'video'
+          });
           await pc.setLocalDescription(offer);
           await sendToPeer(session.peerId, 'offer', {
             callId: session.callId,
@@ -876,11 +921,14 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
   return {
     state,
     remoteStream,
+    localStream,
     startCall,
+    startVideoCall: (member: Membre) => startCall(member, 'video'),
     acceptCall,
     declineCall,
     hangUp,
     toggleMute,
+    toggleCamera,
     dismiss
   };
 }

@@ -1126,6 +1126,10 @@ const refreshStories = () => {
                 const peer = allMembres.find((membre) => membre.id === peerId);
                 if (peer) voiceCall.startCall(peer);
               }}
+              onStartVideoCall={(peerId) => {
+                const peer = allMembres.find((membre) => membre.id === peerId);
+                if (peer) voiceCall.startVideoCall(peer);
+              }}
               voiceCallBusy={voiceCallBusy}
             />
           )}
@@ -1227,6 +1231,11 @@ const refreshStories = () => {
               const peer = allMembres.find((membre) => membre.id === membreId);
               closeMemberProfile();
               if (peer) voiceCall.startCall(peer);
+            }}
+            onStartVideoCall={(membreId) => {
+              const peer = allMembres.find((membre) => membre.id === membreId);
+              closeMemberProfile();
+              if (peer) voiceCall.startVideoCall(peer);
             }}
             voiceCallBusy={voiceCallBusy}
           />

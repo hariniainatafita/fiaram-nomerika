@@ -19,7 +19,8 @@ import {
   ThumbsUp,
   Crown,
   ShieldCheck,
-  Phone
+  Phone,
+  Video
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
@@ -59,6 +60,7 @@ interface ChatViewProps {
   listKey?: number;
   onConversationChange?: (open: boolean) => void;
   onStartVoiceCall?: (peerId: string) => void;
+  onStartVideoCall?: (peerId: string) => void;
   voiceCallBusy?: boolean;
 }
 
@@ -76,6 +78,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   listKey,
   onConversationChange,
   onStartVoiceCall,
+  onStartVideoCall,
   voiceCallBusy
 }) => {
   const visibleGroupIds = getVisibleGroupIds(currentUser, allGroupes);
@@ -1271,6 +1274,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   onClick={() => onStartVoiceCall(activePeer.id)}
                 >
                   <Phone size={16} />
+                </button>
+              )}
+              {activeChannelType === 'direct' && activePeer && onStartVideoCall && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={voiceCallBusy}
+                  style={{
+                    padding: '6px',
+                    color: voiceCallBusy ? 'var(--text-dim)' : '#0ea5e9',
+                    opacity: voiceCallBusy ? 0.5 : 1
+                  }}
+                  title={t('calls.startVideo')}
+                  aria-label={t('calls.startVideo')}
+                  onClick={() => onStartVideoCall(activePeer.id)}
+                >
+                  <Video size={16} />
                 </button>
               )}
               <button

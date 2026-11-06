@@ -1,6 +1,6 @@
 {
-  "versionCode": 16,
-  "versionName": "1.15",
+  "versionCode": 17,
+  "versionName": "1.16",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Bulles Messenger : une seule bulle principale, 5 avatars recents avec badges, bulle +N vers liste complete, repli au clic exterieur, envoi et affichage de photos dans la bulle."
+  "notes": "Appel vidéo WebRTC : boutons vidéo en discussion et profil, invitation vidéo, vidéo distante et aperçu local, bascule caméra. Bulles Messenger et photos inchangées."
 }

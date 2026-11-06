@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Phone, PhoneOff, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Phone, PhoneOff, Video, VideoOff, Volume2 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { useLanguage } from '../i18n';
 import type { VoiceCallController } from '../utils/voiceCall';
@@ -31,8 +31,10 @@ const roundButton: React.CSSProperties = {
 
 export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
   const { t } = useLanguage();
-  const { state, remoteStream } = call;
+  const { state, remoteStream, localStream } = call;
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const [audioBlocked, setAudioBlocked] = useState(false);
   const visible = state.status !== 'idle';
 
@@ -44,13 +46,38 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
       setAudioBlocked(false);
       return;
     }
+    if (state.callType === 'video') {
+      audio.srcObject = null;
+      return;
+    }
     audio.srcObject = remoteStream;
     audio.volume = 1;
     void audio
       .play()
       .then(() => setAudioBlocked(false))
       .catch(() => setAudioBlocked(true));
-  }, [remoteStream]);
+  }, [remoteStream, state.callType]);
+
+  useEffect(() => {
+    const video = remoteVideoRef.current;
+    if (!video) return;
+    video.srcObject = state.callType === 'video' ? remoteStream : null;
+    if (video.srcObject) {
+      video.muted = false;
+      video.volume = 1;
+      void video.play().catch(() => undefined);
+    }
+  }, [remoteStream, state.callType]);
+
+  useEffect(() => {
+    const video = localVideoRef.current;
+    if (!video) return;
+    video.srcObject = state.callType === 'video' ? localStream : null;
+    if (video.srcObject) {
+      video.muted = true;
+      void video.play().catch(() => undefined);
+    }
+  }, [localStream, state.callType]);
 
   if (!visible) return null;
 
@@ -61,9 +88,10 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
   const isRinging = state.status === 'outgoing' || state.status === 'connecting';
   const isFinished = state.status === 'ended' || state.status === 'error';
   const isError = state.status === 'error';
+  const isVideoCall = state.callType === 'video';
 
   const statusText = isIncoming
-    ? t('calls.incoming')
+    ? t(isVideoCall ? 'calls.incomingVideo' : 'calls.incoming')
     : state.status === 'outgoing'
       ? t('calls.ringing')
       : state.status === 'connecting'
@@ -163,6 +191,41 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
               background: '#111827'
             }}
           />
+          {isVideoCall && isActive && (
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                borderRadius: '50%',
+                objectFit: 'cover',
+                background: '#000000'
+              }}
+            />
+          )}
+          {isVideoCall && isActive && (
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                position: 'absolute',
+                right: '-16px',
+                bottom: '-8px',
+                width: '58px',
+                height: '58px',
+                borderRadius: '16px',
+                objectFit: 'cover',
+                border: '2px solid rgba(255, 255, 255, 0.35)',
+                background: '#111827'
+              }}
+            />
+          )}
         </div>
 
         <div style={{ fontSize: '1.35rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
@@ -267,6 +330,29 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
 
           {isActive && (
             <>
+              {isVideoCall && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="fiaram-call-action"
+                    onClick={call.toggleCamera}
+                    title={state.cameraOn ? t('calls.cameraOff') : t('calls.cameraOn')}
+                    aria-label={state.cameraOn ? t('calls.cameraOff') : t('calls.cameraOn')}
+                    style={{
+                      ...roundButton,
+                      background: state.cameraOn
+                        ? 'rgba(255, 255, 255, 0.12)'
+                        : 'linear-gradient(135deg, #f59e0b, #b45309)',
+                      border: '1px solid rgba(255, 255, 255, 0.16)'
+                    }}
+                  >
+                    {state.cameraOn ? <Video size={24} /> : <VideoOff size={24} />}
+                  </button>
+                  <span style={{ fontSize: '0.72rem', color: 'rgba(226, 232, 240, 0.75)' }}>
+                    {state.cameraOn ? t('calls.cameraOff') : t('calls.cameraOn')}
+                  </span>
+                </div>
+              )}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
