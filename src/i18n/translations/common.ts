@@ -93,6 +93,7 @@ export const common: TranslationDictionary = {
   'common.confirmDelete': { mg: 'Hamarino ny famafana ?', fr: 'Confirmer la suppression ?', en: 'Confirm deletion?' },
   'common.irreversible': { mg: 'Tsy azo averina ity asa ity.', fr: 'Cette action est irréversible.', en: 'This action cannot be undone.' },
   'common.copied': { mg: 'Nadika tao amin’ny presse-papier.', fr: 'Copié dans le presse-papiers.', en: 'Copied to clipboard.' },
+  'common.refresh': { mg: 'Havaozina', fr: 'Actualiser', en: 'Refresh' },
   'common.currency': { mg: 'Ar', fr: 'Ar', en: 'Ar' },
   'common.perMonth': { mg: '/ volana', fr: '/ mois', en: '/ month' },
   'common.perDay': { mg: '/ andro', fr: '/ jour', en: '/ day' },

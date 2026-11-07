@@ -17,13 +17,15 @@ import {
   ImagePlus,
   Pencil,
   Check,
-  Trash2
+  Trash2,
+  Ticket
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
 
 import { canManageBadges } from '../utils/permissions';
 import { MemberBadgeModal } from '../components/MemberBadgeModal';
+import { MyTicketsSection } from '../components/MyTicketsSection';
 import { compressImage } from '../utils/imageCompressor';
 import { uploadDataUrl } from '../utils/media';
 import { fetchPublicationImageIfMissing, fetchStoryImageIfMissing } from '../utils/supabaseSync';
@@ -63,7 +65,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'posts' | 'activity' | 'about'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'activity' | 'tickets' | 'about'>('posts');
   const [imageTick, setImageTick] = useState(0);
   const canManageBadgeAccess = canManageBadges(currentUser);
   const { t } = useLanguage();
@@ -351,13 +353,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       ...currentUser,
       photo_url: storedUrl
     };
-    StorageService.updateMembre(updated);
+    const saved = StorageService.updateMembre(updated);
+    onRefreshUser();
+    if (!saved) {
+      alert(t('common.error'));
+      return;
+    }
     setPhotoUrl(storedUrl);
     setTempPhotoUrl(storedUrl);
     if (storedUrl !== previous) {
       publishPhotoUpdate('profile', storedUrl, photoPostCaption);
     }
-    onRefreshUser();
     setPhotoSavedMsg(true);
     setTimeout(() => {
       setPhotoSavedMsg(false);
@@ -395,13 +401,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     if (!tempCoverUrl) return;
     const storedUrl = await uploadDataUrl(tempCoverUrl, 'image') ?? tempCoverUrl;
     const previous = currentUser.cover_url;
-    StorageService.updateMembre({ ...currentUser, cover_url: storedUrl });
+    const saved = StorageService.updateMembre({ ...currentUser, cover_url: storedUrl });
+    onRefreshUser();
+    if (!saved) {
+      alert(t('common.error'));
+      return;
+    }
     setCoverUrl(storedUrl);
     setTempCoverUrl(storedUrl);
     if (storedUrl !== previous) {
       publishPhotoUpdate('cover', storedUrl, coverPostCaption);
     }
-    onRefreshUser();
     setCoverSavedMsg(true);
     setTimeout(() => {
       setCoverSavedMsg(false);
@@ -573,6 +583,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         {([
           { id: 'posts' as const, label: t('profile.tabs.posts'), icon: <LayoutGrid size={16} /> },
           { id: 'activity' as const, label: t('profile.tabs.activity'), icon: <Activity size={16} /> },
+          { id: 'tickets' as const, label: t('profile.tabs.tickets'), icon: <Ticket size={16} /> },
           { id: 'about' as const, label: t('profile.tabs.about'), icon: <Info size={16} /> }
         ]).map((tab) => {
           const selected = activeTab === tab.id;
@@ -798,6 +809,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {activeTab === 'tickets' && (
+        <MyTicketsSection currentUser={currentUser} />
       )}
 
       {activeTab === 'about' && (

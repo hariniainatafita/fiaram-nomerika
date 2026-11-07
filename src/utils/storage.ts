@@ -1,4 +1,4 @@
-import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, AdminSettings, RegistrationQuestion, BadgeStyle, BadgeColors, Publication, PublicationComment, CategorieChanson, Story, StoryReply, ReactionType, Quiz, QuizResult } from '../types';
+import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, AdminSettings, RegistrationQuestion, BadgeStyle, BadgeColors, Publication, PublicationComment, PublicationEvent, BilletCommande, Billet, CategorieChanson, Story, StoryReply, ReactionType, Quiz, QuizResult } from '../types';
 import {
   INITIAL_MEMBRES,
   INITIAL_GROUPES,
@@ -189,14 +189,16 @@ function writeLocalStorageJSON(key: string, value: unknown): boolean {
   return false;
 }
 
-function setStoredItem<T>(key: string, value: T): void {
-  writeLocalStorageJSON(key, value);
+function setStoredItem<T>(key: string, value: T): boolean {
+  const localOk = writeLocalStorageJSON(key, value);
   if (isFeedImageKey(key) && typeof value === 'string') {
     setCachedImageRow(key, value);
   }
   // Always mirror to Supabase, even when the local cache is saturated: the
-  // remote copy is what makes a change survive a refresh or a logout.
+  // remote copy is what makes a change survive a refresh or a logout. The
+  // pushed value is the one being saved, never a stale cached snapshot.
   pushKey(key, value);
+  return localOk;
 }
 
 function markCollectionDeleted(collectionKey: string, ids: string[]): void {
@@ -380,12 +382,6 @@ async function ensureDemoPasswordHashes(): Promise<void> {
   }
 }
 
-function sanitizePhotoUrl(url?: string): string | undefined {
-  if (!url) return undefined;
-  if (/images\.unsplash\.com\/photo-\d+[?/]/.test(url)) return undefined;
-  return url;
-}
-
 // Member pictures share the decoded-picture cache with feed images: the members
 // list is rebuilt often (realtime events, navigation) and re-parsing megabytes
 // each time is slow.
@@ -476,9 +472,16 @@ function compactMemberImage(
   if (readMemberImageRow(key) === value) {
     return ref;
   }
-  if (!writeMemberImageRow(key, value)) return value;
-  pushKey(key, value);
-  return ref;
+  const localOk = writeMemberImageRow(key, value);
+  // Keep the picture in memory and, when Supabase is available, upload it as
+  // its own row even if localStorage is full. The member record can then stay
+  // light and save its pointer instead of an oversized inline base64.
+  setCachedImageRow(key, value);
+  if (localOk || (isSupabaseConfigured && supabase)) {
+    pushKey(key, value);
+    return ref;
+  }
+  return value;
 }
 
 export const StorageService = {
@@ -849,7 +852,7 @@ export const StorageService = {
       // en clair est retirÃ© des donnÃ©es chargÃ©es en mÃ©moire).
       .map(({ password: _pw, ...m }, index) => ({
       ...m,
-      photo_url: resolveMemberImage(m.id, sanitizePhotoUrl(m.photo_url), 'avatar'),
+      photo_url: resolveMemberImage(m.id, m.photo_url, 'avatar'),
       cover_url: resolveMemberImage(m.id, m.cover_url, 'cover'),
       is_approved: m.is_approved !== undefined ? m.is_approved : true, // Existing members are approved
       is_blocked: m.is_blocked || false,
@@ -858,7 +861,7 @@ export const StorageService = {
       profession: m.profession || (m.role === 'admin' ? 'ADMINISTRATEUR' : m.role === 'super_chef' ? 'SUPERVISEUR' : m.role === 'chef' ? 'RESPONSABLE GROUPE' : 'MEMBRE')
     }));
   },
-  saveMembres(membres: Membre[]): void {
+  saveMembres(membres: Membre[]): boolean {
     const raw = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
     const rawById = new Map(raw.map((member) => [member.id, member]));
     const uploaded = membres.map((m) => ({
@@ -873,7 +876,7 @@ export const StorageService = {
         cover_url: compactMemberImage(m.id, m.cover_url, 'cover', rawMember?.cover_url)
       };
     });
-    setStoredItem(STORAGE_KEYS.MEMBRES, compact);
+    const localOk = setStoredItem(STORAGE_KEYS.MEMBRES, compact);
     // A picture uploaded on this device is already the current one: remember
     // its version so an unrelated save cannot trigger a download of the same
     // row (which could still hold the previous picture on the server).
@@ -886,6 +889,7 @@ export const StorageService = {
         setMemberImageSignature(member.id, 'cover', signature);
       }
     });
+    return localOk;
   },
   /**
    * Move legacy inline base64 profile pictures out of the members collection.
@@ -977,14 +981,13 @@ export const StorageService = {
     reportMemberImageProgress(total, fetchedCount);
     return fetchedCount > 0;
   },
-  updateMembre(updated: Membre): void {
+  updateMembre(updated: Membre): boolean {
     const list = this.getMembres();
     const index = list.findIndex((m) => m.id === updated.id);
-    if (index !== -1) {
-      const { password: _pw, ...clean } = updated;
-      list[index] = { ...clean, updated_at: new Date().toISOString() } as Membre;
-      this.saveMembres(list);
-    }
+    if (index === -1) return false;
+    const { password: _pw, ...clean } = updated;
+    list[index] = { ...clean, updated_at: new Date().toISOString() } as Membre;
+    return this.saveMembres(list);
   },
   addMembre(nouveau: Omit<Membre, 'id' | 'created_at'>): Membre {
     const list = this.getMembres();
@@ -1770,7 +1773,8 @@ export const StorageService = {
     image_url?: string,
     audience: 'all' | 'group' = 'all',
     groupe_id?: string,
-    localDataUrl?: string
+    localDataUrl?: string,
+    event?: PublicationEvent
   ): Publication {
     const list = this.getPublications();
     const publicationId = 'pub_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -1785,7 +1789,8 @@ export const StorageService = {
       reactions: {},
       reactions_updated_at: {},
       commentaires: [],
-      partages: 0
+      partages: 0,
+      ...(event ? { event } : {})
     };
 
     // Keep the feed light: the picture gets its own synced row so every device
@@ -1904,6 +1909,178 @@ export const StorageService = {
     markCollectionDeleted(STORAGE_KEYS.PUBLICATIONS, [publicationId]);
     const deleted = deletedIdsFor(STORAGE_KEYS.PUBLICATIONS);
     this.savePublications(raw.filter((p) => p.id !== publicationId && !deleted.has(p.id)));
+  },
+
+  // ==================== BILLETTERIE EVENEMENT ====================
+  getBilletsCommandes(): BilletCommande[] {
+    return getStoredItem<BilletCommande[]>(STORAGE_KEYS.BILLETS_COMMANDES, []);
+  },
+  saveBilletsCommandes(commandes: BilletCommande[]): void {
+    setStoredItem(STORAGE_KEYS.BILLETS_COMMANDES, commandes);
+  },
+  getBillets(): Billet[] {
+    return getStoredItem<Billet[]>(STORAGE_KEYS.BILLETS, []);
+  },
+  saveBillets(billets: Billet[]): void {
+    setStoredItem(STORAGE_KEYS.BILLETS, billets);
+  },
+  generateBilletReference(): string {
+    const year = new Date().getFullYear();
+    const prefix = `FIA-${year}-`;
+    const commandes = this.getBilletsCommandes();
+    const highest = commandes.reduce((max, commande) => {
+      if (!commande.reference?.startsWith(prefix)) return max;
+      const value = Number(commande.reference.slice(prefix.length));
+      return Number.isFinite(value) ? Math.max(max, value) : max;
+    }, 0);
+    return `${prefix}${String(highest + 1).padStart(3, '0')}`;
+  },
+  createBilletCommande(
+    publication: Publication,
+    acheteurId: string,
+    quantite: number,
+    reference: string,
+    referenceTransfert?: string
+  ): BilletCommande | null {
+    if (!publication.event || quantite <= 0) return null;
+    const trimmedReference = reference.trim();
+    if (!trimmedReference) return null;
+    const commandes = this.getBilletsCommandes();
+    if (commandes.some((item) => item.reference.toLowerCase() === trimmedReference.toLowerCase())) {
+      return null;
+    }
+    const now = new Date().toISOString();
+    const commande: BilletCommande = {
+      id: 'cmd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      publication_id: publication.id,
+      acheteur_id: acheteurId,
+      quantite,
+      montant_total: publication.event.prix_billet * quantite,
+      reference: trimmedReference,
+      reference_transfert: referenceTransfert?.trim() || undefined,
+      statut: 'paiement_declare',
+      evenement_nom: publication.event.nom,
+      evenement_date: publication.event.date,
+      evenement_lieu: publication.event.lieu,
+      prix_unitaire: publication.event.prix_billet,
+      created_at: now,
+      updated_at: now
+    };
+    commandes.unshift(commande);
+    this.saveBilletsCommandes(commandes);
+    return commande;
+  },
+  validateBilletCommande(commandeId: string, adminId: string): Billet[] {
+    const commandes = this.getBilletsCommandes();
+    const commande = commandes.find((item) => item.id === commandeId);
+    if (!commande) return [];
+    if (commande.statut !== 'paiement_declare' && commande.statut !== 'valide') return [];
+
+    const billets = this.getBillets();
+    const existing = billets.filter((billet) => billet.commande_id === commandeId);
+    if (commande.statut === 'valide' && existing.length > 0) return existing;
+
+    const now = new Date().toISOString();
+    const created: Billet[] = [];
+    for (let index = 0; index < commande.quantite; index++) {
+      const numero = index + 1;
+      const previous = billets.find(
+        (billet) => billet.commande_id === commandeId && billet.numero === numero
+      );
+      if (previous) {
+        if (previous.statut === 'annule') {
+          previous.statut = 'valide';
+          previous.updated_at = now;
+        }
+        created.push(previous);
+        continue;
+      }
+      const billet: Billet = {
+        id: 'bil_' + Date.now() + '_' + numero + '_' + Math.random().toString(36).slice(2, 6),
+        commande_id: commandeId,
+        publication_id: commande.publication_id,
+        acheteur_id: commande.acheteur_id,
+        code: `FIA-TKT-${commande.reference}-${String(numero).padStart(2, '0')}`,
+        numero,
+        statut: 'valide',
+        evenement_nom: commande.evenement_nom,
+        evenement_date: commande.evenement_date,
+        evenement_lieu: commande.evenement_lieu,
+        created_at: now,
+        updated_at: now
+      };
+      billets.push(billet);
+      created.push(billet);
+    }
+
+    commande.statut = 'valide';
+    commande.validated_by = adminId;
+    commande.validated_at = now;
+    commande.updated_at = now;
+    this.saveBillets(billets);
+    this.saveBilletsCommandes(commandes);
+    return created;
+  },
+  rejectBilletCommande(commandeId: string, adminId: string): void {
+    const commandes = this.getBilletsCommandes();
+    const commande = commandes.find((item) => item.id === commandeId);
+    if (!commande) return;
+    const now = new Date().toISOString();
+    commande.statut = 'rejete';
+    commande.validated_by = adminId;
+    commande.validated_at = now;
+    commande.updated_at = now;
+    this.saveBilletsCommandes(commandes);
+  },
+  validateBilletCode(
+    code: string,
+    validatorId: string
+  ): { status: 'valid' | 'used' | 'invalid'; billet?: Billet } {
+    const normalized = code.trim();
+    let ticketCode = normalized;
+    if (normalized.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(normalized) as { code?: string };
+        if (parsed.code) ticketCode = String(parsed.code);
+      } catch {
+        // keep the raw value
+      }
+    }
+    if (!ticketCode) return { status: 'invalid' };
+
+    const billets = this.getBillets();
+    const billet = billets.find(
+      (item) => item.code.toLowerCase() === ticketCode.toLowerCase()
+    );
+    if (!billet) return { status: 'invalid' };
+    if (billet.statut === 'utilise') return { status: 'used', billet };
+    if (billet.statut === 'annule') return { status: 'invalid', billet };
+
+    const now = new Date().toISOString();
+    billet.statut = 'utilise';
+    billet.used_at = now;
+    billet.used_by = validatorId;
+    billet.updated_at = now;
+    this.saveBillets(billets);
+    return { status: 'valid', billet };
+  },
+  getBilletsForUser(userId: string): Billet[] {
+    return this.getBillets()
+      .filter((billet) => billet.acheteur_id === userId)
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  },
+  getCommandesForUser(userId: string): BilletCommande[] {
+    return this.getBilletsCommandes()
+      .filter((commande) => commande.acheteur_id === userId)
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  },
+  getCommandesForPublication(publicationId: string): BilletCommande[] {
+    return this.getBilletsCommandes()
+      .filter((commande) => commande.publication_id === publicationId)
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  },
+  getBilletsForPublication(publicationId: string): Billet[] {
+    return this.getBillets().filter((billet) => billet.publication_id === publicationId);
   },
 
   // ==================== STORIES (24h, style Facebook) ====================

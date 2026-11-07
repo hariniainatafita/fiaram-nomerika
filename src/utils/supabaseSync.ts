@@ -83,6 +83,8 @@ const SORT_FIELDS_DESC: Record<string, string> = {
   [STORAGE_KEYS.COTISATIONS]: 'date_paiement',
   [STORAGE_KEYS.PUBLICATIONS]: 'created_at',
   [STORAGE_KEYS.STORIES]: 'created_at',
+  [STORAGE_KEYS.BILLETS_COMMANDES]: 'created_at',
+  [STORAGE_KEYS.BILLETS]: 'created_at',
   [STORAGE_KEYS.QUIZZES]: 'created_at',
   [STORAGE_KEYS.QUIZ_RESULTS]: 'completed_at'
 };
@@ -112,6 +114,35 @@ function memberUpdatedAt(item: unknown): number {
  * never erase the real profile. When both copies have the same date, the
  * caller decides (remote wins on hydration, local wins when pushing).
  */
+/**
+ * Presence is a per-member timestamp map. A positive value is an online beat,
+ * a negative value an explicit logout. The most recent action (largest
+ * absolute timestamp) wins, so a logout is never resurrected by an older beat
+ * and a newer login always turns the member back online.
+ */
+function mergePresenceMaps(local: AnyRecord, remote: AnyRecord, preferLocalOnTie: boolean): AnyRecord {
+  const result: AnyRecord = { ...remote, ...local };
+  const ids = new Set([...Object.keys(local), ...Object.keys(remote)]);
+  ids.forEach((id) => {
+    const localValue = typeof local[id] === 'number' ? (local[id] as number) : undefined;
+    const remoteValue = typeof remote[id] === 'number' ? (remote[id] as number) : undefined;
+    if (localValue === undefined) {
+      if (remoteValue !== undefined) result[id] = remoteValue;
+      return;
+    }
+    if (remoteValue === undefined) {
+      result[id] = localValue;
+      return;
+    }
+    const localTime = Math.abs(localValue);
+    const remoteTime = Math.abs(remoteValue);
+    if (localTime > remoteTime) result[id] = localValue;
+    else if (remoteTime > localTime) result[id] = remoteValue;
+    else result[id] = preferLocalOnTie ? localValue : remoteValue;
+  });
+  return result;
+}
+
 function mergeMemberLists(localList: unknown[], remoteList: unknown[], preferLocalOnTie: boolean): unknown[] {
   const tombstones = getLocalDeletedMemberIds();
   const keep = (item: unknown): boolean => {
@@ -157,6 +188,21 @@ function mergeMemberLists(localList: unknown[], remoteList: unknown[], preferLoc
         });
       } else {
         byId.set(id, item);
+      }
+    } else {
+      // The remote record is newer, but a stale copy often has an empty
+      // avatar/cover while this device already holds the new picture. Never
+      // replace a real picture with an empty field.
+      const localMember = isPlainObject(item) ? item : null;
+      const remoteMember = isPlainObject(remote) ? remote : null;
+      const missingAvatar = remoteMember && !remoteMember.photo_url && Boolean(localMember?.photo_url);
+      const missingCover = remoteMember && !remoteMember.cover_url && Boolean(localMember?.cover_url);
+      if (localMember && remoteMember && (missingAvatar || missingCover)) {
+        byId.set(id, {
+          ...remoteMember,
+          ...(missingAvatar ? { photo_url: localMember.photo_url } : {}),
+          ...(missingCover ? { cover_url: localMember.cover_url } : {})
+        });
       }
     }
   }
@@ -340,6 +386,15 @@ function mergeDuplicateItem(key: string, kept: unknown, other: unknown): unknown
     };
   }
 
+  // Orders and tickets change status (payment declared, validated, scanned):
+  // the copy with the newest `updated_at` wins so a scan done on one phone is
+  // never reverted by a stale device.
+  if (key === STORAGE_KEYS.BILLETS_COMMANDES || key === STORAGE_KEYS.BILLETS) {
+    const keptTime = groupUpdatedAt(kept);
+    const otherTime = groupUpdatedAt(other);
+    return otherTime > keptTime ? other : kept;
+  }
+
   if (key !== STORAGE_KEYS.MESSAGES) {
     return kept;
   }
@@ -423,6 +478,9 @@ function mergeKeyValues(key: string, local: unknown, remote: unknown): unknown {
   if (isPlainObject(local) && isPlainObject(remote)) {
     // Maps (presence, deleted members, group reads, settings):
     // remote values win, local-only entries are preserved.
+    if (key === STORAGE_KEYS.PRESENCE_ONLINE) {
+      return mergePresenceMaps(local, remote, false);
+    }
     return { ...local, ...remote };
   }
 
@@ -497,6 +555,9 @@ function mergeKeyValuesForPush(key: string, local: unknown, remote: unknown): un
   }
 
   if (isPlainObject(local) && isPlainObject(remote)) {
+    if (key === STORAGE_KEYS.PRESENCE_ONLINE) {
+      return mergePresenceMaps(local, remote, true);
+    }
     return { ...remote, ...local };
   }
 
@@ -572,6 +633,16 @@ async function refetchKey(key: string): Promise<void> {
   } finally {
     refetchingKeys.delete(key);
   }
+}
+
+/**
+ * Pull a single synced key over HTTP and merge it locally. Used as a light
+ * safety net when the realtime socket misses an event (mobile sleep, flaky
+ * network), so messages keep arriving without a full hydration.
+ */
+export async function pullKeyFromSupabase(key: string): Promise<void> {
+  if (!isSyncedKey(key)) return;
+  await refetchKey(key);
 }
 
 const messageImageInflight = new Set<string>();
@@ -871,7 +942,9 @@ async function pushKeyNow(key: string, fallbackValue?: unknown): Promise<void> {
   // SELECT halves the upload latency (and avoids downloading the previous
   // base64 before overwriting it).
   if (isImageKey(key)) {
-    const value = initial === undefined ? fallbackValue : initial;
+    // The value being saved is authoritative: when localStorage is saturated
+    // the stale cached row must not be uploaded in its place.
+    const value = fallbackValue !== undefined ? fallbackValue : initial;
     if (value === undefined) return;
     setImagePending(key, true);
     try {
@@ -893,11 +966,10 @@ async function pushKeyNow(key: string, fallbackValue?: unknown): Promise<void> {
       .eq('key', key)
       .maybeSingle();
 
-    // The local collection may have changed while the remote row was being
-    // fetched (a second story published right after the first one): always
-    // push the freshest local snapshot.
-    const current = readLocalStorage(key);
-    const localValue = current === undefined ? fallbackValue : current;
+    // The value passed by the caller is the change being pushed. Prefer it when
+    // available: if the localStorage write failed (quota), re-reading the key
+    // would silently send the previous snapshot and lose the update.
+    const localValue = fallbackValue !== undefined ? fallbackValue : readLocalStorage(key);
     if (localValue === undefined) return;
 
     if (error || !data) {
@@ -910,8 +982,7 @@ async function pushKeyNow(key: string, fallbackValue?: unknown): Promise<void> {
     const merged = mergeKeyValuesForPush(key, localValue, remoteValue);
     await upsertKey(key, merged);
   } catch {
-    const current = readLocalStorage(key);
-    const localValue = current === undefined ? fallbackValue : current;
+    const localValue = fallbackValue !== undefined ? fallbackValue : readLocalStorage(key);
     if (localValue !== undefined) {
       await upsertKey(key, Array.isArray(localValue)
         ? filterDeletedItems(key, localValue)
@@ -1015,7 +1086,9 @@ export function pushKey(key: string, value: unknown): void {
   // Pictures start uploading immediately: a base64 row takes long enough
   // already, and waiting for a debounce makes it easy to lose the upload by
   // refreshing the page or closing the app.
-  if (isImageKey(key)) {
+  // Chat messages also skip the debounce: they are what makes the conversation
+  // feel live, so every send must be announced to the other devices at once.
+  if (isImageKey(key) || key === STORAGE_KEYS.MESSAGES) {
     void pushKeyNow(key, value);
     return;
   }

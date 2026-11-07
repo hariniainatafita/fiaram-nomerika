@@ -1,6 +1,6 @@
 {
-  "versionCode": 22,
-  "versionName": "1.21",
+  "versionCode": 23,
+  "versionName": "1.22",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Accuses de lecture style Messenger : 1 coche grise si non recu, 2 coches bleues si recu, et petit avatar du destinataire si vu."
+  "notes": "Billetterie des evenements (achat Mobile Money, validation, QR et scan), presence en ligne persistante, notifications et correctifs photo de profil/couverture."
 }

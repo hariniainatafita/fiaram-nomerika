@@ -55,6 +55,7 @@ export const navigation: TranslationDictionary = {
     fr: 'Aucun résultat ne correspond à votre recherche.',
     en: 'No result matches your search.'
   },
+  'nav.sponsored': { mg: 'Doka', fr: 'Sponsorisé', en: 'Sponsored' },
   'members.badge': { mg: 'Repoblikan’ny mpikambana', fr: 'Annuaire', en: 'Directory' },
   'members.title': { mg: 'Ireo mpikambana rehetra', fr: 'Tous les membres', en: 'All members' },
   'members.subtitle': {

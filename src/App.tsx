@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { StorageService } from './utils/storage';
-import { subscribeToSupabase, hydrateFromSupabase } from './utils/supabaseSync';
-import { usePresence } from './utils/presence';
+import { subscribeToSupabase, hydrateFromSupabase, pullKeyFromSupabase } from './utils/supabaseSync';
+import { markOffline, usePresence } from './utils/presence';
 import { canAccessGroupData, canAccessView, canViewPublication, getVisibleGroupIds } from './utils/permissions';
 import { STORAGE_KEYS } from './utils/storageKeys';
-import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication, Story, Quiz, QuizResult, ReactionType } from './types';
+import { Membre, Groupe, Presence, FinanceGroupe, Cotisation, Chanson, Message, Evenement, Publication, Story, Quiz, QuizResult, ReactionType, BilletCommande } from './types';
 import {useLanguage} from './i18n';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
@@ -162,6 +162,7 @@ export function App() {
 const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getStories());
   const [allQuizzes, setAllQuizzes] = useState<Quiz[]>(() => StorageService.getQuizzes());
   const [allQuizResults, setAllQuizResults] = useState<QuizResult[]>(() => StorageService.getQuizResults());
+  const [allBilletCommandes, setAllBilletCommandes] = useState<BilletCommande[]>(() => StorageService.getBilletsCommandes());
 
   // Bulle Messenger Android : on restaure le service flottant pour les membres
   // qui l'ont déjà activé, et on enregistre leur jeton de notifications.
@@ -181,6 +182,21 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
       groupeId: currentUser.groupe_id
     };
     void MessengerBubble.startBubble(session).catch(() => { /* permission refusée */ });
+  }, [currentUser]);
+
+  // Push notifications are independent from the floating bubble: a member who
+  // disabled the bubble must still receive messages when the app is closed.
+  useEffect(() => {
+    if (!isMessengerBubbleAvailable() || !currentUser || !supabaseUrl || !supabaseAnonKey) return;
+    const session = {
+      userId: currentUser.id,
+      userName: `${currentUser.prenom} ${currentUser.nom}`.trim(),
+      photoUrl: currentUser.photo_url,
+      supabaseUrl,
+      supabaseAnonKey,
+      role: currentUser.role,
+      groupeId: currentUser.groupe_id
+    };
     void MessengerBubble.registerPushToken(session).catch(() => { /* Firebase non configuré */ });
   }, [currentUser]);
 
@@ -439,6 +455,7 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
       else {
         // The current account does not exist anymore (deleted or dossier
         // rejected by the admin): end the session right away.
+        markOffline(currentUser.id);
         StorageService.logout();
         setCurrentUser(null);
       }
@@ -503,6 +520,7 @@ const refreshStories = () => {
       setAllStories(StorageService.getStories());
       setAllQuizzes(StorageService.getQuizzes());
       setAllQuizResults(StorageService.getQuizResults());
+      setAllBilletCommandes(StorageService.getBilletsCommandes());
       setCurrentUser((prev) => {
         if (!prev) return prev;
         return StorageService.getMembres().find((m) => m.id === prev.id) ?? null;
@@ -542,6 +560,21 @@ const refreshStories = () => {
       }, 45000);
     }
 
+    // Chat must stay live even when a realtime event is missed. Only the
+    // messages row is fetched (small), so this safety net costs very little.
+    const messagePollTimer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      void Promise.all([
+        pullKeyFromSupabase(STORAGE_KEYS.MESSAGES),
+        pullKeyFromSupabase(STORAGE_KEYS.BILLETS_COMMANDES)
+      ])
+        .then(() => {
+          setAllMessages(StorageService.getMessages());
+          setAllBilletCommandes(StorageService.getBilletsCommandes());
+        })
+        .catch(() => { /* prochaine tentative */ });
+    }, 8000);
+
     // Smartphones: realtime socket drops while the app sleeps in background
     // and missed (non-queued) events never replay. On resume / focus / network
     // up, re-hydrate from Supabase so new messages and unread badges appear.
@@ -560,6 +593,7 @@ const refreshStories = () => {
     return () => {
       unsubscribe();
       if (pollTimer) window.clearInterval(pollTimer);
+      window.clearInterval(messagePollTimer);
       document.removeEventListener('visibilitychange', onResume);
       window.removeEventListener('focus', onResume);
       window.removeEventListener('online', onResume);
@@ -642,6 +676,7 @@ const refreshStories = () => {
   const seenPublicationIdsRef = React.useRef<Set<string> | null>(null);
   const seenEventIdsRef = React.useRef<Set<string> | null>(null);
   const previousPublicationsRef = useRef<Map<string, PublicationNotificationSnapshot> | null>(null);
+  const seenBilletStatutsRef = React.useRef<Map<string, string> | null>(null);
   const pendingMembersRef = React.useRef<number>(-1);
   const unviewedByKindRef = React.useRef<Record<MessageToastData['kind'], number>>({
     message: 0, group: 0, publication: 0, event: 0, member: 0
@@ -692,6 +727,7 @@ const refreshStories = () => {
       seenPublicationIdsRef.current = null;
       seenEventIdsRef.current = null;
       previousPublicationsRef.current = null;
+      seenBilletStatutsRef.current = null;
       pendingMembersRef.current = -1;
       unviewedByKindRef.current = { message: 0, group: 0, publication: 0, event: 0, member: 0 };
       setUnviewedNotifications(0);
@@ -741,6 +777,7 @@ const refreshStories = () => {
         peerId: msg.group_id ? undefined : msg.sender_id
       });
 
+      const sentAt = Date.parse(msg.sent_at.replace(' ', 'T'));
       appNotifications.push({
         id: `message:${msg.id}`,
         kind,
@@ -753,7 +790,8 @@ const refreshStories = () => {
         targetView: 'chat',
         actorId: sender.id,
         peerId: msg.group_id ? undefined : msg.sender_id,
-        groupName: group?.nom_groupe
+        groupName: group?.nom_groupe,
+        createdAt: Number.isFinite(sentAt) ? sentAt : undefined
       });
 
       if (isMessengerBubbleAvailable() && isMessengerBubbleEnabled()) {
@@ -906,6 +944,72 @@ const refreshStories = () => {
       }
     }
 
+    // ---- Billetterie événement ----
+    const firstBilletScan = seenBilletStatutsRef.current === null;
+    const seenBillets = seenBilletStatutsRef.current
+      ?? new Map<string, string>(
+        StorageService.getBilletsCommandes().map((commande) => [commande.id, commande.statut])
+      );
+    seenBilletStatutsRef.current = seenBillets;
+    const canManageTicketNotifications =
+      currentUser.role === 'admin' ||
+      currentUser.role === 'chef' ||
+      currentUser.role === 'super_chef';
+    allBilletCommandes.forEach((commande) => {
+      const previousStatut = seenBillets.get(commande.id);
+      seenBillets.set(commande.id, commande.statut);
+      if (firstBilletScan) return;
+      if (previousStatut === commande.statut) return;
+      const buyer = allMembres.find((membre) => membre.id === commande.acheteur_id);
+      const buyerLabel = buyer
+        ? `${buyer.prenom} ${buyer.nom}`.trim()
+        : t('publications.event.buyer');
+      const isMine = commande.acheteur_id === currentUser.id;
+      if (commande.statut === 'paiement_declare' && canManageTicketNotifications && !isMine) {
+        const body = t('publications.event.notifyNewOrder.body', {
+          name: buyerLabel,
+          amount: commande.montant_total
+        });
+        items.push({
+          id: `ticket-order:${commande.id}`,
+          kind: 'event',
+          label: t('publications.event.notifyNewOrder.title'),
+          senderName: buyerLabel,
+          text: body
+        });
+        appNotifications.push({
+          id: `ticket-order:${commande.id}`,
+          kind: 'event',
+          title: t('publications.event.notifyNewOrder.title'),
+          body,
+          targetView: 'publications',
+          actorId: commande.acheteur_id
+        });
+      } else if (isMine && (commande.statut === 'valide' || commande.statut === 'rejete')) {
+        const validated = commande.statut === 'valide';
+        const title = t(validated
+          ? 'publications.event.notifyValidated.title'
+          : 'publications.event.notifyRejected.title');
+        const body = t(validated
+          ? 'publications.event.notifyValidated.body'
+          : 'publications.event.notifyRejected.body', { reference: commande.reference });
+        items.push({
+          id: `ticket-${commande.statut}:${commande.id}`,
+          kind: 'event',
+          label: title,
+          senderName: commande.evenement_nom,
+          text: body
+        });
+        appNotifications.push({
+          id: `ticket-${commande.statut}:${commande.id}`,
+          kind: 'event',
+          title,
+          body,
+          targetView: 'profile'
+        });
+      }
+    });
+
     if (appNotifications.length) addNotifications(currentUser.id, appNotifications);
     if (!items.length) return;
     pushMessageToasts(items);
@@ -917,7 +1021,7 @@ const refreshStories = () => {
       );
     });
     if (StorageService.getAdminSettings().notifications_sonores) playMessageNotification();
-  }, [allMessages, allMembres, allGroupes, allPublications, allEvenements, currentUser, pushMessageToasts, bumpUnviewed, t]);
+  }, [allMessages, allMembres, allGroupes, allPublications, allEvenements, allBilletCommandes, currentUser, pushMessageToasts, bumpUnviewed, t]);
 
   // Vue effectivement affichée (identique à allowedView, calculé avant le
   // premier rendu protégé — nécessaire pour les hooks).
@@ -1335,6 +1439,7 @@ const refreshStories = () => {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 onClick={() => {
+                  if (currentUser) markOffline(currentUser.id);
                   StorageService.logout();
                   setConfirmLogout(false);
                   setCurrentUser(null);

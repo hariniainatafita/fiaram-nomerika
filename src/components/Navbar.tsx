@@ -49,6 +49,7 @@ interface SearchResult {
   view: string;
   label: string;
   sub: string;
+  sponsored?: boolean;
 }
 
 const ROLE_TRANSLATION_KEYS: Record<Membre['role'], string> = {
@@ -170,7 +171,39 @@ export const Navbar: React.FC<NavbarProps> = ({
         sub: quiz.categorie
       }));
 
-    return results.slice(0, 10);
+    if (results.length === 0) return [];
+
+    const adminIds = new Set(
+      allMembres.filter((membre) => membre.role === 'admin').map((membre) => membre.id)
+    );
+    const sponsored = allPublications
+      .filter(
+        (publication) =>
+          adminIds.has(publication.auteur_id) &&
+          canViewPublication(currentUser, publication, allGroupes)
+      )
+      .slice()
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 2)
+      .map<SearchResult>((publication) => ({
+        id: `sponsored-${publication.id}`,
+        view: 'publications',
+        label: publication.contenu.slice(0, 70) || t('nav.publications'),
+        sub: t('nav.sponsored'),
+        sponsored: true
+      }));
+
+    const merged: SearchResult[] = [];
+    results.slice(0, 10).forEach((result, index) => {
+      merged.push(result);
+      if ((index + 1) % 3 === 0 && sponsored.length > 0) {
+        merged.push(sponsored.shift() as SearchResult);
+      }
+    });
+    sponsored.forEach((result) => {
+      if (merged.length < 12) merged.push(result);
+    });
+    return merged.slice(0, 12);
   }, [query, currentUser, allMembres, allGroupes, allEvenements, allPublications, allChansons, allQuizzes, visibleGroupIds, t]);
 
   const closeSearch = () => {
@@ -422,7 +455,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                         }}>
                           {result.label}
                         </span>
-                        <span style={{ fontSize: '0.66rem', color: 'var(--accent-gold)', flexShrink: 0 }}>
+                        <span style={{
+                          fontSize: '0.66rem',
+                          color: result.sponsored ? '#f59e0b' : 'var(--accent-gold)',
+                          fontWeight: result.sponsored ? 800 : 400,
+                          flexShrink: 0
+                        }}>
                           {result.sub}
                         </span>
                       </button>

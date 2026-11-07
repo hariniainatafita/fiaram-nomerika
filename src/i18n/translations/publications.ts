@@ -420,5 +420,92 @@ export const publications: TranslationDictionary = {
     mg: '{count} valiny',
     fr: '{count} reponse(s)',
     en: '{count} reply(ies)'
+  },
+  'publications.event.badge': { mg: 'Hetsika', fr: 'Événement', en: 'Event' },
+  'publications.event.specialToggle': {
+    mg: 'Lahatsoratra manokana (Hetsika)',
+    fr: 'Publication spéciale (Événement)',
+    en: 'Special post (Event)'
+  },
+  'publications.event.nom': { mg: 'Anaran’ny hetsika', fr: "Nom de l'événement", en: 'Event name' },
+  'publications.event.date': { mg: 'Daty', fr: 'Date', en: 'Date' },
+  'publications.event.lieu': { mg: 'Toerana', fr: 'Lieu', en: 'Venue' },
+  'publications.event.prix': { mg: 'Vidin’ny tapakila', fr: 'Prix du billet', en: 'Ticket price' },
+  'publications.event.mobileMoney': { mg: 'Nomerao Mobile Money', fr: 'Numéro Mobile Money', en: 'Mobile Money number' },
+  'publications.event.buyTicket': { mg: 'Hividy tapakila', fr: 'Acheter un billet', en: 'Buy a ticket' },
+  'publications.event.manageTickets': { mg: 'Fitantanana tapakila', fr: 'Gérer les billets', en: 'Manage tickets' },
+  'publications.event.quantity': { mg: 'Isan’ny toerana', fr: 'Nombre de places', en: 'Number of seats' },
+  'publications.event.totalToPay': { mg: 'Totaly aloa', fr: 'Total à payer', en: 'Total to pay' },
+  'publications.event.paymentInfo': {
+    mg: 'Alefaso amin’ity nomerao ity ny vola Mobile Money ary asio ity referansa ity :',
+    fr: 'Effectuez le transfert Mobile Money vers ce numéro en indiquant cette référence :',
+    en: 'Send the Mobile Money transfer to this number using this reference:'
+  },
+  'publications.event.reference': { mg: 'Referansa', fr: 'Référence', en: 'Reference' },
+  'publications.event.transferRef': { mg: 'Referansan’ny famindrana', fr: 'Référence du transfert', en: 'Transfer reference' },
+  'publications.event.transferRefPlaceholder': { mg: 'Ohatra: 1234567890', fr: 'Ex : 1234567890', en: 'e.g. 1234567890' },
+  'publications.event.iPaid': { mg: 'Efa nandoa aho', fr: "J'ai payé", en: 'I have paid' },
+  'publications.event.orderSent': {
+    mg: 'Voamarina ny fandefasana. Miandry ny fankatoavan’ny admin ny tapakilanao.',
+    fr: "Paiement déclaré. En attente de validation par l'administrateur.",
+    en: 'Payment declared. Waiting for administrator approval.'
+  },
+  'publications.event.pendingOrders': { mg: 'Fandoavana miandry fanamarinana', fr: 'Paiements à valider', en: 'Payments to approve' },
+  'publications.event.noPending': { mg: 'Tsy misy fandoavana miandry.', fr: 'Aucun paiement en attente.', en: 'No pending payment.' },
+  'publications.event.validate': { mg: 'Ankatoavy', fr: 'Valider', en: 'Approve' },
+  'publications.event.reject': { mg: 'Lavio', fr: 'Rejeter', en: 'Reject' },
+  'publications.event.buyer': { mg: 'Mpividy', fr: 'Acheteur', en: 'Buyer' },
+  'publications.event.ticketsSold': { mg: 'Tapakila amidy', fr: 'Billets vendus', en: 'Tickets sold' },
+  'publications.event.ticketsUsed': { mg: 'Tapakila voamarina', fr: 'Billets scannés', en: 'Tickets scanned' },
+  'publications.event.scanTicket': { mg: 'Vakio ny tapakila', fr: 'Scanner un billet', en: 'Scan a ticket' },
+  'publications.event.scanTitle': { mg: 'Fanamarinana tapakila', fr: 'Contrôle des billets', en: 'Ticket check' },
+  'publications.event.scanHint': {
+    mg: 'Vakio ny QR Code-nao na ampidiro ny kaody.',
+    fr: 'Scannez le QR Code du billet ou saisissez le code.',
+    en: 'Scan the ticket QR Code or enter the code.'
+  },
+  'publications.event.ticketValid': { mg: 'Marina ny tapakila. Azo idirana.', fr: 'Billet valide. Entrée autorisée.', en: 'Valid ticket. Entry allowed.' },
+  'publications.event.ticketUsed': { mg: 'Efa nampiasaina io tapakila io.', fr: 'Billet déjà utilisé.', en: 'Ticket already used.' },
+  'publications.event.ticketInvalid': { mg: 'Tsy hita na nofoanana ny tapakila.', fr: 'Billet introuvable ou annulé.', en: 'Ticket not found or cancelled.' },
+  'publications.event.manualCode': { mg: 'Kaodin’ny tapakila', fr: 'Code du billet', en: 'Ticket code' },
+  'publications.event.myTickets': { mg: 'Ny tapakilako', fr: 'Mes billets', en: 'My tickets' },
+  'publications.event.noTickets': { mg: 'Mbola tsy misy tapakila.', fr: 'Aucun billet pour le moment.', en: 'No tickets yet.' },
+  'publications.event.orderPending': { mg: 'Miandry fanamarinana', fr: 'En attente de validation', en: 'Awaiting approval' },
+  'publications.event.orderRejected': { mg: 'Nolavina ny fandoavana', fr: 'Paiement rejeté', en: 'Payment rejected' },
+  'publications.event.ticketUsedBadge': { mg: 'Nampiasaina', fr: 'Utilisé', en: 'Used' },
+  'publications.event.ticketValidBadge': { mg: 'Marina', fr: 'Valide', en: 'Valid' },
+  'publications.event.downloadTicket': { mg: 'Alaivo ny tapakila', fr: 'Télécharger le billet', en: 'Download ticket' },
+  'publications.event.priceRequired': {
+    mg: 'Fenoy ny anarana, daty, toerana, vidiny ary nomerao Mobile Money.',
+    fr: 'Renseignez le nom, la date, le lieu, le prix et le numéro Mobile Money.',
+    en: 'Fill in the name, date, venue, price and Mobile Money number.'
+  },
+  'publications.event.ticketCount': { mg: 'Tapakila {count}', fr: '{count} billet(s)', en: '{count} ticket(s)' },
+  'publications.event.notifyValidated.title': { mg: 'Voamarina ny tapakila', fr: 'Billets validés', en: 'Tickets approved' },
+  'publications.event.notifyValidated.body': {
+    mg: 'Voamarina ny fandoavana {reference}. Ao amin’ny mombamomba anao ny tapakilanao.',
+    fr: 'Votre paiement {reference} a été validé. Vos billets sont dans votre profil.',
+    en: 'Your payment {reference} was approved. Your tickets are in your profile.'
+  },
+  'publications.event.notifyNewOrder.title': { mg: 'Fandoavana vaovao', fr: 'Nouveau paiement', en: 'New payment' },
+  'publications.event.notifyNewOrder.body': {
+    mg: 'Nanambara fandoavana {amount} Ar i {name}.',
+    fr: '{name} a déclaré un paiement de {amount} Ar.',
+    en: '{name} declared a payment of {amount} Ar.'
+  },
+  'publications.event.notifyRejected.title': {
+    mg: 'Nolavina ny fandoavana',
+    fr: 'Paiement rejeté',
+    en: 'Payment rejected'
+  },
+  'publications.event.notifyRejected.body': {
+    mg: 'Tsy voamarina ny fandoavana {reference}. Mifandraisa amin’ny admin.',
+    fr: 'Votre paiement {reference} a été rejeté. Contactez l’administrateur.',
+    en: 'Your payment {reference} was rejected. Contact the administrator.'
+  },
+  'publications.event.onlyStaff': {
+    mg: 'Ny admin sy ny chef ihany no afaka mitantana tapakila.',
+    fr: "Seuls l'admin et les chefs peuvent gérer les billets.",
+    en: 'Only the admin and group leaders can manage tickets.'
   }
 };

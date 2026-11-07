@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Groupe, Membre, Publication, Story, ReactionType } from '../types';
+import { Groupe, Membre, Publication, PublicationEvent, Story, ReactionType } from '../types';
 import {
   Heart,
   MessageCircle,
@@ -22,7 +22,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Pause,
-  Play
+  Play,
+  Ticket
 } from 'lucide-react';
 import {
   REACTION_OPTIONS,
@@ -35,10 +36,22 @@ import { StorageService } from '../utils/storage';
 import { fetchStoryImageIfMissing, fetchPublicationImageIfMissing } from '../utils/supabaseSync';
 import { compressImage } from '../utils/imageCompressor';
 import { uploadDataUrl, downloadMedia } from '../utils/media';
-import { canViewPublication, getVisibleGroupIds, isAdmin } from '../utils/permissions';
+import { canViewPublication, getVisibleGroupIds, isAdmin, isChef } from '../utils/permissions';
 import { openMemberProfile } from '../utils/memberProfileNav';
 import { useLanguage } from '../i18n';
 import { getPublicShareUrl } from '../lib/appConfig';
+import {
+  detectPublicationTopics,
+  getInterestScore,
+  getInterestWeights,
+  recordTopicInterest,
+  type InterestWeights
+} from '../utils/feedRanking';
+import {
+  BuyTicketModal,
+  EventTicketSummary,
+  ManageEventTicketsModal
+} from '../components/EventTicketModals';
 
 interface PublicationsViewProps {
   currentUser: Membre;
@@ -79,6 +92,7 @@ interface StoryOverlay {
 
 const PAGE_SIZE = 4;
 const STORY_DURATION_MS = 5000;
+const DWELL_TIME_MS = 10_000;
 const STICKERS = ['❤️', '🔥', '😂', '😍', '👏', '🙌', '✨', '🎉', '😎', '🥳'];
 
 const ROLE_TRANSLATION_KEYS: Record<Membre['role'], string> = {
@@ -297,6 +311,15 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const [audience, setAudience] = useState<'all' | 'group'>('all');
   const [targetGroupeId, setTargetGroupeId] = useState(composerGroupes[0]?.id || '');
   const [stagedImage, setStagedImage] = useState<StagedImage | null>(null);
+  const canManageTickets = isAdmin(currentUser) || isChef(currentUser);
+  const [eventMode, setEventMode] = useState(false);
+  const [eventNom, setEventNom] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventLieu, setEventLieu] = useState('');
+  const [eventPrix, setEventPrix] = useState('');
+  const [eventMobileMoney, setEventMobileMoney] = useState('');
+  const [buyTicketFor, setBuyTicketFor] = useState<Publication | null>(null);
+  const [manageTicketsFor, setManageTicketsFor] = useState<Publication | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [openCommentIds, setOpenCommentIds] = useState<string[]>([]);
@@ -353,6 +376,18 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   );
   const feedInitRef = useRef(feedSeenUpTo > 0);
 
+  const [interestWeights, setInterestWeights] = useState<InterestWeights>(
+    () => getInterestWeights(currentUser.id)
+  );
+  const dwellTimersRef = useRef<Map<string, number>>(new Map());
+  const dwellRecordedRef = useRef<Set<string>>(new Set());
+  const pendingInterestResortRef = useRef(false);
+  const pendingWeightsRef = useRef<InterestWeights | null>(null);
+
+  useEffect(() => {
+    setInterestWeights(getInterestWeights(currentUser.id));
+  }, [currentUser.id]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const storyFileInputRef = useRef<HTMLInputElement>(null);
   const storiesSectionRef = useRef<HTMLDivElement>(null);
@@ -379,32 +414,17 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const formatCount = (count: number, base: 'likes' | 'comments' | 'shares'): string =>
     t(`publications.stats.${base}.${count > 1 ? 'plural' : 'single'}`, { count });
 
-  const sortedPublications = useMemo(() => {
-    const now = Date.now();
-    const score = (publication: Publication): number => {
-      const ageHours = Math.max(0, (now - new Date(publication.created_at).getTime()) / 3_600_000);
-      const engagement =
-        publication.liked_by.length * 2 +
-        publication.commentaires.length * 3 +
-        publication.partages * 4;
-      return (engagement + 1) / Math.pow(ageHours + 2, 1.25);
-    };
-    return publications
-      .filter((publication) => canViewPublication(currentUser, publication, allGroupes))
-      .slice()
-      .sort((a, b) => {
-        const diff = score(b) - score(a);
-        if (Math.abs(diff) > 1e-9) return diff;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      });
-  }, [publications, currentUser, allGroupes]);
+  const permittedPublications = useMemo(
+    () => publications.filter((publication) => canViewPublication(currentUser, publication, allGroupes)),
+    [publications, currentUser, allGroupes]
+  );
 
   const newestPublicationTime = useMemo(
-    () => sortedPublications.reduce(
+    () => permittedPublications.reduce(
       (max, publication) => Math.max(max, new Date(publication.created_at).getTime()),
       0
     ),
-    [sortedPublications]
+    [permittedPublications]
   );
 
   useEffect(() => {
@@ -414,11 +434,42 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     setFeedSeenUpTo(newestPublicationTime);
   }, [newestPublicationTime]);
 
-  const newPostsCount = sortedPublications.filter(
-    (publication) =>
-      publication.auteur_id !== currentUser.id &&
-      new Date(publication.created_at).getTime() > feedSeenUpTo
-  ).length;
+  const newPostsCount = useMemo(
+    () => permittedPublications.filter(
+      (publication) =>
+        publication.auteur_id !== currentUser.id &&
+        new Date(publication.created_at).getTime() > feedSeenUpTo
+    ).length,
+    [permittedPublications, currentUser.id, feedSeenUpTo]
+  );
+
+  const sortedPublications = useMemo(() => {
+    const now = Date.now();
+    const feedInitialized = feedInitRef.current || feedSeenUpTo > 0;
+    const score = (publication: Publication): number => {
+      const ageHours = Math.max(0, (now - new Date(publication.created_at).getTime()) / 3_600_000);
+      const engagement =
+        publication.liked_by.length * 2 +
+        publication.commentaires.length * 3 +
+        publication.partages * 4;
+      const interestBoost = getInterestScore(publication, interestWeights) * 6;
+      const groupBoost =
+        publication.groupe_id && publication.groupe_id === currentUser.groupe_id ? 3 : 1;
+      return ((engagement + 1 + interestBoost) * groupBoost) / Math.pow(ageHours + 2, 1.25);
+    };
+    return permittedPublications
+      .filter((publication) =>
+        !feedInitialized ||
+        publication.auteur_id === currentUser.id ||
+        new Date(publication.created_at).getTime() <= feedSeenUpTo
+      )
+      .slice()
+      .sort((a, b) => {
+        const diff = score(b) - score(a);
+        if (Math.abs(diff) > 1e-9) return diff;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+  }, [permittedPublications, currentUser, interestWeights, feedSeenUpTo]);
 
   // Filtre des stories actives
   const activeStories = useMemo(
@@ -544,6 +595,10 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   );
 
   const visiblePublications = sortedPublications.slice(0, visibleCount);
+  const visibleIds = useMemo(
+    () => visiblePublications.map((publication) => publication.id).join('|'),
+    [visiblePublications]
+  );
 
   useEffect(() => {
     const target = loadMoreRef.current;
@@ -561,6 +616,69 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     observer.observe(target);
     return () => observer.disconnect();
   }, [visibleCount, sortedPublications.length]);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+    const ids = visibleIds ? visibleIds.split('|') : [];
+    if (ids.length === 0) return;
+
+    const timers = dwellTimersRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const element = entry.target as HTMLElement;
+          if (!element.id.startsWith('publication-')) return;
+          const publicationId = element.id.slice('publication-'.length);
+
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            if (dwellRecordedRef.current.has(publicationId) || timers.has(publicationId)) return;
+            const publication = publications.find((item) => item.id === publicationId);
+            if (!publication || publication.auteur_id === currentUser.id) return;
+            const timer = window.setTimeout(() => {
+              timers.delete(publicationId);
+              const topics = detectPublicationTopics(publication);
+              if (topics.length === 0) return;
+              dwellRecordedRef.current.add(publicationId);
+              pendingWeightsRef.current = recordTopicInterest(currentUser.id, topics);
+              pendingInterestResortRef.current = true;
+            }, DWELL_TIME_MS);
+            timers.set(publicationId, timer);
+          } else {
+            const timer = timers.get(publicationId);
+            if (timer !== undefined) {
+              window.clearTimeout(timer);
+              timers.delete(publicationId);
+            }
+          }
+        });
+      },
+      { threshold: [0, 0.5, 1] }
+    );
+
+    ids.forEach((publicationId) => {
+      const element = document.getElementById(`publication-${publicationId}`);
+      if (element) observer.observe(element);
+    });
+
+    return () => {
+      observer.disconnect();
+      timers.forEach((timer) => window.clearTimeout(timer));
+      timers.clear();
+    };
+  }, [visibleIds, publications, currentUser.id]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!pendingInterestResortRef.current) return;
+      pendingInterestResortRef.current = false;
+      if (pendingWeightsRef.current) {
+        setInterestWeights(pendingWeightsRef.current);
+        pendingWeightsRef.current = null;
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const getAuthor = (id: string) => allMembres.find((membre) => membre.id === id);
 
@@ -893,7 +1011,23 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const handlePublish = (event: React.FormEvent) => {
     event.preventDefault();
     const content = newContent.trim();
-    if (!content && !stagedImage) return;
+    if (!content && !stagedImage && !eventMode) return;
+
+    let eventPayload: PublicationEvent | undefined;
+    if (eventMode) {
+      const prix = Math.max(0, Number(eventPrix) || 0);
+      if (!eventNom.trim() || !eventDate.trim() || !eventLieu.trim() || !eventMobileMoney.trim() || prix <= 0) {
+        showTemporaryMessage(t('publications.event.priceRequired'));
+        return;
+      }
+      eventPayload = {
+        nom: eventNom.trim(),
+        date: eventDate.trim(),
+        lieu: eventLieu.trim(),
+        prix_billet: Math.round(prix),
+        numero_mobile_money: eventMobileMoney.trim()
+      };
+    }
 
     setIsPublishing(true);
     try {
@@ -903,11 +1037,12 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       // upload in the background, then swap in the CDN URL.
       const savedPublication = StorageService.createPublication(
         currentUser.id,
-        content,
+        content || eventPayload?.nom || '',
         localDataUrl,
         publicationAudience,
         targetGroupeId || undefined,
-        localDataUrl
+        localDataUrl,
+        eventPayload
       );
       if (savedPublication.image_ref && localDataUrl) {
         setPublicationImages((prev) => ({
@@ -917,6 +1052,12 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       }
       setNewContent('');
       setStagedImage(null);
+      setEventMode(false);
+      setEventNom('');
+      setEventDate('');
+      setEventLieu('');
+      setEventPrix('');
+      setEventMobileMoney('');
       setComposerOpen(false);
       setVisibleCount((count) => Math.max(count, PAGE_SIZE));
       onRefreshPublications();
@@ -1179,9 +1320,10 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              setFeedSeenUpTo(Date.now());
+              setFeedSeenUpTo(Math.max(Date.now(), newestPublicationTime));
               setVisibleCount(PAGE_SIZE);
               onRefreshPublications();
+              window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
             }}
             className="btn btn-primary"
             style={{ fontSize: '0.8rem', padding: '9px 16px', borderRadius: '999px', boxShadow: 'var(--shadow-lg)' }}
@@ -1239,6 +1381,12 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                         {t(ROLE_TRANSLATION_KEYS[author.role])}
                       </span>
                     )}
+                    {publication.event && (
+                      <span className="badge badge-gold" style={{ fontSize: '0.62rem', padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Ticket size={11} />
+                        {t('publications.event.badge')}
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)' }}>
                     {formatRelativeDate(publication.created_at)} ·{' '}
@@ -1277,6 +1425,40 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                 }}>
                   {publication.contenu}
                 </div>
+              )}
+
+              {publication.event && (
+                <>
+                  <EventTicketSummary publication={publication} />
+                  <div style={{
+                    display: 'flex',
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                    padding: '0 18px 16px'
+                  }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ flex: 1, minWidth: '150px', padding: '10px' }}
+                      onClick={() => setBuyTicketFor(publication)}
+                      disabled={publication.event.prix_billet <= 0 || !publication.event.numero_mobile_money}
+                    >
+                      <Ticket size={16} />
+                      <span>{t('publications.event.buyTicket')}</span>
+                    </button>
+                    {canManageTickets && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        style={{ padding: '10px 14px' }}
+                        onClick={() => setManageTicketsFor(publication)}
+                      >
+                        <Ticket size={16} style={{ color: '#f59e0b' }} />
+                        <span>{t('publications.event.manageTickets')}</span>
+                      </button>
+                    )}
+                  </div>
+                </>
               )}
 
               {imageSrc && (
@@ -1802,6 +1984,84 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                   )}
                 </div>
               )}
+
+              {canManageTickets && (
+                <div style={{
+                  border: '1px dashed var(--border-gold)',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  background: eventMode ? 'rgba(245, 158, 11, 0.08)' : 'transparent'
+                }}>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={eventMode}
+                      onChange={(checkboxEvent) => setEventMode(checkboxEvent.target.checked)}
+                    />
+                    <Ticket size={15} style={{ color: '#f59e0b' }} />
+                    <span>{t('publications.event.specialToggle')}</span>
+                  </label>
+
+                  {eventMode && (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                      gap: '8px'
+                    }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={eventNom}
+                        onChange={(inputEvent) => setEventNom(inputEvent.target.value)}
+                        placeholder={t('publications.event.nom')}
+                        maxLength={80}
+                      />
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={eventDate}
+                        onChange={(inputEvent) => setEventDate(inputEvent.target.value)}
+                        placeholder={`${t('publications.event.date')} (2026-12-31 19:00)`}
+                        maxLength={40}
+                      />
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={eventLieu}
+                        onChange={(inputEvent) => setEventLieu(inputEvent.target.value)}
+                        placeholder={t('publications.event.lieu')}
+                        maxLength={120}
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        className="form-input"
+                        value={eventPrix}
+                        onChange={(inputEvent) => setEventPrix(inputEvent.target.value)}
+                        placeholder={`${t('publications.event.prix')} (Ar)`}
+                      />
+                      <input
+                        type="tel"
+                        className="form-input"
+                        value={eventMobileMoney}
+                        onChange={(inputEvent) => setEventMobileMoney(inputEvent.target.value)}
+                        placeholder={t('publications.event.mobileMoney')}
+                        maxLength={30}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div style={{
@@ -1840,8 +2100,8 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isPublishing || isCompressing || (!newContent.trim() && !stagedImage)}
-                style={{ opacity: isPublishing || isCompressing || (!newContent.trim() && !stagedImage) ? 0.55 : 1 }}
+                disabled={isPublishing || isCompressing || (!newContent.trim() && !stagedImage && !eventMode)}
+                style={{ opacity: isPublishing || isCompressing || (!newContent.trim() && !stagedImage && !eventMode) ? 0.55 : 1 }}
               >
                 {isPublishing ? <Loader2 size={16} className="animate-pulse-glow" /> : <Send size={16} />}
                 <span>{t('common.publish')}</span>
@@ -1849,6 +2109,25 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
             </div>
           </form>
         </div>
+      )}
+
+      {buyTicketFor && (
+        <BuyTicketModal
+          publication={buyTicketFor}
+          currentUser={currentUser}
+          onClose={() => setBuyTicketFor(null)}
+          onSubmitted={onRefreshPublications}
+        />
+      )}
+
+      {manageTicketsFor && (
+        <ManageEventTicketsModal
+          publication={manageTicketsFor}
+          currentUser={currentUser}
+          allMembres={allMembres}
+          onClose={() => setManageTicketsFor(null)}
+          onRefresh={onRefreshPublications}
+        />
       )}
 
       {previewImage && (

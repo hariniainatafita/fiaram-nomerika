@@ -203,8 +203,13 @@ export const profile: TranslationDictionary = {
   },
   'profile.tabs.about': {
     mg: 'Momba ahy',
-    fr: 'À propos',
+    fr: 'A propos',
     en: 'About'
+  },
+  'profile.tabs.tickets': {
+    mg: 'Ny tapakilako',
+    fr: 'Mes billets',
+    en: 'My tickets'
   },
   'profile.cover.alt': {
     mg: 'Sarin-takelaka',

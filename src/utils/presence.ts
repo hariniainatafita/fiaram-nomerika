@@ -1,16 +1,13 @@
 import { useEffect, useState } from 'react';
 import { pushKey } from './supabaseSync';
 import { STORAGE_KEYS } from './storageKeys';
-import { isMessengerBubbleAvailable, isMessengerBubbleEnabled } from './messengerBubble';
 
 export type PresenceMap = Record<string, number>;
 
-// Facebook-style presence: an open browser keeps the user online, even when
-// the tab is in the background (another site, another tab). Background tabs
-// have their timers throttled to about once per minute, so the online window
-// is wide enough to absorb that throttling. Only a real page close
-// (pagehide / browser quit) removes the flag immediately.
-const ONLINE_WINDOW_MS = 240_000;
+// Presence is "sticky": a member stays online until they explicitly log out,
+// including while the app is closed or backgrounded. A positive timestamp is
+// the last online heartbeat; a negative timestamp is the explicit logout time.
+// Both are compared by absolute value when devices merge their copies.
 const HEARTBEAT_MS = 30_000;
 const REFRESH_MS = 15_000;
 
@@ -26,7 +23,11 @@ export function getPresenceMap(): PresenceMap {
 }
 
 function savePresenceMap(map: PresenceMap): void {
-  localStorage.setItem(STORAGE_KEYS.PRESENCE_ONLINE, JSON.stringify(map));
+  try {
+    localStorage.setItem(STORAGE_KEYS.PRESENCE_ONLINE, JSON.stringify(map));
+  } catch {
+    /* the remote push below still carries the change */
+  }
   pushKey(STORAGE_KEYS.PRESENCE_ONLINE, map);
 }
 
@@ -39,23 +40,25 @@ export function markOnline(memberId: string): PresenceMap {
 
 export function markOffline(memberId: string): PresenceMap {
   const map = getPresenceMap();
-  if (memberId in map) {
-    delete map[memberId];
-    savePresenceMap(map);
-  }
+  if (!memberId) return map;
+  // Keep a negative marker instead of deleting the key: the merge on every
+  // device can then tell that an explicit logout happened after the last beat.
+  map[memberId] = -Date.now();
+  savePresenceMap(map);
   return map;
 }
 
-export function isMemberOnline(map: PresenceMap, memberId?: string, now = Date.now()): boolean {
+export function isMemberOnline(map: PresenceMap, memberId?: string): boolean {
   if (!memberId) return false;
   const lastSeen = map[memberId];
-  return typeof lastSeen === 'number' && now - lastSeen < ONLINE_WINDOW_MS;
+  return typeof lastSeen === 'number' && lastSeen > 0;
 }
 
 /**
- * Keeps the current member flagged as online while the browser is open —
- * visible tab OR background tab. The flag is only removed on a real page
- * close, or naturally once the heartbeat has been silent for long enough.
+ * Keeps the current member flagged as online. Closing the app, backgrounding
+ * it or navigating away does NOT log the member out: only an explicit logout
+ * calls `markOffline`. The periodic beat keeps the stored timestamp fresh so
+ * other devices see an accurate last-seen value.
  */
 export function usePresence(currentUserId?: string): PresenceMap {
   const [presence, setPresence] = useState<PresenceMap>(getPresenceMap);
@@ -73,10 +76,6 @@ export function usePresence(currentUserId?: string): PresenceMap {
     const refresh = window.setInterval(() => setPresence(getPresenceMap()), REFRESH_MS);
 
     const handleVisibility = () => {
-      // Coming back to the foreground: refresh immediately so nobody has to
-      // wait up to a minute. Going to the background does NOT log out — the
-      // interval keeps beating (throttled) and the wide online window covers
-      // the gap.
       if (document.visibilityState === 'visible') {
         beat();
       }
@@ -84,13 +83,6 @@ export function usePresence(currentUserId?: string): PresenceMap {
 
     const handleOnline = () => {
       beat();
-    };
-
-    const handlePageHide = () => {
-      // The Android bubble service keeps beating even when the WebView is
-      // backgrounded or destroyed, so leaving the page must not log us out.
-      if (isMessengerBubbleAvailable() && isMessengerBubbleEnabled()) return;
-      markOffline(currentUserId);
     };
 
     const handleStorage = (event: StorageEvent) => {
@@ -101,7 +93,6 @@ export function usePresence(currentUserId?: string): PresenceMap {
 
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('online', handleOnline);
-    window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('storage', handleStorage);
 
     return () => {
@@ -109,9 +100,7 @@ export function usePresence(currentUserId?: string): PresenceMap {
       window.clearInterval(refresh);
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('online', handleOnline);
-      window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('storage', handleStorage);
-      markOffline(currentUserId);
     };
   }, [currentUserId]);
 

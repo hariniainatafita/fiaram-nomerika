@@ -248,6 +248,54 @@ export interface PublicationComment {
   parent_comment_id?: string;
 }
 
+export interface PublicationEvent {
+  nom: string;
+  date: string;
+  lieu: string;
+  prix_billet: number;
+  numero_mobile_money: string;
+}
+
+export type BilletCommandeStatut = 'en_attente' | 'paiement_declare' | 'valide' | 'rejete';
+
+export interface BilletCommande {
+  id: string;
+  publication_id: string;
+  acheteur_id: string;
+  quantite: number;
+  montant_total: number;
+  reference: string;
+  reference_transfert?: string;
+  statut: BilletCommandeStatut;
+  evenement_nom: string;
+  evenement_date: string;
+  evenement_lieu: string;
+  prix_unitaire: number;
+  created_at: string;
+  updated_at: string;
+  validated_by?: string;
+  validated_at?: string;
+}
+
+export type BilletStatut = 'valide' | 'utilise' | 'annule';
+
+export interface Billet {
+  id: string;
+  commande_id: string;
+  publication_id: string;
+  acheteur_id: string;
+  code: string;
+  numero: number;
+  statut: BilletStatut;
+  evenement_nom: string;
+  evenement_date: string;
+  evenement_lieu: string;
+  created_at: string;
+  updated_at: string;
+  used_at?: string;
+  used_by?: string;
+}
+
 export interface Publication {
   id: string;
   auteur_id: string;
@@ -269,6 +317,8 @@ export interface Publication {
   reactions_updated_at?: Record<string, string>;
   commentaires: PublicationComment[];
   partages: number;
+  // Publication speciale "Evenement" : billetterie Mobile Money.
+  event?: PublicationEvent;
 }
 
 // ==================== STORY (24h, style Facebook) ====================
