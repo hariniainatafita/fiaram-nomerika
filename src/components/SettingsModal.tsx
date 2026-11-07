@@ -547,7 +547,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <Download size={14} />
                     <span>{t('update.checkButton')}</span>
                   </button>
-                  <div style={{ marginTop: '10px' }}>
+                  <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       className="btn btn-ghost"
@@ -555,6 +555,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => window.open('https://fiaram-nomerika.pages.dev/privacy-policy.html', '_blank', 'noopener')}
                     >
                       <span>Politique de confidentialité</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ fontSize: '0.74rem', color: '#ef4444' }}
+                      onClick={() => window.open('https://fiaram-nomerika.pages.dev/account-deletion', '_blank', 'noopener')}
+                    >
+                      <span>Supprimer mon compte</span>
                     </button>
                   </div>
                 </div>
