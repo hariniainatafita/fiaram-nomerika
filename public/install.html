@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Installer FIARAM NOMERIKA — Guide</title>
+  <meta name="description" content="Guide d'installation de l'application FIARAM NOMERIKA : autoriser les sources inconnues, contourner Play Protect et resoudre les erreurs d'installation." />
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+    main { max-width: 860px; margin: 0 auto; padding: 32px 20px 56px; }
+    h1 { font-size: 1.8rem; margin: 0 0 8px; }
+    h2 { font-size: 1.08rem; margin: 26px 0 8px; }
+    h3 { font-size: 0.98rem; margin: 18px 0 6px; }
+    p, li { line-height: 1.65; font-size: 0.97rem; }
+    .meta { color: #64748b; margin-bottom: 24px; }
+    .box { margin: 18px 0; padding: 16px; border-radius: 12px; background: rgba(245, 158, 11, 0.10); border: 1px solid rgba(245, 158, 11, 0.4); }
+    .danger { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.4); }
+    .ok { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.4); }
+    a.button { display: inline-block; margin: 8px 8px 8px 0; padding: 12px 16px; border-radius: 10px; background: #f59e0b; color: #111827; text-decoration: none; font-weight: 700; }
+    a.secondary { background: #0ea5e9; color: #fff; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.92rem; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid rgba(100, 116, 139, 0.25); vertical-align: top; }
+    code { background: rgba(100, 116, 139, 0.15); padding: 2px 5px; border-radius: 4px; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #0b1220; color: #e2e8f0; }
+      .meta { color: #94a3b8; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Installer FIARAM NOMERIKA</h1>
+  <p class="meta">Guide pour Android — dernière mise à jour : 7 novembre 2026</p>
+
+  <div class="box ok">
+    <p><strong>Télécharger la dernière version (1.19) :</strong></p>
+    <a class="button" href="https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk">Télécharger l'APK</a>
+    <a class="button secondary" href="https://fiaram-nomerika.pages.dev">Ouvrir la version web</a>
+  </div>
+
+  <div class="box danger">
+    <p><strong>Important :</strong> n'envoyez pas le fichier APK par WhatsApp ou Facebook. Ces applications bloquent ou abîment souvent les APK. Partagez plutôt ce lien :</p>
+    <p><code>https://fiaram-nomerika.pages.dev/install</code></p>
+  </div>
+
+  <h2>1. Installation normale</h2>
+  <ol>
+    <li>Ouvrez le lien ci-dessus dans Chrome (ou le navigateur du téléphone).</li>
+    <li>Appuyez sur <strong>Télécharger l'APK</strong>.</li>
+    <li>Quand le téléphone demande l'autorisation, choisissez <strong>Paramètres</strong> puis activez <strong>Autoriser depuis cette source</strong> (Chrome, Fichiers ou le gestionnaire de téléchargement).</li>
+    <li>Revenez en arrière et appuyez sur <strong>Installer</strong>.</li>
+    <li>Si Play Protect affiche « Application non sécurisée » : <strong>Plus de détails</strong> → <strong>Installer quand même</strong>.</li>
+  </ol>
+
+  <h2>2. Erreurs fréquentes</h2>
+  <table>
+    <tr><th>Message</th><th>Cause probable</th><th>Solution</th></tr>
+    <tr>
+      <td>« Application non installée » / « App not installed »</td>
+      <td>Une ancienne version avec une autre signature est déjà installée, ou l'espace est insuffisant.</td>
+      <td>Désinstaller l'ancienne application FIARAM, redémarrer le téléphone, puis réinstaller la 1.19. Libérer de l'espace si besoin.</td>
+    </tr>
+    <tr>
+      <td>« Bloqué par Play Protect » / « Unsafe app blocked »</td>
+      <td>APK installé hors Play Store.</td>
+      <td>Appuyer sur « Plus de détails » puis « Installer quand même ». Ne pas désactiver Play Protect en permanence.</td>
+    </tr>
+    <tr>
+      <td>« Installation bloquée » / « Restricted settings »</td>
+      <td>Réglages de sécurité du fabricant.</td>
+      <td>Autoriser « Installer des applications inconnues » pour Chrome/Fichiers, puis désactiver le blocage du fabricant (voir section 3).</td>
+    </tr>
+    <tr>
+      <td>« Fichier APK invalide » / « Parse error »</td>
+      <td>Fichier incomplet ou renommé (souvent via WhatsApp).</td>
+      <td>Retélécharger directement depuis le lien GitHub, sans passer par WhatsApp/Facebook.</td>
+    </tr>
+    <tr>
+      <td>« Version incompatible »</td>
+      <td>Android inférieur à 6.0, ou fichier corrompu.</td>
+      <td>Vérifier la version Android (Paramètres → À propos). Android 6.0 minimum.</td>
+    </tr>
+    <tr>
+      <td>« Application non compatible avec votre téléphone »</td>
+      <td>APK incomplet ou restriction du fabricant.</td>
+      <td>Réessayer avec la 1.19 depuis le lien officiel, puis suivre la section 3.</td>
+    </tr>
+  </table>
+
+  <h2>3. Réglages par marque</h2>
+
+  <h3>Samsung</h3>
+  <ul>
+    <li>Paramètres → Sécurité et confidentialité → <strong>Auto Blocker</strong> → désactiver temporairement.</li>
+    <li>Paramètres → Applications → Chrome/Fichiers → <strong>Installer des applications inconnues</strong> → Autoriser.</li>
+    <li>Play Protect → Plus de détails → Installer quand même.</li>
+  </ul>
+
+  <h3>Xiaomi / Redmi / POCO (MIUI / HyperOS)</h3>
+  <ul>
+    <li>Paramètres → Confidentialité → Autorisations spéciales → <strong>Installer des applications inconnues</strong> → autoriser Chrome/Fichiers.</li>
+    <li>Sécurité → Analyse de sécurité → désactiver l'analyse automatique pendant l'installation.</li>
+    <li>Paramètres → À propos → tapoter 7 fois sur « Version MIUI » si l'option « Optimisation MIUI » doit être désactivée.</li>
+  </ul>
+
+  <h3>Oppo / Realme / OnePlus (ColorOS / OxygenOS)</h3>
+  <ul>
+    <li>Paramètres → Sécurité → <strong>Installation d'applications inconnues</strong> → autoriser Chrome/Fichiers.</li>
+    <li>Désactiver temporairement « Protection des paiements » / « Analyse des applications ».</li>
+    <li>Si « Mode Pur » est activé, le désactiver.</li>
+  </ul>
+
+  <h3>Vivo / iQOO</h3>
+  <ul>
+    <li>Paramètres → Sécurité → <strong>Sources inconnues</strong> → autoriser.</li>
+    <li>Désactiver temporairement l'analyse de sécurité de l'iManager.</li>
+  </ul>
+
+  <h3>Tecno / Infinix / Itel (HiOS / XOS)</h3>
+  <ul>
+    <li>Paramètres → Sécurité → <strong>Installation depuis des sources inconnues</strong> → autoriser.</li>
+    <li>Désactiver l'analyse automatique de Phone Master / Security Center.</li>
+  </ul>
+
+  <h3>Huawei / Honor</h3>
+  <ul>
+    <li>Paramètres → Sécurité → <strong>Installer des applications inconnues</strong> → autoriser.</li>
+    <li>Désactiver « Mode Pur » s'il est activé.</li>
+  </ul>
+
+  <h3>Google Pixel / Android standard</h3>
+  <ul>
+    <li>Paramètres → Applications → Accès spéciaux → <strong>Installer des applications inconnues</strong> → autoriser Chrome/Fichiers.</li>
+    <li>Play Protect → Plus de détails → Installer quand même.</li>
+  </ul>
+
+  <h2>4. Si rien ne marche</h2>
+  <ul>
+    <li>Désinstaller complètement l'ancienne application FIARAM, redémarrer, puis réinstaller la 1.19.</li>
+    <li>Vérifier la date et l'heure du téléphone (réglage automatique).</li>
+    <li>Vérifier l'espace libre (au moins 100 Mo).</li>
+    <li>Essayer un autre navigateur (Chrome) ou télécharger sur un ordinateur puis copier l'APK par câble USB.</li>
+    <li>Utiliser la version web : <a href="https://fiaram-nomerika.pages.dev">https://fiaram-nomerika.pages.dev</a> → menu Chrome → « Installer l'application » ou « Ajouter à l'écran d'accueil ».</li>
+  </ul>
+
+  <div class="box">
+    <p><strong>Pour nous aider à corriger :</strong> envoyez une capture d'écran du message d'erreur, la marque et le modèle du téléphone, la version d'Android, et précisez si une ancienne version de FIARAM était déjà installée.</p>
+  </div>
+</main>
+</body>
+</html>
