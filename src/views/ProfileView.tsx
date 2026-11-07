@@ -1343,7 +1343,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               />
             </div>
 
-            {/* Presets Gallery */}
+            {(!tempPhotoUrl || PRESET_AVATARS.includes(tempPhotoUrl)) && (
             <div style={{ marginBottom: '20px' }}>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Sparkles size={14} style={{ color: 'var(--accent-gold)' }} />
@@ -1377,6 +1377,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 })}
               </div>
             </div>
+            )}
 
             <div style={{ marginBottom: '18px' }}>
               <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '6px' }}>

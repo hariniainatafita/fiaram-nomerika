@@ -350,8 +350,11 @@ function mergeDuplicateItem(key: string, kept: unknown, other: unknown): unknown
       value.forEach((id) => { if (typeof id === 'string') readBy.add(id); });
     }
   }
+  const { reactions, updates } = mergeReactionState(kept, other);
   return {
     ...kept,
+    reactions,
+    reactions_updated_at: updates,
     status: kept.status === 'read' || other.status === 'read' ? 'read' : kept.status,
     ...(deleted
       ? {

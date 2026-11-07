@@ -208,6 +208,10 @@ export interface Message {
   reply_to_id?: string;
   reply_to_sender_id?: string;
   reply_to_text?: string;
+  // Réactions emoji (style Facebook). reactions associe un membre à son emoji
+  // et reactions_updated_at permet de fusionner les choix entre appareils.
+  reactions?: Record<string, ReactionType>;
+  reactions_updated_at?: Record<string, string>;
   sent_at: string;
 }
 
@@ -223,7 +227,7 @@ export interface Conversation {
 }
 
 // ==================== REACTIONS (style Facebook) ====================
-export type ReactionType = 'like' | 'love' | 'haha' | 'angry';
+export type ReactionType = 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry';
 
 export interface StoryReply {
   id: string;
@@ -239,7 +243,12 @@ export interface PublicationComment {
   auteur_id: string;
   contenu: string;
   created_at: string;
-}export interface Publication {
+  // Réponse à un commentaire (thread aplati : les réponses restent groupées
+  // sous le commentaire racine à l'affichage).
+  parent_comment_id?: string;
+}
+
+export interface Publication {
   id: string;
   auteur_id: string;
   contenu: string;

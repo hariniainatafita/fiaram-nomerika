@@ -231,6 +231,8 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
               src={membre.photo_url || DEFAULT_AVATAR_IMAGE}
               alt={`${membre.prenom} ${membre.nom}`}
               style={{
+                position: 'relative',
+                zIndex: 1,
                 width: '104px',
                 height: '104px',
                 borderRadius: '50%',

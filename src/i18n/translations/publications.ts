@@ -211,6 +211,21 @@ export const publications: TranslationDictionary = {
     fr: 'Envoyer le commentaire',
     en: 'Send comment'
   },
+  'publications.comments.reply': {
+    mg: 'Valio',
+    fr: 'Répondre',
+    en: 'Reply'
+  },
+  'publications.comments.replyPlaceholder': {
+    mg: 'Soraty ny valiny...',
+    fr: 'Écrire une réponse...',
+    en: 'Write a reply...'
+  },
+  'publications.comments.replyingTo': {
+    mg: 'Mamaly ny {name}',
+    fr: 'Réponse à {name}',
+    en: 'Replying to {name}'
+  },
   'publications.empty.title': {
     mg: 'Tsy misy publication amin’izao fotoana izao',
     fr: 'Aucune publication pour le moment',
@@ -350,6 +365,16 @@ export const publications: TranslationDictionary = {
     mg: 'Haha',
     fr: 'Haha',
     en: 'Haha'
+  },
+  'publications.reaction.wow': {
+    mg: 'Gaga',
+    fr: 'Wow',
+    en: 'Wow'
+  },
+  'publications.reaction.sad': {
+    mg: 'Malahelo',
+    fr: 'Triste',
+    en: 'Sad'
   },
   'publications.reaction.angry': {
     mg: 'Tezitra',

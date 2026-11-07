@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Membre, Groupe, Message } from '../types';
+import { Membre, Groupe, Message, ReactionType } from '../types';
 import {
   Send,
   Image as ImageIcon,
@@ -20,8 +20,10 @@ import {
   Crown,
   ShieldCheck,
   Phone,
-  Video
+  Video,
+  Smile
 } from 'lucide-react';
+import { REACTION_OPTIONS } from '../utils/reactions';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
 import { compressImage } from '../utils/imageCompressor';
@@ -101,6 +103,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [swipeMessageId, setSwipeMessageId] = useState<string | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [reactionTarget, setReactionTarget] = useState<Message | null>(null);
+  const [emojiOpen, setEmojiOpen] = useState(false);
 
   // Staged image attachment state
   const [stagedImage, setStagedImage] = useState<{
@@ -690,6 +694,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
       );
     }
     setReplyingTo(null);
+    onRefreshMessages();
+  };
+
+  const handleMessageReaction = (messageId: string, reaction: ReactionType) => {
+    StorageService.toggleMessageReaction(messageId, currentUser.id, reaction);
+    setReactionTarget(null);
     onRefreshMessages();
   };
 
@@ -1351,6 +1361,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   : replySender
                     ? `${replySender.prenom} ${replySender.nom}`
                     : '';
+                const reactionCounts = REACTION_OPTIONS
+                  .map((option) => ({ option, count: Object.values(msg.reactions || {}).filter((r) => r === option.type).length }))
+                  .filter((entry) => entry.count > 0);
+                const totalReactions = reactionCounts.reduce((sum, entry) => sum + entry.count, 0);
+                const myReaction = msg.reactions?.[currentUser.id];
 
                 return (
                   <div
@@ -1373,6 +1388,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
                     <div
                       className="chat-bubble"
+                      onContextMenu={(event) => {
+                        if (msg.is_deleted) return;
+                        event.preventDefault();
+                        setReactionTarget(msg);
+                      }}
                       onPointerDown={(event) => {
                         if (event.pointerType === 'mouse' && event.button !== 0) return;
                         startMessageSwipe(msg, event.clientX, event.clientY);
@@ -1524,6 +1544,32 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         </>
                       )}
 
+                      {totalReactions > 0 && !msg.is_deleted && (
+                        <button
+                          type="button"
+                          onClick={() => setReactionTarget(msg)}
+                          title={t('chat.reactionsTitle')}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            background: 'rgba(0,0,0,0.18)',
+                            border: 'none',
+                            borderRadius: '999px',
+                            padding: '2px 7px',
+                            fontSize: '0.7rem',
+                            color: 'inherit',
+                            cursor: 'pointer',
+                            marginBottom: '4px',
+                            alignSelf: 'flex-start'
+                          }}
+                        >
+                          <span>{reactionCounts.map((entry) => entry.option.emoji).join(' ')}</span>
+                          <span>{totalReactions}</span>
+                          {myReaction && <span>{REACTION_OPTIONS.find((o) => o.type === myReaction)?.emoji}</span>}
+                        </button>
+                      )}
+
                       {/* Footer time & read checkmark + actions */}
                       <div style={{
                         display: 'flex',
@@ -1535,6 +1581,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         marginTop: '4px'
                       }}>
                         <span>{msg.sent_at ? msg.sent_at.slice(-5) : ''}</span>
+                        {!msg.is_deleted && (
+                          <button
+                            type="button"
+                            title={t('chat.reactionsTitle')}
+                            onClick={() => setReactionTarget(msg)}
+                            style={{ background: 'transparent', border: 'none', padding: '2px', cursor: 'pointer', color: 'inherit', display: 'inline-flex', alignItems: 'center' }}
+                          >
+                            <Smile size={13} />
+                          </button>
+                        )}
 
                         {isMe && !msg.is_deleted && (
                           isGroupChannel ? (
@@ -1729,6 +1785,35 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           )}
 
+          {emojiOpen && (
+            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.25)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '4px', maxWidth: '480px' }}>
+                {['😀','😁','😂','🤣','😊','😍','😘','😎','🤩','😇','🙂','😉','😌','😴','🤔','🤨','😐','😑','😶','🙄','😏','😣','😖','😞','😟','😤','😢','😭','😦','😧','😨','😰','😥','😓','🤗','🤭','🤫','🤥','😌','😆','😅','🤤','😋','🤑','🤪','😜','🤠','🥳','🥺','😏','😒','😬','🥱','😪','😮','😲','😳','🥵','🥶','😱','😨','😰','😥','😓','🤯','🥴','😳','🥺','😋','😛','😝','😜','🤪','😝','🤑','🤗','🤭','🤫','🤥','😌','😇','🥰','😍','🤩','😘','😗','☺️','😚','😙','😋','😛','😜','🤪','😝','🤑','🤗'].map((emoji, emojiIndex) => (
+                  <button
+                    key={`${emoji}-${emojiIndex}`}
+                    type="button"
+                    onClick={() => {
+                      const el = inputRef.current;
+                      const start = el?.selectionStart ?? inputText.length;
+                      const end = el?.selectionEnd ?? inputText.length;
+                      const next = inputText.slice(0, start) + emoji + inputText.slice(end);
+                      setInputText(next);
+                      notifyTyping();
+                      requestAnimationFrame(() => {
+                        el?.focus();
+                        const pos = start + emoji.length;
+                        el?.setSelectionRange(pos, pos);
+                      });
+                    }}
+                    style={{ fontSize: '1.35rem', padding: '6px', borderRadius: '8px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Bottom message input form */}
           <form
             onSubmit={handleSendMessage}
@@ -1768,6 +1853,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
             >
               <ImageIcon size={18} />
               <span style={{ fontSize: '0.8rem', display: 'none' }} className="image-btn-text">{t('chat.imageButton')}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEmojiOpen((v) => !v)}
+              className="btn btn-ghost"
+              style={{ padding: '8px 10px', borderRadius: 'var(--radius-sm)', color: emojiOpen ? 'var(--accent-gold)' : 'var(--text-main)', border: emojiOpen ? '1px solid var(--border-gold)' : '1px solid var(--border-color)' }}
+              title={t('chat.emojiTitle')}
+            >
+              <Smile size={18} />
             </button>
 
             {/* Input message text */}
@@ -1840,6 +1935,51 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
 
       </div>
+
+      {/* ===== MODALE : RÉACTIONS MESSAGE ===== */}
+      {reactionTarget && (
+        <div
+          onClick={() => setReactionTarget(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 97,
+            background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '16px'
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="glass-card"
+            style={{ width: 'min(420px, 100%)', padding: '16px', borderRadius: '18px', marginBottom: '8px' }}
+          >
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '10px', textAlign: 'center' }}>{t('chat.reactionsTitle')}</div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              {REACTION_OPTIONS.map((option) => {
+                const mine = reactionTarget.reactions?.[currentUser.id] === option.type;
+                return (
+                  <button
+                    key={option.type}
+                    type="button"
+                    onClick={() => handleMessageReaction(reactionTarget.id, option.type)}
+                    title={t(option.labelKey)}
+                    style={{
+                      fontSize: '1.9rem',
+                      lineHeight: 1,
+                      padding: '8px',
+                      borderRadius: '50%',
+                      border: mine ? '2px solid var(--accent-gold)' : '2px solid transparent',
+                      background: mine ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.06)',
+                      cursor: 'pointer',
+                      transform: mine ? 'scale(1.15)' : 'scale(1)'
+                    }}
+                  >
+                    {option.emoji}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== MODALE : MODIFIER UN MESSAGE ===== */}
       {editingMessage && (

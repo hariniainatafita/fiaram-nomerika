@@ -151,5 +151,12 @@ export const quiz: TranslationDictionary = {
     mg: 'Fenoy ny fanontaniana sy ny valiny efatra rehetra.',
     fr: 'Complétez chaque question et ses quatre réponses.',
     en: 'Complete every question and all four answers.'
-  }
+  },
+  'quiz.review.show': { mg: 'Jereo ny valiny', fr: 'Voir la correction', en: 'View correction' },
+  'quiz.review.hide': { mg: 'Afeno ny valiny', fr: 'Masquer la correction', en: 'Hide correction' },
+  'quiz.review.title': { mg: 'Fanitsiana', fr: 'Correction', en: 'Correction' },
+  'quiz.review.yourAnswer': { mg: 'Ny valiny nataonao', fr: 'Votre réponse', en: 'Your answer' },
+  'quiz.review.correct': { mg: 'Ny valiny marina', fr: 'Bonne réponse', en: 'Correct answer' },
+  'quiz.review.noAnswer': { mg: 'Tsy namaly', fr: 'Sans réponse', en: 'No answer' },
+  'quiz.review.open': { mg: 'Jereo ny fanitsiana', fr: 'Voir la correction', en: 'View correction' }
 };

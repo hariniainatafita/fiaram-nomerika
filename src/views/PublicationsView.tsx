@@ -301,6 +301,8 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   const [isPublishing, setIsPublishing] = useState(false);
   const [openCommentIds, setOpenCommentIds] = useState<string[]>([]);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [replyTargetByPublication, setReplyTargetByPublication] = useState<Record<string, string | null>>({});
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -1006,6 +1008,17 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     onRefreshPublications();
   };
 
+  const handleAddReply = (event: React.FormEvent, publicationId: string, parentCommentId: string) => {
+    event.preventDefault();
+    const draft = (replyDrafts[parentCommentId] || '').trim();
+    if (!draft) return;
+
+    StorageService.addPublicationComment(publicationId, currentUser.id, draft, parentCommentId);
+    setReplyDrafts((drafts) => ({ ...drafts, [parentCommentId]: '' }));
+    setReplyTargetByPublication((targets) => ({ ...targets, [publicationId]: null }));
+    onRefreshPublications();
+  };
+
   const handleDeletePublication = (publication: Publication) => {
     if (!window.confirm(t('publications.confirmDelete'))) return;
 
@@ -1486,44 +1499,99 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                       </div>
                     )}
 
-                    {publication.commentaires.map((comment) => {
-                      const commentAuthor = getAuthor(comment.auteur_id);
-                      return (
-                        <div key={comment.id} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                          <button
-                            type="button"
-                            onClick={() => commentAuthor && openMemberProfile(commentAuthor.id)}
-                            style={{ border: 'none', background: 'none', padding: 0, cursor: commentAuthor ? 'pointer' : 'default', flexShrink: 0 }}
-                            title={commentAuthor ? t('profile.viewProfile') : undefined}
-                          >
-                            <MemberAvatar membre={commentAuthor} size={34} />
-                          </button>
-                          <div style={{
-                            flex: 1,
-                            minWidth: 0,
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: '12px',
-                            padding: '10px 12px'
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                              <strong
+                    {publication.commentaires
+                      .filter((comment) => !comment.parent_comment_id || !publication.commentaires.some((c) => c.id === comment.parent_comment_id))
+                      .map((comment) => {
+                        const commentAuthor = getAuthor(comment.auteur_id);
+                        const replies = publication.commentaires.filter((c) => c.parent_comment_id === comment.id);
+                        const replyTarget = replyTargetByPublication[publication.id];
+                        return (
+                          <div key={comment.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                              <button
+                                type="button"
                                 onClick={() => commentAuthor && openMemberProfile(commentAuthor.id)}
-                                style={{ fontSize: '0.8rem', cursor: commentAuthor ? 'pointer' : 'default' }}
+                                style={{ border: 'none', background: 'none', padding: 0, cursor: commentAuthor ? 'pointer' : 'default', flexShrink: 0 }}
+                                title={commentAuthor ? t('profile.viewProfile') : undefined}
                               >
-                                {commentAuthor ? `${commentAuthor.prenom} ${commentAuthor.nom}` : t('common.member')}
-                              </strong>
-                              <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>
-                                {formatRelativeDate(comment.created_at)}
-                              </span>
+                                <MemberAvatar membre={commentAuthor} size={34} />
+                              </button>
+                              <div style={{
+                                flex: 1,
+                                minWidth: 0,
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '12px',
+                                padding: '10px 12px'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                  <strong
+                                    onClick={() => commentAuthor && openMemberProfile(commentAuthor.id)}
+                                    style={{ fontSize: '0.8rem', cursor: commentAuthor ? 'pointer' : 'default' }}
+                                  >
+                                    {commentAuthor ? `${commentAuthor.prenom} ${commentAuthor.nom}` : t('common.member')}
+                                  </strong>
+                                  <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>
+                                    {formatRelativeDate(comment.created_at)}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '0.84rem', marginTop: '3px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                  {comment.contenu}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setReplyTargetByPublication((targets) => ({ ...targets, [publication.id]: replyTarget === comment.id ? null : comment.id }))}
+                                  className="btn btn-ghost"
+                                  style={{ marginTop: '6px', padding: '2px 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}
+                                >
+                                  {t('publications.comments.reply')}
+                                </button>
+                              </div>
                             </div>
-                            <div style={{ fontSize: '0.84rem', marginTop: '3px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                              {comment.contenu}
-                            </div>
+
+                            {replies.length > 0 && (
+                              <div style={{ marginLeft: '44px', display: 'flex', flexDirection: 'column', gap: '8px', borderLeft: '2px solid var(--border-color)', paddingLeft: '10px' }}>
+                                {replies.map((reply) => {
+                                  const replyAuthor = getAuthor(reply.auteur_id);
+                                  return (
+                                    <div key={reply.id} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                      <MemberAvatar membre={replyAuthor} size={28} />
+                                      <div style={{ flex: 1, minWidth: 0, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '8px 10px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                          <strong style={{ fontSize: '0.76rem' }}>{replyAuthor ? `${replyAuthor.prenom} ${replyAuthor.nom}` : t('common.member')}</strong>
+                                          <span style={{ fontSize: '0.64rem', color: 'var(--text-dim)' }}>{formatRelativeDate(reply.created_at)}</span>
+                                        </div>
+                                        <div style={{ fontSize: '0.82rem', marginTop: '2px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{reply.contenu}</div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {replyTarget === comment.id && (
+                              <form onSubmit={(event) => handleAddReply(event, publication.id, comment.id)} style={{ marginLeft: '44px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <MemberAvatar membre={currentUser} size={28} />
+                                <input
+                                  type="text"
+                                  value={replyDrafts[comment.id] || ''}
+                                  onChange={(event) => setReplyDrafts((drafts) => ({ ...drafts, [comment.id]: event.target.value }))}
+                                  className="form-input"
+                                  placeholder={t('publications.comments.replyPlaceholder')}
+                                  maxLength={500}
+                                  autoFocus
+                                />
+                                <button type="submit" className="btn btn-primary" disabled={!(replyDrafts[comment.id] || '').trim()} style={{ padding: '8px 10px' }} title={t('publications.comments.send')}>
+                                  <Send size={14} />
+                                </button>
+                                <button type="button" className="btn btn-ghost" onClick={() => setReplyTargetByPublication((targets) => ({ ...targets, [publication.id]: null }))} style={{ padding: '8px' }} title={t('common.cancel')}>
+                                  <X size={14} />
+                                </button>
+                              </form>
+                            )}
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
 
                   <form

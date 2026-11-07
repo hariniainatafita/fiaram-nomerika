@@ -1847,7 +1847,24 @@ export const StorageService = {
     };
     this.savePublications(list);
   },
-  addPublicationComment(publicationId: string, auteur_id: string, contenu: string): PublicationComment | null {
+  toggleMessageReaction(messageId: string, membreId: string, reaction: ReactionType): void {
+    const list = this.getMessages();
+    const message = list.find((m) => m.id === messageId);
+    if (!message || message.is_deleted) return;
+    const reactions = { ...(message.reactions || {}) };
+    if (reactions[membreId] === reaction) {
+      delete reactions[membreId];
+    } else {
+      reactions[membreId] = reaction;
+    }
+    message.reactions = reactions;
+    message.reactions_updated_at = {
+      ...(message.reactions_updated_at || {}),
+      [membreId]: new Date().toISOString()
+    };
+    this.saveMessages(list);
+  },
+  addPublicationComment(publicationId: string, auteur_id: string, contenu: string, parent_comment_id?: string): PublicationComment | null {
     const list = this.getPublications();
     const publication = list.find((p) => p.id === publicationId);
     if (!publication) return null;
@@ -1857,7 +1874,8 @@ export const StorageService = {
       publication_id: publicationId,
       auteur_id,
       contenu: contenu.trim(),
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      parent_comment_id: parent_comment_id || undefined
     };
     publication.commentaires.push(comment);
     this.savePublications(list);

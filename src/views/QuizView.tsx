@@ -103,6 +103,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
   const [finishedResult, setFinishedResult] = useState<QuizResult | null>(null);
+  const [showReview, setShowReview] = useState(true);
 
   const playingQuizRef = useRef<Quiz | null>(null);
   const answersRef = useRef<(number | null)[]>([]);
@@ -208,6 +209,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
     playingQuizRef.current = null;
     setPlayingQuiz(null);
     setFinishedResult(saved);
+    setShowReview(true);
     onRefreshResults();
 
     if (quiz.questions.length > 0 && score / quiz.questions.length >= 0.5) {
@@ -386,59 +388,72 @@ export const QuizView: React.FC<QuizViewProps> = ({
     return position < 0 ? 0 : position + 1;
   };
 
-  const renderRankingTable = (rows: QuizResult[], showTime: boolean) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      {rows.map((result, index) => {
-        const isMe = result.membre_id === currentUser.id;
-        return (
-          <div
-            key={result.id}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: showTime ? '42px 1fr 90px 90px' : '42px 1fr 90px',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '10px 12px',
-              borderRadius: '10px',
-              background: isMe ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.03)',
-              border: isMe ? '1px solid var(--border-gold)' : '1px solid var(--border-color)'
-            }}
-          >
-            <span style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: '0.8rem',
-              background: index === 0 ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255, 255, 255, 0.08)',
-              color: index === 0 ? '#070d1e' : 'var(--text-main)'
-            }}>
-              {index + 1}
-            </span>
-            <span style={{ fontSize: '0.85rem', fontWeight: isMe ? 800 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {memberName(result.membre_id)}
-            </span>
-            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f59e0b', textAlign: 'right' }}>
-              {result.score}/{result.total}
-            </span>
-            {showTime && (
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'right' }}>
-                {formatTime(result.duree_utilisee)}
-              </span>
-            )}
-          </div>
-        );
-      })}
-      {rows.length === 0 && (
-        <p style={{ margin: 0, padding: '18px', textAlign: 'center', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-          {t('quiz.leaderboard.empty')}
-        </p>
-      )}
-    </div>
-  );
+  const renderRankingTable = (rows: QuizResult[], showTime: boolean) => {
+    const myIndex = rows.findIndex((result) => result.membre_id === currentUser.id);
+    const visibleRows = rows
+      .map((result, index) => ({ result, index }))
+      .filter(({ index }) => index < 10 || index === myIndex);
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {visibleRows.map(({ result, index }) => {
+          const isMe = result.membre_id === currentUser.id;
+          return (
+            <React.Fragment key={result.id}>
+              {isMe && index >= 10 && (
+                <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.85rem', letterSpacing: '0.3em' }}>
+                  ···
+                </div>
+              )}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: showTime ? '42px 1fr 90px 90px' : '42px 1fr 90px',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  background: isMe ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                  border: isMe ? '1px solid var(--border-gold)' : '1px solid var(--border-color)'
+                }}
+              >
+                <span style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: '0.8rem',
+                  background: index === 0 ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255, 255, 255, 0.08)',
+                  color: index === 0 ? '#070d1e' : 'var(--text-main)'
+                }}>
+                  {index + 1}
+                </span>
+                <span style={{ fontSize: '0.85rem', fontWeight: isMe ? 800 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {memberName(result.membre_id)}
+                </span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f59e0b', textAlign: 'right' }}>
+                  {result.score}/{result.total}
+                </span>
+                {showTime && (
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+                    {formatTime(result.duree_utilisee)}
+                  </span>
+                )}
+              </div>
+            </React.Fragment>
+          );
+        })}
+        {rows.length === 0 && (
+          <p style={{ margin: 0, padding: '18px', textAlign: 'center', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+            {t('quiz.leaderboard.empty')}
+          </p>
+        )}
+      </div>
+    );
+  };
 
   const renderQuizRunner = (quiz: Quiz) => {
     const question = quiz.questions[currentIndex];
@@ -603,6 +618,45 @@ export const QuizView: React.FC<QuizViewProps> = ({
           </div>
         </div>
 
+        {result.answers && result.answers.length > 0 && (
+          <div style={{ textAlign: 'left', marginBottom: '18px' }}>
+            <button type="button" className="btn btn-ghost" onClick={() => setShowReview((v) => !v)} style={{ width: '100%', justifyContent: 'center' }}>
+              {showReview ? <EyeOff size={16} /> : <Eye size={16} />}
+              {showReview ? t('quiz.review.hide') : t('quiz.review.show')}
+            </button>
+            {showReview && (
+              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <h3 style={{ margin: 0, fontSize: '0.95rem' }}>{t('quiz.review.title')}</h3>
+                {result.answers.map((answer) => {
+                  const question = quiz?.questions.find((q) => q.id === answer.question_id) ?? quiz?.questions[result.answers.indexOf(answer)];
+                  if (!question) return null;
+                  const selected = answer.selected_index;
+                  const correct = question.correct_index;
+                  const isCorrect = answer.is_correct;
+                  return (
+                    <div key={answer.question_id} style={{ padding: '12px', borderRadius: '10px', border: `1px solid ${isCorrect ? 'rgba(16,185,129,0.35)' : 'rgba(239,68,68,0.35)'}`, background: isCorrect ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)' }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontWeight: 700, fontSize: '0.85rem', marginBottom: '8px' }}>
+                        {isCorrect ? <CheckCircle2 size={16} color="#34d399" /> : <span style={{ color: '#f87171', fontWeight: 900 }}>×</span>}
+                        <span>{question.question}</span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ color: isCorrect ? '#34d399' : '#f87171' }}>
+                          {t('quiz.review.yourAnswer')}: {selected === null || selected === undefined ? t('quiz.review.noAnswer') : `${OPTION_LABELS[selected] ?? ''}. ${question.options[selected] ?? ''}`}
+                        </div>
+                        {!isCorrect && (
+                          <div style={{ color: '#34d399' }}>
+                            {t('quiz.review.correct')}: {OPTION_LABELS[correct] ?? ''}. {question.options[correct] ?? ''}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button type="button" className="btn btn-primary" onClick={() => setTab('ranking')}>
             <Trophy size={17} />
@@ -716,21 +770,26 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     )}
 
                     {myResult ? (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '8px',
-                        padding: '10px 12px',
-                        borderRadius: '10px',
-                        background: 'rgba(16, 185, 129, 0.1)',
-                        border: '1px solid rgba(16, 185, 129, 0.3)'
-                      }}>
-                        <span style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          <Lock size={14} /> {t('quiz.completed')}
-                        </span>
-                        <strong style={{ fontSize: '1rem', color: '#34d399' }}>{myResult.score}/{myResult.total}</strong>
-                      </div>
+                      <>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px',
+                          padding: '10px 12px',
+                          borderRadius: '10px',
+                          background: 'rgba(16, 185, 129, 0.1)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)'
+                        }}>
+                          <span style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <Lock size={14} /> {t('quiz.completed')}
+                          </span>
+                          <strong style={{ fontSize: '1rem', color: '#34d399' }}>{myResult.score}/{myResult.total}</strong>
+                        </div>
+                        <button type="button" onClick={() => { setShowReview(true); setFinishedResult(myResult); }} className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
+                          <Eye size={15} /> {t('quiz.review.open')}
+                        </button>
+                      </>
                     ) : (
                       <button
                         type="button"
@@ -803,9 +862,15 @@ export const QuizView: React.FC<QuizViewProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {globalRanking.map((entry, index) => {
                 const isMe = entry.membreId === currentUser.id;
+                if (index >= 10 && !isMe) return null;
                 return (
+                  <React.Fragment key={entry.membreId}>
+                    {isMe && index >= 10 && (
+                      <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.85rem', letterSpacing: '0.3em' }}>
+                        ···
+                      </div>
+                    )}
                   <div
-                    key={entry.membreId}
                     style={{
                       display: 'grid',
                       gridTemplateColumns: '42px 1fr 90px',
@@ -843,6 +908,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                       {t('quiz.points', { count: entry.points })}
                     </span>
                   </div>
+                  </React.Fragment>
                 );
               })}
               {globalRanking.length === 0 && (

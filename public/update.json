@@ -1,6 +1,6 @@
 {
-  "versionCode": 20,
-  "versionName": "1.19",
+  "versionCode": 21,
+  "versionName": "1.20",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Mise a jour de securite. L'application peut aussi etre installee depuis Google Play. Si la mise a jour directe est bloquee par votre telephone, desinstallez l'ancienne version puis reinstallez depuis Google Play : vos donnees sont conservees sur votre compte."
+  "notes": "Nouveautes : correction QCM apres la partie, classement limites au top 10 (avec votre rang), reponses aux commentaires, reactions emoji sur les messages (6 reactions), selecteur emoji dans le chat, photo de profil toujours visible sur le profil membre, et images predefinies masquees apres ajout d'une photo personnalisee."
 }

@@ -187,6 +187,16 @@ export const chat: TranslationDictionary = {
     fr: "J'aime (envoi rapide)",
     en: 'Quick like'
   },
+  'chat.reactionsTitle': {
+    mg: 'Fanehoana',
+    fr: 'Réactions',
+    en: 'Reactions'
+  },
+  'chat.emojiTitle': {
+    mg: 'Emoji',
+    fr: 'Emoji',
+    en: 'Emoji'
+  },
   'chat.typing': {
     mg: 'Manao fanoratra i {name}…',
     fr: '{name} est en train d’écrire…',
