@@ -26,6 +26,8 @@ final class BubbleSession {
     private static final String KEY_SUPABASE_KEY = "supabase_key";
 
     private static final String KEY_BUBBLE_ENABLED = "bubble_enabled";
+    private static final String KEY_WATCH_ENABLED = "watch_enabled";
+    private static final String KEY_OVERLAY_HIDDEN = "overlay_hidden";
     private static final String KEY_APP_FOREGROUND = "app_foreground";
     private static final String KEY_PENDING_CHAT_TYPE = "pending_chat_type";
     private static final String KEY_PENDING_CHAT_ID = "pending_chat_id";
@@ -94,6 +96,43 @@ final class BubbleSession {
 
     static boolean isBubbleEnabled(Context context) {
         return prefs(context).getBoolean(KEY_BUBBLE_ENABLED, false);
+    }
+
+    static void setWatchEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_WATCH_ENABLED, enabled).apply();
+    }
+
+    static boolean isWatchEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_WATCH_ENABLED, false);
+    }
+
+    static void setOverlayHidden(Context context, boolean hidden) {
+        prefs(context).edit().putBoolean(KEY_OVERLAY_HIDDEN, hidden).apply();
+    }
+
+    static boolean isOverlayHidden(Context context) {
+        return prefs(context).getBoolean(KEY_OVERLAY_HIDDEN, false);
+    }
+
+    static void clearSession(Context context) {
+        SharedPreferences.Editor editor = prefs(context).edit();
+        editor.putBoolean(KEY_BUBBLE_ENABLED, false);
+        editor.putBoolean(KEY_WATCH_ENABLED, false);
+        editor.putBoolean(KEY_OVERLAY_HIDDEN, false);
+        editor.putBoolean(KEY_APP_FOREGROUND, false);
+        editor.remove(KEY_USER_ID);
+        editor.remove(KEY_USER_NAME);
+        editor.remove(KEY_USER_ROLE);
+        editor.remove(KEY_USER_GROUP);
+        editor.remove(KEY_PHOTO_URL);
+        editor.remove(KEY_SUPABASE_URL);
+        editor.remove(KEY_SUPABASE_KEY);
+        editor.remove(KEY_PENDING_CHAT_TYPE);
+        editor.remove(KEY_PENDING_CHAT_ID);
+        editor.remove(KEY_KNOWN_IDS);
+        editor.remove(KEY_LAST_MESSAGES_UPDATED);
+        editor.remove(KEY_LAST_POLL_AT);
+        editor.commit();
     }
 
     static void setAppForeground(Context context, boolean foreground) {

@@ -45,6 +45,8 @@ export interface MessengerBubblePlugin {
   requestNotificationPermission(): Promise<{ granted: boolean }>;
   startBubble(options: BubbleSessionOptions): Promise<{ started: boolean; needsOverlayPermission?: boolean }>;
   stopBubble(): Promise<void>;
+  startBackgroundWatcher(options: BubbleSessionOptions): Promise<{ started: boolean }>;
+  stopBackgroundWatcher(): Promise<void>;
   showMessage(options: BubbleMessageOptions): Promise<void>;
   showIncomingCall(options: IncomingCallOptions): Promise<void>;
   hideIncomingCall(): Promise<void>;

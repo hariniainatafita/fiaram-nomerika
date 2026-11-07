@@ -164,12 +164,13 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
   const [allQuizResults, setAllQuizResults] = useState<QuizResult[]>(() => StorageService.getQuizResults());
   const [allBilletCommandes, setAllBilletCommandes] = useState<BilletCommande[]>(() => StorageService.getBilletsCommandes());
 
-  // Bulle Messenger Android : on restaure le service flottant pour les membres
-  // qui l'ont déjà activé, et on enregistre leur jeton de notifications.
+  // Service Android d'arrière-plan : il maintient la présence et la veille des
+  // messages même quand la bulle flottante est désactivée. La bulle est
+  // restaurée en plus uniquement pour les membres qui l'ont activée.
   useEffect(() => {
     if (!isMessengerBubbleAvailable()) return;
-    if (!currentUser || !isMessengerBubbleEnabled() || !supabaseUrl || !supabaseAnonKey) {
-      void MessengerBubble.stopBubble().catch(() => { /* service absent */ });
+    if (!currentUser || !supabaseUrl || !supabaseAnonKey) {
+      void MessengerBubble.stopBackgroundWatcher().catch(() => { /* service absent */ });
       return;
     }
     const session = {
@@ -181,7 +182,10 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
       role: currentUser.role,
       groupeId: currentUser.groupe_id
     };
-    void MessengerBubble.startBubble(session).catch(() => { /* permission refusée */ });
+    void MessengerBubble.startBackgroundWatcher(session).catch(() => { /* service absent */ });
+    if (isMessengerBubbleEnabled()) {
+      void MessengerBubble.startBubble(session).catch(() => { /* permission refusée */ });
+    }
   }, [currentUser]);
 
   // Push notifications are independent from the floating bubble: a member who
@@ -197,7 +201,12 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
       role: currentUser.role,
       groupeId: currentUser.groupe_id
     };
-    void MessengerBubble.registerPushToken(session).catch(() => { /* Firebase non configuré */ });
+    void MessengerBubble.requestNotificationPermission()
+      .catch(() => { /* permission refusée */ })
+      .finally(() => {
+        void MessengerBubble.registerPushToken(session)
+          .catch(() => { /* Firebase non configuré */ });
+      });
   }, [currentUser]);
 
   // Chat ouvert depuis une bulle ou une notification Android : le service

@@ -80,13 +80,37 @@ public class MessengerBubblePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void startBackgroundWatcher(PluginCall call) {
+        saveSession(call);
+        if (!BubbleSession.isReady(getContext())) {
+            call.reject("Session incomplète");
+            return;
+        }
+        BubbleSession.setWatchEnabled(getContext(), true);
+        BubbleService.start(getContext());
+        JSObject result = new JSObject();
+        result.put("started", true);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void stopBackgroundWatcher(PluginCall call) {
+        BubbleSession.setWatchEnabled(getContext(), false);
+        BubbleSession.clearSession(getContext());
+        BubbleService.stop(getContext());
+        call.resolve();
+    }
+
+    @PluginMethod
     public void startBubble(PluginCall call) {
         saveSession(call);
         if (!BubbleSession.isReady(getContext())) {
             call.reject("Session incomplète");
             return;
         }
+        BubbleSession.setWatchEnabled(getContext(), true);
         BubbleSession.setBubbleEnabled(getContext(), true);
+        BubbleSession.setOverlayHidden(getContext(), false);
         boolean overlay = Settings.canDrawOverlays(getContext());
         BubbleService.start(getContext());
         JSObject result = new JSObject();
@@ -98,13 +122,18 @@ public class MessengerBubblePlugin extends Plugin {
     @PluginMethod
     public void stopBubble(PluginCall call) {
         BubbleSession.setBubbleEnabled(getContext(), false);
-        BubbleService.stop(getContext());
+        BubbleSession.setOverlayHidden(getContext(), true);
+        if (BubbleSession.isWatchEnabled(getContext())) {
+            BubbleService.hideBubbleOverlay(getContext());
+        } else {
+            BubbleService.stop(getContext());
+        }
         call.resolve();
     }
 
     @PluginMethod
     public void showMessage(PluginCall call) {
-        if (!BubbleSession.isBubbleEnabled(getContext())) {
+        if (!BubbleSession.isWatchEnabled(getContext())) {
             call.resolve();
             return;
         }
@@ -122,7 +151,7 @@ public class MessengerBubblePlugin extends Plugin {
 
     @PluginMethod
     public void showIncomingCall(PluginCall call) {
-        if (!BubbleSession.isBubbleEnabled(getContext())) {
+        if (!BubbleSession.isWatchEnabled(getContext())) {
             call.resolve();
             return;
         }

@@ -35,7 +35,7 @@ public class FiaramMessagingService extends FirebaseMessagingService {
         String messageId = value(data, "messageId");
         if (text.isEmpty() && senderName.isEmpty()) return;
 
-        if (BubbleSession.isBubbleEnabled(this)) {
+        if (BubbleSession.isWatchEnabled(this)) {
             BubbleService.showMessage(
                     this,
                     messageId,

@@ -55,6 +55,7 @@ public class BubbleService extends Service {
     static final String ACTION_SEND_BUBBLE_PHOTO = "mg.fiaram.nomerika.SEND_BUBBLE_PHOTO";
     static final String ACTION_SHOW_CALL = "mg.fiaram.nomerika.BUBBLE_SHOW_CALL";
     static final String ACTION_HIDE_CALL = "mg.fiaram.nomerika.BUBBLE_HIDE_CALL";
+    static final String ACTION_HIDE_BUBBLE = "mg.fiaram.nomerika.BUBBLE_HIDE_BUBBLE";
 
     private static final String EXTRA_MESSAGE_ID = "message_id";
     private static final String EXTRA_PEER_ID = "peer_id";
@@ -74,9 +75,12 @@ public class BubbleService extends Service {
 
     private WindowManager windowManager;
     private WindowManager.LayoutParams windowParams;
-    private FrameLayout root;
+    private LinearLayout root;
     private LinearLayout stackView;
     private LinearLayout panel;
+    private View deleteTarget;
+    private WindowManager.LayoutParams deleteTargetParams;
+    private boolean deleteTargetVisible;
     private TextView panelTitle;
     private TextView panelSubtitle;
     private LinearLayout messagesContainer;
@@ -140,6 +144,12 @@ public class BubbleService extends Service {
         startSafely(context, intent);
     }
 
+    static void hideBubbleOverlay(Context context) {
+        Intent intent = new Intent(context, BubbleService.class);
+        intent.setAction(ACTION_HIDE_BUBBLE);
+        startSafely(context, intent);
+    }
+
     static void stop(Context context) {
         context.stopService(new Intent(context, BubbleService.class));
     }
@@ -191,7 +201,7 @@ public class BubbleService extends Service {
         executor = Executors.newSingleThreadExecutor();
         knownIds = BubbleSession.knownMessageIds(this);
         panelHeightPx = Math.min(dp(440), getResources().getDisplayMetrics().heightPixels - dp(110));
-        if (Settings.canDrawOverlays(this)) showOverlay();
+        if (Settings.canDrawOverlays(this) && !BubbleSession.isOverlayHidden(this)) showOverlay();
         mainHandler.postDelayed(pollRunnable, 1200);
     }
 
@@ -199,21 +209,21 @@ public class BubbleService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent != null ? intent.getAction() : ACTION_START;
         if (ACTION_SHOW.equals(action) && intent != null) {
-            if (!BubbleSession.isBubbleEnabled(this)) {
+            if (!BubbleSession.isWatchEnabled(this)) {
                 stopSelf(startId);
                 return START_NOT_STICKY;
             }
             handlePushedMessage(intent);
             pollOnce();
         } else if (ACTION_SEND_BUBBLE_PHOTO.equals(action) && intent != null) {
-            if (!BubbleSession.isBubbleEnabled(this)) {
+            if (!BubbleSession.isWatchEnabled(this)) {
                 stopSelf(startId);
                 return START_NOT_STICKY;
             }
             String dataUrl = safe(intent.getStringExtra(EXTRA_DATA_URL));
             if (!dataUrl.isEmpty()) sendPhotoFromBubble(dataUrl);
         } else if (ACTION_SHOW_CALL.equals(action) && intent != null) {
-            if (!BubbleSession.isBubbleEnabled(this)) {
+            if (!BubbleSession.isWatchEnabled(this)) {
                 stopSelf(startId);
                 return START_NOT_STICKY;
             }
@@ -225,7 +235,8 @@ public class BubbleService extends Service {
                         safe(intent.getStringExtra(EXTRA_PEER_PHOTO)),
                         safe(intent.getStringExtra(EXTRA_CALL_TYPE))
                 );
-                if (root == null && Settings.canDrawOverlays(this)) showOverlay();
+                if (root == null && BubbleSession.isBubbleEnabled(this)
+                        && Settings.canDrawOverlays(this)) showOverlay();
                 MessageNotifier.showIncomingCall(this, peerId, incomingCall.peerName, incomingCall.callType);
                 renderStack();
             }
@@ -233,17 +244,24 @@ public class BubbleService extends Service {
             incomingCall = null;
             MessageNotifier.cancelIncomingCall(this);
             renderStack();
-            if (!BubbleSession.isBubbleEnabled(this)) stopSelf(startId);
+            if (!BubbleSession.isWatchEnabled(this)) stopSelf(startId);
         } else if (ACTION_CLEAR.equals(action)) {
             cancelAllChatNotifications();
-            if (!BubbleSession.isBubbleEnabled(this)) stopSelf(startId);
+            if (!BubbleSession.isWatchEnabled(this)) stopSelf(startId);
+        } else if (ACTION_HIDE_BUBBLE.equals(action)) {
+            removeOverlay();
+            if (!BubbleSession.isWatchEnabled(this)) stopSelf(startId);
         } else if (ACTION_REFRESH.equals(action)) {
-            if (BubbleSession.isBubbleEnabled(this)) {
+            if (BubbleSession.isWatchEnabled(this)) {
                 pollOnce();
             } else {
                 stopSelf(startId);
             }
         } else {
+            if (!BubbleSession.isWatchEnabled(this)) {
+                stopSelf(startId);
+                return START_NOT_STICKY;
+            }
             if (root == null && Settings.canDrawOverlays(this)) showOverlay();
             pollOnce();
         }
@@ -296,6 +314,19 @@ public class BubbleService extends Service {
         if (!BubbleSession.isAppForeground(this)
                 && (!chat.type.equals(selectedType) || !chat.id.equals(selectedId))) {
             chat.unread += 1;
+            restoreBubbleAfterMessage();
+        }
+        renderStack();
+    }
+
+    private void restoreBubbleAfterMessage() {
+        if (!BubbleSession.isBubbleEnabled(this)
+                || !Settings.canDrawOverlays(this)) return;
+        if (BubbleSession.isOverlayHidden(this)) {
+            BubbleSession.setOverlayHidden(this, false);
+            showOverlay();
+        } else if (root == null) {
+            showOverlay();
         }
         renderStack();
     }
@@ -332,7 +363,7 @@ public class BubbleService extends Service {
                 mainHandler.post(() -> {
                     pollInFlight = false;
                     mainHandler.removeCallbacks(pollRunnable);
-                    if (BubbleSession.isBubbleEnabled(app)) {
+                    if (BubbleSession.isWatchEnabled(app)) {
                         mainHandler.postDelayed(pollRunnable, POLL_INTERVAL_MS);
                     }
                 });
@@ -373,16 +404,16 @@ public class BubbleService extends Service {
         chats.clear();
         chats.addAll(next);
 
-        if (!incoming.isEmpty() && !BubbleSession.isAppForeground(this)
-                && BubbleSession.isBubbleEnabled(this)) {
+        if (!incoming.isEmpty() && !BubbleSession.isAppForeground(this)) {
             for (JSONObject message : incoming) notifyForMessage(message, me, visibleGroups);
+            restoreBubbleAfterMessage();
         }
 
         firstPollDone = true;
         renderStack();
         if (expanded) renderConversation(true);
         updateServiceNotification(chats.isEmpty()
-                ? "Messenger actif"
+                ? "FIARAM actif en arriere-plan"
                 : chats.size() + " discussion(s) recente(s)");
     }
 
@@ -539,7 +570,7 @@ public class BubbleService extends Service {
             stackView.addView(buildChatHead(chats.get(0), totalUnread()));
             return;
         }
-        int shown = Math.min(chats.size(), MAX_HEADS - (chats.size() > MAX_HEADS ? 1 : 0));
+        int shown = Math.min(chats.size(), MAX_HEADS);
         for (int i = 0; i < shown; i++) {
             stackView.addView(buildChatHead(chats.get(i), chats.get(i).unread));
         }
@@ -755,6 +786,7 @@ public class BubbleService extends Service {
 
     private void showOverlay() {
         if (root != null || windowManager == null) return;
+        if (!BubbleSession.isBubbleEnabled(this) || BubbleSession.isOverlayHidden(this)) return;
 
         windowParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -806,17 +838,20 @@ public class BubbleService extends Service {
             headsBackdropParams = null;
         }
 
-        root = new FrameLayout(this);
+        root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
         root.setClipChildren(false);
 
         stackView = new LinearLayout(this);
-        stackView.setOrientation(LinearLayout.VERTICAL);
-        stackView.setLayoutParams(new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT));
+        stackView.setOrientation(LinearLayout.HORIZONTAL);
+        stackView.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         root.addView(stackView);
 
         panel = buildPanel();
         panel.setVisibility(View.GONE);
+        panel.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         root.addView(panel);
 
         try {
@@ -848,7 +883,7 @@ public class BubbleService extends Service {
         background.setStroke(dp(1), Color.parseColor("#10b981"));
         container.setBackground(background);
         container.setElevation(dp(12));
-        container.setLayoutParams(new FrameLayout.LayoutParams(dp(300), panelHeightPx));
+        container.setLayoutParams(new LinearLayout.LayoutParams(dp(300), panelHeightPx));
 
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -876,14 +911,6 @@ public class BubbleService extends Service {
         panelSubtitle.setMaxLines(1);
         titles.addView(panelSubtitle);
         header.addView(titles, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-
-        TextView close = new TextView(this);
-        close.setText("x");
-        close.setTextColor(Color.parseColor("#9ca3af"));
-        close.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
-        close.setPadding(dp(8), 0, 0, 0);
-        close.setOnClickListener(view -> collapse());
-        header.addView(close);
 
         header.setOnTouchListener(this::onPanelTouch);
         container.addView(header);
@@ -981,9 +1008,16 @@ public class BubbleService extends Service {
                     windowParams.y = clamp((int) (touchStartY + deltaY), 0,
                             Math.max(0, screenHeight - contentHeight()));
                     updateLayout();
+                    if (deltaY > dp(70) && windowParams.y > Math.max(0, screenHeight - dp(240))) {
+                        showDeleteTarget();
+                    } else {
+                        hideDeleteTarget();
+                    }
                 }
                 return true;
             case MotionEvent.ACTION_UP:
+                boolean removeFromScreen = deleteTargetVisible;
+                hideDeleteTarget();
                 if (!dragging) {
                     if (!headsOpen) {
                         headsOpen = true;
@@ -994,6 +1028,10 @@ public class BubbleService extends Service {
                     } else {
                         openChat(chat);
                     }
+                } else if (removeFromScreen) {
+                    hideBubbleOverlay();
+                    Toast.makeText(this, "Bulle masquee. Un nouveau message la fera revenir.",
+                            Toast.LENGTH_SHORT).show();
                 } else {
                     persistPosition();
                 }
@@ -1041,11 +1079,11 @@ public class BubbleService extends Service {
         selectedId = chat.id;
         chat.unread = 0;
         expanded = true;
-        headsOpen = false;
+        headsOpen = true;
         updateHeadsBackdrop();
 
         MessageNotifier.cancelChat(this, chat.type, chat.id);
-        stackView.setVisibility(View.GONE);
+        stackView.setVisibility(View.VISIBLE);
         panel.setVisibility(View.VISIBLE);
 
         windowParams.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
@@ -1411,7 +1449,73 @@ public class BubbleService extends Service {
         }
     }
 
+    private void hideBubbleOverlay() {
+        BubbleSession.setOverlayHidden(this, true);
+        expanded = false;
+        headsOpen = false;
+        removeOverlay();
+    }
+
+    private void showDeleteTarget() {
+        if (deleteTargetVisible || windowManager == null) return;
+        deleteTargetVisible = true;
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int screenHeight = getResources().getDisplayMetrics().heightPixels;
+        deleteTargetParams = new WindowManager.LayoutParams(
+                dp(78),
+                dp(78),
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                        ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                        : WindowManager.LayoutParams.TYPE_PHONE,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT
+        );
+        deleteTargetParams.gravity = Gravity.TOP | Gravity.START;
+        deleteTargetParams.x = Math.max(0, screenWidth / 2 - dp(39));
+        deleteTargetParams.y = Math.max(0, screenHeight - dp(112));
+
+        FrameLayout frame = new FrameLayout(this);
+        GradientDrawable background = new GradientDrawable();
+        background.setShape(GradientDrawable.OVAL);
+        background.setColor(Color.parseColor("#dc2626"));
+        background.setStroke(dp(3), Color.WHITE);
+        frame.setBackground(background);
+        frame.setElevation(dp(12));
+        TextView label = new TextView(this);
+        label.setText("✕");
+        label.setTextColor(Color.WHITE);
+        label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30);
+        label.setTypeface(Typeface.DEFAULT_BOLD);
+        label.setGravity(Gravity.CENTER);
+        frame.addView(label, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        deleteTarget = frame;
+        try {
+            windowManager.addView(deleteTarget, deleteTargetParams);
+        } catch (Exception ignored) {
+            deleteTarget = null;
+            deleteTargetParams = null;
+            deleteTargetVisible = false;
+        }
+    }
+
+    private void hideDeleteTarget() {
+        if (!deleteTargetVisible && deleteTarget == null) return;
+        deleteTargetVisible = false;
+        if (deleteTarget != null && windowManager != null) {
+            try {
+                windowManager.removeView(deleteTarget);
+            } catch (Exception ignored) {
+            }
+        }
+        deleteTarget = null;
+        deleteTargetParams = null;
+    }
+
     private void removeOverlay() {
+        hideDeleteTarget();
         if (root != null && windowManager != null) {
             try {
                 windowManager.removeView(root);
@@ -1450,11 +1554,13 @@ public class BubbleService extends Service {
     }
 
     private int contentWidth() {
-        return expanded ? dp(300) : dp(58);
+        return expanded
+                ? Math.max(dp(300), dp(56) * Math.min(MAX_HEADS, Math.max(1, chats.size())) + dp(28))
+                : dp(58);
     }
 
     private int contentHeight() {
-        return expanded ? panelHeightPx : dp(70);
+        return expanded ? panelHeightPx + dp(66) : dp(66);
     }
 
     private int dp(int value) {

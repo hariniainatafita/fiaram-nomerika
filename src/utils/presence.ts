@@ -4,12 +4,15 @@ import { STORAGE_KEYS } from './storageKeys';
 
 export type PresenceMap = Record<string, number>;
 
-// Presence is "sticky": a member stays online until they explicitly log out,
-// including while the app is closed or backgrounded. A positive timestamp is
-// the last online heartbeat; a negative timestamp is the explicit logout time.
-// Both are compared by absolute value when devices merge their copies.
+// Presence is fresh while a heartbeat is running. The web app beats while it is
+// open; on Android, the foreground background watcher keeps beating when the
+// app is switched to another app. A positive timestamp is the last successful
+// heartbeat; a negative timestamp is the explicit logout time. Both are
+// compared by absolute value when devices merge their copies. A positive
+// heartbeat older than ONLINE_FRESHNESS_MS is stale and shown offline.
 const HEARTBEAT_MS = 30_000;
 const REFRESH_MS = 15_000;
+const ONLINE_FRESHNESS_MS = 90_000;
 
 export function getPresenceMap(): PresenceMap {
   try {
@@ -51,14 +54,17 @@ export function markOffline(memberId: string): PresenceMap {
 export function isMemberOnline(map: PresenceMap, memberId?: string): boolean {
   if (!memberId) return false;
   const lastSeen = map[memberId];
-  return typeof lastSeen === 'number' && lastSeen > 0;
+  return typeof lastSeen === 'number'
+    && lastSeen > 0
+    && Date.now() - lastSeen <= ONLINE_FRESHNESS_MS;
 }
 
 /**
- * Keeps the current member flagged as online. Closing the app, backgrounding
- * it or navigating away does NOT log the member out: only an explicit logout
- * calls `markOffline`. The periodic beat keeps the stored timestamp fresh so
- * other devices see an accurate last-seen value.
+ * Keeps the current member flagged as online while the web app is open. On
+ * Android, the foreground background watcher continues the same heartbeat in
+ * the background. Closing the app stops the heartbeat; the member becomes
+ * offline once the last heartbeat is stale. An explicit logout calls
+ * `markOffline` immediately.
  */
 export function usePresence(currentUserId?: string): PresenceMap {
   const [presence, setPresence] = useState<PresenceMap>(getPresenceMap);

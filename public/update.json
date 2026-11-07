@@ -1,6 +1,6 @@
 {
-  "versionCode": 23,
-  "versionName": "1.22",
+  "versionCode": 24,
+  "versionName": "1.23",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Billetterie des evenements (achat Mobile Money, validation, QR et scan), presence en ligne persistante, notifications et correctifs photo de profil/couverture."
+  "notes": "Presence en ligne maintenue en arriere-plan, notifications meme sans bulle, bulle Messenger horizontale avec suppression par glissement vers le bas."
 }
