@@ -105,6 +105,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [reactionTarget, setReactionTarget] = useState<Message | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [pendingSentIds, setPendingSentIds] = useState<Set<string>>(new Set());
 
   // Staged image attachment state
   const [stagedImage, setStagedImage] = useState<{
@@ -605,6 +606,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
+  const trackPendingSent = (id: string) => {
+    setPendingSentIds((prev) => new Set(prev).add(id));
+    window.setTimeout(() => {
+      setPendingSentIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, 2500);
+  };
+
   // Send message
   const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -651,6 +663,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setStagedImage(null);
     setReplyingTo(null);
     setIsProcessingImage(false);
+    trackPendingSent(sentMessage.id);
     onRefreshMessages();
 
     if (stagedImage && sentMessage.image_ref) {
@@ -672,27 +685,26 @@ export const ChatView: React.FC<ChatViewProps> = ({
       sender_id: replyingTo.sender_id,
       text: getMessagePreviewText(replyingTo)
     } : undefined;
-    if (activeChannelType === 'group') {
-      StorageService.sendMessage(
-        currentUser.id,
-        '👍',
-        undefined,
-        activeChannelId,
-        undefined,
-        undefined,
-        replyPayload
-      );
-    } else {
-      StorageService.sendMessage(
-        currentUser.id,
-        '👍',
-        activeChannelId,
-        undefined,
-        undefined,
-        undefined,
-        replyPayload
-      );
-    }
+    const quickMessage = activeChannelType === 'group'
+      ? StorageService.sendMessage(
+          currentUser.id,
+          '👍',
+          undefined,
+          activeChannelId,
+          undefined,
+          undefined,
+          replyPayload
+        )
+      : StorageService.sendMessage(
+          currentUser.id,
+          '👍',
+          activeChannelId,
+          undefined,
+          undefined,
+          undefined,
+          replyPayload
+        );
+    trackPendingSent(quickMessage.id);
     setReplyingTo(null);
     onRefreshMessages();
   };
@@ -1366,6 +1378,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   .filter((entry) => entry.count > 0);
                 const totalReactions = reactionCounts.reduce((sum, entry) => sum + entry.count, 0);
                 const myReaction = msg.reactions?.[currentUser.id];
+                const isSeen = isGroupChannel ? readByOthers > 0 : msg.status === 'read';
+                const isPendingSent = pendingSentIds.has(msg.id);
+                const readerMembers = (msg.read_by || [])
+                  .filter((id) => id !== currentUser.id)
+                  .map((id) => allMembres.find((m) => m.id === id))
+                  .filter((m): m is Membre => Boolean(m));
 
                 return (
                   <div
@@ -1593,23 +1611,45 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         )}
 
                         {isMe && !msg.is_deleted && (
-                          isGroupChannel ? (
-                            <span
-                              title={t('chat.readByCount', { count: readByOthers })}
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}
-                            >
-                              <CheckCheck size={13} />
-                              {readByOthers > 0 ? t('chat.readByCount', { count: readByOthers }) : t('chat.sentStatus')}
-                            </span>
-                          ) : (
-                            <span
-                              title={msg.status === 'read' ? t('chat.readStatus') : t('chat.sentStatus')}
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}
-                            >
-                              {msg.status === 'read' ? <CheckCheck size={13} /> : <Check size={13} />}
-                              <span>{msg.status === 'read' ? t('chat.readByYou') : t('chat.sentStatus')}</span>
-                            </span>
-                          )
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            {isSeen ? (
+                              isGroupChannel ? (
+                                <span title={t('chat.readByCount', { count: readByOthers })} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                  {readerMembers.slice(0, 2).map((member, index) => (
+                                    <img
+                                      key={member.id}
+                                      src={member.photo_url || DEFAULT_AVATAR_IMAGE}
+                                      alt=""
+                                      style={{
+                                        width: '16px',
+                                        height: '16px',
+                                        borderRadius: '50%',
+                                        objectFit: 'cover',
+                                        border: '1px solid rgba(255,255,255,0.7)',
+                                        marginLeft: index === 0 ? 0 : '-6px'
+                                      }}
+                                    />
+                                  ))}
+                                  {readByOthers > 2 && <span style={{ fontSize: '0.6rem', marginLeft: '2px' }}>+{readByOthers - 2}</span>}
+                                </span>
+                              ) : (
+                                <img
+                                  src={activePeer?.photo_url || DEFAULT_AVATAR_IMAGE}
+                                  alt=""
+                                  title={t('chat.readStatus')}
+                                  style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.7)' }}
+                                />
+                              )
+                            ) : isPendingSent ? (
+                              <span title={t('chat.sentStatus')} style={{ display: 'inline-flex', color: 'rgba(255,255,255,0.6)' }}>
+                                <Check size={13} />
+                              </span>
+                            ) : (
+                              <span title={t('chat.deliveredStatus')} style={{ display: 'inline-flex', color: '#7dd3fc' }}>
+                                <CheckCheck size={13} />
+                              </span>
+                            )}
+                          </span>
                         )}
 
                         {isMe && !msg.is_deleted && (

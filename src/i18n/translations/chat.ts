@@ -27,6 +27,7 @@ export const chat: TranslationDictionary = {
   'chat.onlineStatus': { mg: 'En ligne', fr: 'En ligne', en: 'Online' },
   'chat.offlineStatus': { mg: 'Tsy mandeha (Hors ligne)', fr: 'Hors ligne', en: 'Offline' },
   'chat.sentStatus': { mg: 'Nalefa', fr: 'Envoyé', en: 'Sent' },
+  'chat.deliveredStatus': { mg: 'Voaray', fr: 'Reçu', en: 'Delivered' },
   'chat.readStatus': { mg: 'Vakiana', fr: 'Lu', en: 'Read' },
   'chat.unreadPreviewImage': {
     mg: 'Nanefa sary',

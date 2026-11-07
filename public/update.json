@@ -1,6 +1,6 @@
 {
-  "versionCode": 21,
-  "versionName": "1.20",
+  "versionCode": 22,
+  "versionName": "1.21",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Nouveautes : correction QCM apres la partie, classement limites au top 10 (avec votre rang), reponses aux commentaires, reactions emoji sur les messages (6 reactions), selecteur emoji dans le chat, photo de profil toujours visible sur le profil membre, et images predefinies masquees apres ajout d'une photo personnalisee."
+  "notes": "Accuses de lecture style Messenger : 1 coche grise si non recu, 2 coches bleues si recu, et petit avatar du destinataire si vu."
 }
