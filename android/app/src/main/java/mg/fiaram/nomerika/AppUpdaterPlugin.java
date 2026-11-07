@@ -42,6 +42,28 @@ public class AppUpdaterPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void openPlayStore(PluginCall call) {
+        String pkg = getContext().getPackageName();
+        try {
+            Intent market = new Intent(Intent.ACTION_VIEW,
+                    Uri.parse("market://details?id=" + pkg));
+            market.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(market);
+            call.resolve();
+        } catch (Exception marketError) {
+            try {
+                Intent web = new Intent(Intent.ACTION_VIEW,
+                        Uri.parse("https://play.google.com/store/apps/details?id=" + pkg));
+                web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(web);
+                call.resolve();
+            } catch (Exception webError) {
+                call.reject(webError.getMessage());
+            }
+        }
+    }
+
+    @PluginMethod
     public void checkForUpdate(PluginCall call) {
         if (!BuildConfig.SELF_UPDATE) {
             JSObject result = new JSObject();

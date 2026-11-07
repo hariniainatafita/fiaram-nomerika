@@ -1,5 +1,10 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { REMOTE_APP_URL, isNativeApp, resolveServerUrl } from '../lib/appConfig';
+import {
+  PLAY_STORE_URL,
+  REMOTE_APP_URL,
+  isNativeApp,
+  resolveServerUrl
+} from '../lib/appConfig';
 
 export const CHECK_APP_UPDATE_EVENT = 'fiaram:check-app-update';
 export const OPEN_APP_UPDATE_EVENT = 'fiaram:open-app-update';
@@ -36,12 +41,30 @@ export interface AppUpdaterPlugin {
     needsPermission?: boolean;
   }>;
   getVersion(): Promise<AppVersionInfo>;
+  openPlayStore(): Promise<void>;
 }
 
 export const AppUpdater = registerPlugin<AppUpdaterPlugin>('AppUpdater');
 
 export function isAppUpdaterAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+}
+
+export { PLAY_STORE_URL };
+
+/**
+ * Ouvre la fiche Google Play. Sur Android on passe par le plugin natif
+ * (Intent market://) pour garantir l'ouverture du Play Store ; sur le web on
+ * ouvre simplement la page publique.
+ */
+export function openPlayStoreListing(): void {
+  if (isAppUpdaterAvailable()) {
+    void AppUpdater.openPlayStore().catch(() => {
+      window.open(PLAY_STORE_URL, '_blank', 'noopener');
+    });
+    return;
+  }
+  window.open(PLAY_STORE_URL, '_blank', 'noopener');
 }
 
 export function getAppUpdateManifestUrl(): string {

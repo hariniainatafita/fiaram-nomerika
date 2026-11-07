@@ -8,6 +8,7 @@ import {
   getAppUpdateManifestUrl,
   getCurrentAppVersion,
   isAppUpdaterAvailable,
+  openPlayStoreListing,
   resolveApkUrl
 } from '../utils/appUpdate';
 import {
@@ -115,10 +116,17 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
   const hasUpdate = Boolean(manifest) && (
     isNative ? !storeManaged && selfUpdateAvailable && manifest!.versionCode > currentVersionCode : true
   );
+  // Variante Play Store : l'installation directe est interdite, mais on sait
+  // quand meme si le manifeste public annonce une version plus recente.
+  const storeUpdate = Boolean(manifest) && storeManaged && manifest!.versionCode > currentVersionCode;
   const upToDate = Boolean(manifest) && isNative && !storeManaged && !hasUpdate && status === 'idle';
 
   const install = async () => {
     if (!manifest) return;
+    if (storeManaged) {
+      openPlayStoreListing();
+      return;
+    }
     const apkUrl = resolveApkUrl(manifest.apkUrl);
     if (!isNative) {
       window.open(apkUrl, '_blank', 'noopener');
@@ -370,7 +378,28 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
 
         {storeManaged && (
           <div style={{ marginTop: '10px', fontSize: '0.78rem', color: '#60a5fa', lineHeight: 1.45 }}>
-            {t('update.playStoreManaged')}
+            {storeUpdate && manifest
+              ? t('update.newVersion', { version: manifest.versionName || manifest.versionCode })
+              : null}
+            <div>{t('update.playStoreManaged')}</div>
+          </div>
+        )}
+
+        {!storeManaged && (
+          <div style={{
+            marginTop: '10px',
+            padding: '10px 12px',
+            borderRadius: '10px',
+            background: 'rgba(96, 165, 250, 0.08)',
+            border: '1px solid rgba(96, 165, 250, 0.25)',
+            fontSize: '0.74rem',
+            color: '#93c5fd',
+            lineHeight: 1.5
+          }}>
+            <div style={{ fontWeight: 700, marginBottom: '2px' }}>
+              {t('update.playMigrationTitle')}
+            </div>
+            {t('update.playMigration')}
           </div>
         )}
 
@@ -379,11 +408,17 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
             type="button"
             className="btn btn-primary"
             style={{ flex: '1 1 160px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}
-            onClick={() => void (hasUpdate ? install() : check())}
+            onClick={() => void (storeManaged || hasUpdate ? install() : check())}
             disabled={status === 'checking' || status === 'downloading' || status === 'installing'}
           >
-            {hasUpdate ? <Download size={16} /> : <RefreshCw size={16} />}
-            <span>{hasUpdate ? statusLabel : t('update.checkButton')}</span>
+            {storeManaged || hasUpdate ? <Download size={16} /> : <RefreshCw size={16} />}
+            <span>
+              {storeManaged
+                ? t('update.openPlay')
+                : hasUpdate
+                  ? statusLabel
+                  : t('update.checkButton')}
+            </span>
           </button>
 
           <button
@@ -396,6 +431,19 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
           >
             <RefreshCw size={15} />
           </button>
+
+          {!storeManaged && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}
+              onClick={openPlayStoreListing}
+              title={t('update.openPlay')}
+            >
+              <Smartphone size={15} />
+              <span>{t('update.openPlay')}</span>
+            </button>
+          )}
         </div>
 
         {isNative && (

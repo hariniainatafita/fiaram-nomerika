@@ -7,6 +7,13 @@ import { Capacitor } from '@capacitor/core';
 // l'origine locale du WebView (https://localhost).
 export const REMOTE_APP_URL = 'https://fiaram-nomerika.pages.dev';
 
+// Fiche Google Play de l'application. Elle sert de canal de mise a jour sur
+// les telephones ou l'installation directe de l'APK est bloquee par Play
+// Protect / le constructeur.
+export const PLAY_STORE_PACKAGE = 'mg.fiaram.nomerika';
+export const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${PLAY_STORE_PACKAGE}`;
+export const PLAY_STORE_MARKET_URL = `market://details?id=${PLAY_STORE_PACKAGE}`;
+
 export function isNativeApp(): boolean {
   return Capacitor.isNativePlatform();
 }

@@ -1,6 +1,6 @@
 {
-  "versionCode": 19,
-  "versionName": "1.18",
+  "versionCode": 20,
+  "versionName": "1.19",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Appel vidéo plein écran, appel entrant visible hors de l'application comme une bulle/notification, et signal de fin d'appel ou d'appel manqué dans la discussion."
+  "notes": "Mise a jour de securite. L'application peut aussi etre installee depuis Google Play. Si la mise a jour directe est bloquee par votre telephone, desinstallez l'ancienne version puis reinstallez depuis Google Play : vos donnees sont conservees sur votre compte."
 }

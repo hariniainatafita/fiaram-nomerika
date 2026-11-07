@@ -5,10 +5,14 @@ import {
   AppUpdater,
   AppUpdateInfo,
   CHECK_APP_UPDATE_EVENT,
+  PLAY_STORE_URL,
   dismissAppUpdate,
+  fetchAppUpdateManifest,
   getAppUpdateManifestUrl,
+  getCurrentAppVersion,
   isAppUpdaterAvailable,
-  isAppUpdateDismissed
+  isAppUpdateDismissed,
+  openPlayStoreListing
 } from '../utils/appUpdate';
 import { StorageService } from '../utils/storage';
 import { addNotification } from '../utils/notifications';
@@ -36,7 +40,28 @@ export const AppUpdateBanner: React.FC = () => {
       const result = await AppUpdater.checkForUpdate({
         updateUrl: getAppUpdateManifestUrl()
       });
-      if (!result.available) {
+
+      // Variante Play Store : le plugin refuse l'auto-installation, mais on
+      // compare quand meme le manifeste public a la version installee pour
+      // afficher la notification et ouvrir la fiche Google Play.
+      let nextInfo = result;
+      if (result.selfUpdate === false) {
+        const [manifest, current] = await Promise.all([
+          fetchAppUpdateManifest(),
+          getCurrentAppVersion()
+        ]);
+        nextInfo = {
+          ...result,
+          available: manifest.versionCode > current.versionCode,
+          latestVersionCode: manifest.versionCode,
+          latestVersionName: manifest.versionName,
+          notes: manifest.notes,
+          apkUrl: PLAY_STORE_URL,
+          selfUpdate: false
+        };
+      }
+
+      if (!nextInfo.available) {
         if (manual) showNotice(t('update.upToDate'));
         return;
       }
@@ -44,18 +69,18 @@ export const AppUpdateBanner: React.FC = () => {
       const user = StorageService.getCurrentUser();
       if (user) {
         addNotification(user.id, {
-          id: `update:apk:${result.latestVersionCode}`,
+          id: `update:${nextInfo.selfUpdate === false ? 'play' : 'apk'}:${nextInfo.latestVersionCode}`,
           kind: 'update',
           title: t('notifications.update.title'),
           body: t('notifications.update.body', {
-            version: result.latestVersionName || String(result.latestVersionCode)
+            version: nextInfo.latestVersionName || String(nextInfo.latestVersionCode)
           }),
           targetView: 'update'
         });
       }
 
-      if (!manual && isAppUpdateDismissed(result.latestVersionCode)) return;
-      setInfo(result);
+      if (!manual && isAppUpdateDismissed(nextInfo.latestVersionCode)) return;
+      setInfo(nextInfo);
       setStatus('idle');
       setNotice('');
     } catch {
@@ -101,6 +126,10 @@ export const AppUpdateBanner: React.FC = () => {
 
   const update = async () => {
     if (!info || status === 'downloading') return;
+    if (info.selfUpdate === false) {
+      openPlayStoreListing();
+      return;
+    }
     setStatus('downloading');
     try {
       const result = await AppUpdater.downloadAndInstall({ apkUrl: info.apkUrl });
@@ -117,13 +146,15 @@ export const AppUpdateBanner: React.FC = () => {
   if (!isAppUpdaterAvailable()) return null;
   if (!info && !notice) return null;
 
-  const buttonLabel = status === 'downloading'
-    ? t('update.downloading')
-    : status === 'permission'
-      ? t('update.permissionButton')
-      : status === 'installing'
-        ? t('update.installing')
-        : t('update.download');
+  const buttonLabel = info?.selfUpdate === false
+    ? t('update.openPlay')
+    : status === 'downloading'
+      ? t('update.downloading')
+      : status === 'permission'
+        ? t('update.permissionButton')
+        : status === 'installing'
+          ? t('update.installing')
+          : t('update.download');
 
   return (
     <div
@@ -188,6 +219,11 @@ export const AppUpdateBanner: React.FC = () => {
               {status === 'error' && (
                 <div style={{ fontSize: '0.74rem', color: '#f87171', marginTop: '6px', lineHeight: 1.45 }}>
                   {t('update.error')}
+                </div>
+              )}
+              {info.selfUpdate === false && (
+                <div style={{ fontSize: '0.74rem', color: '#60a5fa', marginTop: '6px', lineHeight: 1.45 }}>
+                  {t('update.playStoreManaged')}
                 </div>
               )}
             </>

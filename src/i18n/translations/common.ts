@@ -239,6 +239,21 @@ export const common: TranslationDictionary = {
     fr: 'Les mises à jour sont gérées par le Google Play Store.',
     en: 'Updates are handled by the Google Play Store.'
   },
+  'update.openPlay': {
+    mg: 'Sokafy ny Google Play',
+    fr: 'Ouvrir Google Play',
+    en: 'Open Google Play'
+  },
+  'update.playMigrationTitle': {
+    mg: 'Ampiasao ny Google Play',
+    fr: 'Installez depuis Google Play',
+    en: 'Install from Google Play'
+  },
+  'update.playMigration': {
+    mg: "Raha voasakana ny fametrahana ity APK ity, esory ny version taloha dia avereno apetraka avy amin'ny Google Play. Voatahiry ao amin'ny kaonty ny angonao.",
+    fr: "Si l'installation de cet APK est bloquée, désinstallez l'ancienne version puis réinstallez depuis Google Play. Vos données restent sur votre compte.",
+    en: 'If this APK is blocked, uninstall the old version and reinstall it from Google Play. Your data stays on your account.'
+  },
   'update.webHint': {
     mg: 'Ampidino ny APK ary apetraho amin’ny findaina Android.',
     fr: 'Téléchargez le fichier APK puis installez-le sur votre téléphone Android.',
