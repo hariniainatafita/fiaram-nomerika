@@ -1027,7 +1027,14 @@ public class BubbleService extends Service {
                     } else if (chats.size() <= 1 || headsOpen) {
                         // Une seule conversation (ou tete deja choisie) : un
                         // simple appui ouvre le chat, sans second clic.
-                        openChat(chat);
+                        // Si la fenetre de conversation n'est pas disponible,
+                        // on ouvre directement l'application : un appui doit
+                        // toujours produire une action visible.
+                        if (panel == null || root == null) {
+                            openApp(chat.type, chat.id);
+                        } else {
+                            openChat(chat);
+                        }
                     } else {
                         // Plusieurs conversations : premier appui pour deployer
                         // les tetes, le suivant ouvre celle choisie.
@@ -1423,6 +1430,8 @@ public class BubbleService extends Service {
             startActivity(intent);
         } catch (Exception ignored) {
             /* demarrage refuse : la bulle reste affichee */
+            Toast.makeText(this, "Impossible d'ouvrir l'application.",
+                    Toast.LENGTH_SHORT).show();
             return;
         }
         collapse();

@@ -32,6 +32,7 @@ import {
   clearCachedImageRow,
   clearAllCachedImageRows
 } from './imageRowCache';
+import { idbPutImage, idbDeleteImage } from './imageStore';
 import { deletedIdsFor, markDeleted } from './tombstones';
 import { getReactionType } from './reactions';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -229,6 +230,9 @@ function storeImageRow(key: string, dataUrl: string, label: string): boolean {
   // Keep the picture in memory even when localStorage is full: the current
   // session then renders it instantly instead of refetching it every render.
   setCachedImageRow(key, dataUrl);
+  // IndexedDB is the durable local copy: it survives the localStorage quota
+  // pruning and a server outage, so the picture is never lost on this device.
+  void idbPutImage(key, dataUrl);
   pushKey(key, dataUrl);
   return localOk || (isSupabaseConfigured && Boolean(supabase));
 }
@@ -271,7 +275,10 @@ function removeStoredItem(key: string): void {
   } catch (e) {
     console.error(`Error removing key ${key}:`, e);
   }
-  if (isFeedImageKey(key)) clearCachedImageRow(key);
+  if (isFeedImageKey(key)) {
+    clearCachedImageRow(key);
+    void idbDeleteImage(key);
+  }
 }
 
 export function migrateLegacyDemoData(): void {

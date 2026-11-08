@@ -1,7 +1,8 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { STORAGE_KEYS, SYNCED_KEYS, PENDING_IMAGE_UPLOADS, isSyncedKey, isImageKey, isFeedImageKey, messageImageKey, storyImageKey, publicationImageKey, MEMBER_IMAGE_PREFIX, MEMBER_AVATAR_REF, MEMBER_COVER_REF, memberAvatarKey, memberCoverKey } from './storageKeys';
 import { deletedIdsFor, isTombstoneKey, pruneDeletedFromCollections } from './tombstones';
-import { readCachedImageRow, setCachedImageRow, clearCachedImageRow } from './imageRowCache';
+import { readImageRowAsync, setCachedImageRow, clearCachedImageRow } from './imageRowCache';
+import { idbPutImage } from './imageStore';
 
 const TABLE = 'app_state';
 
@@ -653,10 +654,10 @@ const messageImageInflight = new Set<string>();
  * also available after a missed event / first connection.
  */
 export async function fetchMessageImageIfMissing(messageId: string): Promise<string | undefined> {
-  if (!isSupabaseConfigured || !supabase) return undefined;
   const key = messageImageKey(messageId);
-  const cached = readCachedImageRow(key);
+  const cached = await readImageRowAsync(key);
   if (cached) return cached;
+  if (!isSupabaseConfigured || !supabase) return undefined;
   if (messageImageInflight.has(messageId)) return undefined;
   messageImageInflight.add(messageId);
   try {
@@ -698,10 +699,10 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
  * demand, which works even when the Realtime payload was too large.
  */
 export async function fetchStoryImageIfMissing(storyId: string): Promise<string | undefined> {
-  if (!isSupabaseConfigured || !supabase) return undefined;
   const key = storyImageKey(storyId);
-  const cached = readCachedImageRow(key);
+  const cached = await readImageRowAsync(key);
   if (cached) return cached;
+  if (!isSupabaseConfigured || !supabase) return undefined;
   if (storyImageInflight.has(storyId)) return undefined;
   storyImageInflight.add(storyId);
   try {
@@ -717,6 +718,7 @@ export async function fetchStoryImageIfMissing(storyId: string): Promise<string 
         const value = normalizeRemoteValue((data as { value?: unknown }).value);
         if (typeof value === 'string' && value) {
           setCachedImageRow(key, value);
+          void idbPutImage(key, value);
           try {
             localStorage.setItem(key, JSON.stringify(value));
           } catch (err) {
@@ -749,9 +751,8 @@ export async function fetchMemberImageIfMissing(
   kind: 'avatar' | 'cover',
   force = false
 ): Promise<string | undefined> {
-  if (!isSupabaseConfigured || !supabase) return undefined;
   const key = kind === 'avatar' ? memberAvatarKey(memberId) : memberCoverKey(memberId);
-  const cached = readCachedImageRow(key);
+  const cached = await readImageRowAsync(key);
   if (cached && !force) return cached;
 
   let localValue = cached;
@@ -771,6 +772,7 @@ export async function fetchMemberImageIfMissing(
     }
   }
 
+  if (!isSupabaseConfigured || !supabase) return localValue;
   if (memberImageInflight.has(key)) return localValue;
   memberImageInflight.add(key);
   try {
@@ -786,6 +788,7 @@ export async function fetchMemberImageIfMissing(
         const value = normalizeRemoteValue((data as { value?: unknown }).value);
         if (typeof value === 'string' && value) {
           setCachedImageRow(key, value);
+          void idbPutImage(key, value);
           try {
             localStorage.setItem(key, JSON.stringify(value));
           } catch (err) {
@@ -819,10 +822,10 @@ const publicationImageInflight = new Set<string>();
  * even when the realtime payload was too large or the media bucket is absent.
  */
 export async function fetchPublicationImageIfMissing(publicationId: string): Promise<string | undefined> {
-  if (!isSupabaseConfigured || !supabase) return undefined;
   const key = publicationImageKey(publicationId);
-  const cached = readCachedImageRow(key);
+  const cached = await readImageRowAsync(key);
   if (cached) return cached;
+  if (!isSupabaseConfigured || !supabase) return undefined;
   if (publicationImageInflight.has(publicationId)) return undefined;
   publicationImageInflight.add(publicationId);
   try {
@@ -836,6 +839,7 @@ export async function fetchPublicationImageIfMissing(publicationId: string): Pro
         const value = normalizeRemoteValue((data as { value?: unknown }).value);
         if (typeof value === 'string' && value) {
           setCachedImageRow(key, value);
+          void idbPutImage(key, value);
           try {
             localStorage.setItem(key, JSON.stringify(value));
           } catch (err) {
@@ -871,7 +875,10 @@ function writeMerged(key: string, remoteValue: unknown, preferLocal = false): vo
         ? filterDeletedItems(key, remoteValue)
         : remoteValue;
       localStorage.setItem(key, JSON.stringify(value));
-      if (isFeedImageKey(key) && typeof value === 'string') setCachedImageRow(key, value);
+      if (isFeedImageKey(key) && typeof value === 'string') {
+        setCachedImageRow(key, value);
+        void idbPutImage(key, value);
+      }
     } catch (err) {
       console.error(`[Supabase] cannot store "${key}":`, err);
     }
@@ -887,7 +894,10 @@ function writeMerged(key: string, remoteValue: unknown, preferLocal = false): vo
       ? mergeKeyValuesForPush(key, normalizeRemoteValue(localValue), remoteValue)
       : mergeKeyValues(key, normalizeRemoteValue(localValue), remoteValue);
     localStorage.setItem(key, JSON.stringify(value));
-    if (isFeedImageKey(key) && typeof value === 'string') setCachedImageRow(key, value);
+    if (isFeedImageKey(key) && typeof value === 'string') {
+      setCachedImageRow(key, value);
+      void idbPutImage(key, value);
+    }
   } catch (err) {
     console.error(`[Supabase] cannot merge "${key}":`, err);
     try {

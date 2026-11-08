@@ -298,6 +298,10 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   // Pictures that could not be fetched (missing row, quota, offline) stop the
   // spinner and offer a manual retry instead of loading forever.
   const [failedImages, setFailedImages] = useState<Record<string, true>>({});
+  // A stored `image_url` can point at a dead R2 object (binding absent) or an
+  // expired URL. Track broken <img> loads per publication so the retry UI is
+  // shown instead of a blank frame, and fall back to the local copy.
+  const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, true>>({});
   const [imageRetryTick, setImageRetryTick] = useState(0);
   const publicationImageInflightRef = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -565,13 +569,21 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
     void resolveImages();
   }, [sortedPublications, visibleCount, publicationImages, failedImages, imageRetryTick]);
 
-  const retryPublicationImage = (ref: string) => {
+  const retryPublicationImage = (ref: string, publicationId?: string) => {
     setFailedImages((prev) => {
       if (!prev[ref]) return prev;
       const next = { ...prev };
       delete next[ref];
       return next;
     });
+    if (publicationId) {
+      setImageLoadErrors((prev) => {
+        if (!prev[publicationId]) return prev;
+        const next = { ...prev };
+        delete next[publicationId];
+        return next;
+      });
+    }
     setImageRetryTick((value) => value + 1);
   };
 
@@ -583,7 +595,9 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       const stored = StorageService.getPublicationImage(publication.image_ref);
       if (stored) return stored;
     }
-    if (publication.image_url) return publication.image_url;
+    // Skip a URL that already failed to load: the local/IndexedDB copy (when
+    // present) is preferred, otherwise the retry placeholder is shown.
+    if (publication.image_url && !imageLoadErrors[publication.id]) return publication.image_url;
     if (publication.image_ref) return publicationImages[publication.image_ref];
     return undefined;
   };
@@ -1506,6 +1520,12 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                     alt={t('publications.image.alt')}
                     loading="lazy"
                     decoding="async"
+                    onError={() => {
+                      setImageLoadErrors((prev) => (
+                        prev[publication.id] ? prev : { ...prev, [publication.id]: true }
+                      ));
+                      if (publication.image_ref) retryPublicationImage(publication.image_ref);
+                    }}
                     style={{
                       width: '100%',
                       height: 'auto',
@@ -1528,7 +1548,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                   color: 'var(--text-muted)',
                   fontSize: '0.82rem'
                 }}>
-                  {failedImages[publication.image_ref] ? (
+                  {failedImages[publication.image_ref] || imageLoadErrors[publication.id] ? (
                     <>
                       <ImageOff size={26} />
                       <span>{t('publications.image.unavailable')}</span>
@@ -1536,7 +1556,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                         type="button"
                         className="btn btn-ghost"
                         style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-                        onClick={() => retryPublicationImage(publication.image_ref as string)}
+                        onClick={() => retryPublicationImage(publication.image_ref as string, publication.id)}
                       >
                         <RefreshCw size={14} />
                         <span>{t('publications.image.retry')}</span>

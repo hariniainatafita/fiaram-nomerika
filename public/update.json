@@ -1,6 +1,6 @@
 {
-  "versionCode": 25,
-  "versionName": "1.24",
+  "versionCode": 26,
+  "versionName": "1.25",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Bulle Messenger: ouverture directe de la conversation et avatar generique. Notifications et presence en arriere-plan ameliorees. Billetterie (vente, liste d'attente, generation des billets), espace France 24, photos et mots de passe corriges."
+  "notes": "Images du fil conservees durablement sur l'appareil (IndexedDB) meme si le serveur est indisponible, avec repli et bouton Reessayer. Bulle Messenger: un appui ouvre toujours le chat ou l'application. Billetterie, France 24 et correction des mots de passe inclus."
 }

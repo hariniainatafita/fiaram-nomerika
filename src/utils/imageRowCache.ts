@@ -48,3 +48,21 @@ export function clearAllCachedImageRows(): void {
   cache.clear();
   missing.clear();
 }
+
+// Durable fallback: when localStorage was pruned (quota) or cleared, the
+// picture is still in IndexedDB. Reading it here restores the fast paths so
+// the feed keeps working even when Supabase / R2 are unreachable.
+export async function readImageRowAsync(key: string): Promise<string | undefined> {
+  const cached = readCachedImageRow(key);
+  if (cached) return cached;
+  const { idbGetImage } = await import('./imageStore');
+  const stored = await idbGetImage(key);
+  if (!stored) return undefined;
+  setCachedImageRow(key, stored);
+  try {
+    localStorage.setItem(key, JSON.stringify(stored));
+  } catch {
+    /* localStorage still saturated: the in-memory cache is enough */
+  }
+  return stored;
+}
