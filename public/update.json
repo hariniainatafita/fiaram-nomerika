@@ -1,6 +1,6 @@
 {
-  "versionCode": 24,
-  "versionName": "1.23",
+  "versionCode": 25,
+  "versionName": "1.24",
   "apkUrl": "https://github.com/hariniainatafita/fiaram-nomerika/releases/latest/download/app-release.apk",
-  "notes": "Presence en ligne maintenue en arriere-plan, notifications meme sans bulle, bulle Messenger horizontale avec suppression par glissement vers le bas."
+  "notes": "Bulle Messenger: ouverture directe de la conversation et avatar generique. Notifications et presence en arriere-plan ameliorees. Billetterie (vente, liste d'attente, generation des billets), espace France 24, photos et mots de passe corriges."
 }
