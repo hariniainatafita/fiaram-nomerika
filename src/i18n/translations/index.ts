@@ -19,6 +19,7 @@ import { settings } from './settings';
 import { scanner } from './scanner';
 import { notifications } from './notifications';
 import { calls } from './calls';
+import { news } from './news';
 
 export const translations: TranslationDictionary = {
   ...common,
@@ -40,5 +41,6 @@ export const translations: TranslationDictionary = {
   ...settings,
   ...scanner,
   ...notifications,
-  ...calls
+  ...calls,
+  ...news
 };

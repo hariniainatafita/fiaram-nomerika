@@ -18,6 +18,7 @@ import {
   ScanLine,
   Ticket,
   TicketCheck,
+  Wand2,
   X
 } from 'lucide-react';
 
@@ -388,6 +389,28 @@ export const ManageEventTicketsModal: React.FC<{
               <ScanLine size={17} />
               <span>{t('publications.event.scanTicket')}</span>
             </button>
+
+            {valides.some(
+              (commande) => !billets.some((billet) => billet.commande_id === commande.id)
+            ) && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ padding: '9px', fontSize: '0.78rem', color: '#f59e0b' }}
+                onClick={() => {
+                  valides.forEach((commande) => {
+                    if (!billets.some((billet) => billet.commande_id === commande.id)) {
+                      StorageService.validateBilletCommande(commande.id, currentUser.id);
+                    }
+                  });
+                  setTick((value) => value + 1);
+                  onRefresh();
+                }}
+              >
+                <Wand2 size={15} />
+                <span>{t('publications.event.generateMissing')}</span>
+              </button>
+            )}
 
             <div>
               <div style={{ ...labelStyle, marginBottom: '8px' }}>

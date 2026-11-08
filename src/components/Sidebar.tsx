@@ -19,7 +19,9 @@ import {
   UsersRound,
   BrainCircuit,
   Bell,
-  Download
+  Download,
+  Ticket,
+  Newspaper
 } from 'lucide-react';
 import { DEFAULT_AVATAR_IMAGE } from '../utils/defaultAvatar';
 import { StorageService } from '../utils/storage';
@@ -73,6 +75,8 @@ const navItems = [
     { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, hidden: !hasGroupAccess },
     { id: 'notifications', label: t('nav.notifications'), icon: Bell, badge: notificationUnreadCount },
     { id: 'publications', label: t('nav.publications'), icon: Camera, badge: feedUnreadCount },
+    { id: 'tickets', label: t('publications.event.ticketsSpace'), icon: Ticket },
+    { id: 'news', label: t('news.title'), icon: Newspaper },
     { id: 'quiz', label: t('nav.quiz'), icon: BrainCircuit, badge: quizUnreadCount },
     { id: 'members', label: t('nav.members'), icon: UsersRound, hidden: !hasGroupAccess },
     { id: 'presence', label: t('nav.presence'), icon: QrCode, hidden: !hasGroupAccess },

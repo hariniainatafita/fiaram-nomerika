@@ -685,9 +685,10 @@ export async function fetchMessageImageIfMissing(messageId: string): Promise<str
 const storyImageInflight = new Set<string>();
 
 // A picture row is pushed a few hundred milliseconds after its metadata, and
-// large base64 rows can take longer on mobile data. Keep retrying for about a
-// minute so the viewer never waits for an unrelated event to show the picture.
-const IMAGE_FETCH_DELAYS = [300, 700, 1500, 3000, 5000, 8000, 12000, 15000, 20000];
+// large base64 rows can take longer on mobile data. Keep retrying for about
+// twenty seconds: long enough for a slow network, short enough to stop the
+// spinner and offer a retry instead of leaving the feed blocked.
+const IMAGE_FETCH_DELAYS = [300, 700, 1500, 3000, 5000, 8000];
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -855,7 +856,7 @@ export async function fetchPublicationImageIfMissing(publicationId: string): Pro
   }
 }
 
-function writeMerged(key: string, remoteValue: unknown): void {
+function writeMerged(key: string, remoteValue: unknown, preferLocal = false): void {
   // Apply picture rows to the in-memory cache first: the avatar must change
   // even when localStorage is saturated and cannot store the row.
   if (typeof remoteValue === 'string' && remoteValue && key.startsWith(MEMBER_IMAGE_PREFIX)) {
@@ -880,7 +881,11 @@ function writeMerged(key: string, remoteValue: unknown): void {
   try {
     // The local value is normalized as well: a previously corrupted value
     // (JSONB delivered as a string) is repaired during the next merge.
-    const value = mergeKeyValues(key, normalizeRemoteValue(localValue), remoteValue);
+    // `preferLocal` protects a change made while the app was still booting:
+    // the older remote copy must not erase it before the queued push runs.
+    const value = preferLocal
+      ? mergeKeyValuesForPush(key, normalizeRemoteValue(localValue), remoteValue)
+      : mergeKeyValues(key, normalizeRemoteValue(localValue), remoteValue);
     localStorage.setItem(key, JSON.stringify(value));
     if (isFeedImageKey(key) && typeof value === 'string') setCachedImageRow(key, value);
   } catch (err) {
@@ -1043,7 +1048,9 @@ export async function hydrateFromSupabase(): Promise<void> {
 
     for (const key of SYNCED_KEYS) {
       if (remote.has(key)) {
-        writeMerged(key, normalizeRemoteValue(remote.get(key)));
+        // A local change queued during boot (e.g. a new password) wins over the
+        // older remote copy, otherwise hydration would silently revert it.
+        writeMerged(key, normalizeRemoteValue(remote.get(key)), queuedPushes.has(key));
         // Password hashes: a device may hold entries the remote row does not
         // have yet (accounts created offline on that phone). Push them back so
         // every member can sign in from every device.
@@ -1088,7 +1095,10 @@ export function pushKey(key: string, value: unknown): void {
   // refreshing the page or closing the app.
   // Chat messages also skip the debounce: they are what makes the conversation
   // feel live, so every send must be announced to the other devices at once.
-  if (isImageKey(key) || key === STORAGE_KEYS.MESSAGES) {
+  // Password hashes are pushed without the debounce: a page reload right after
+  // a password change would otherwise cancel the timer and the old hash would
+  // come back from Supabase on the next boot (password reverting to 'admin').
+  if (isImageKey(key) || key === STORAGE_KEYS.MESSAGES || key === STORAGE_KEYS.PASSWORD_HASHES) {
     void pushKeyNow(key, value);
     return;
   }

@@ -6,6 +6,7 @@ import {
   Share2,
   Send,
   Image as ImageIcon,
+  ImageOff,
   X,
   Loader2,
   Trash2,
@@ -294,6 +295,11 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
   // Same scheme for publications: metadata in PUBLICATIONS, picture in its
   // own synced row, resolved here so it appears on every device.
   const [publicationImages, setPublicationImages] = useState<Record<string, string>>({});
+  // Pictures that could not be fetched (missing row, quota, offline) stop the
+  // spinner and offer a manual retry instead of loading forever.
+  const [failedImages, setFailedImages] = useState<Record<string, true>>({});
+  const [imageRetryTick, setImageRetryTick] = useState(0);
+  const publicationImageInflightRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     setLocalStories(prev => {
       const newLocalStories = prev.filter(
@@ -536,20 +542,38 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
       ));
       // Parallel fetches: one slow picture never blocks the others.
       await Promise.all(refs.map(async (ref) => {
-        if (publicationImages[ref]) return;
-        const local = StorageService.getPublicationImage(ref);
-        if (local) {
-          setPublicationImages((prev) => (prev[ref] ? prev : { ...prev, [ref]: local }));
-          return;
-        }
-        const remote = await fetchPublicationImageIfMissing(ref);
-        if (remote) {
-          setPublicationImages((prev) => (prev[ref] ? prev : { ...prev, [ref]: remote }));
+        if (publicationImages[ref] || failedImages[ref]) return;
+        if (publicationImageInflightRef.current.has(ref)) return;
+        publicationImageInflightRef.current.add(ref);
+        try {
+          const local = StorageService.getPublicationImage(ref);
+          if (local) {
+            setPublicationImages((prev) => (prev[ref] ? prev : { ...prev, [ref]: local }));
+            return;
+          }
+          const remote = await fetchPublicationImageIfMissing(ref);
+          if (remote) {
+            setPublicationImages((prev) => (prev[ref] ? prev : { ...prev, [ref]: remote }));
+          } else {
+            setFailedImages((prev) => (prev[ref] ? prev : { ...prev, [ref]: true }));
+          }
+        } finally {
+          publicationImageInflightRef.current.delete(ref);
         }
       }));
     };
     void resolveImages();
-  }, [sortedPublications, visibleCount, publicationImages]);
+  }, [sortedPublications, visibleCount, publicationImages, failedImages, imageRetryTick]);
+
+  const retryPublicationImage = (ref: string) => {
+    setFailedImages((prev) => {
+      if (!prev[ref]) return prev;
+      const next = { ...prev };
+      delete next[ref];
+      return next;
+    });
+    setImageRetryTick((value) => value + 1);
+  };
 
   const getPublicationImageSrc = (publication: Publication): string | undefined => {
     if (publication.image_ref && publicationImages[publication.image_ref]) {
@@ -1504,8 +1528,26 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                   color: 'var(--text-muted)',
                   fontSize: '0.82rem'
                 }}>
-                  <Loader2 size={26} className="animate-pulse-glow" />
-                  <span>{t('publications.image.loading')}</span>
+                  {failedImages[publication.image_ref] ? (
+                    <>
+                      <ImageOff size={26} />
+                      <span>{t('publications.image.unavailable')}</span>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                        onClick={() => retryPublicationImage(publication.image_ref as string)}
+                      >
+                        <RefreshCw size={14} />
+                        <span>{t('publications.image.retry')}</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Loader2 size={26} className="animate-pulse-glow" />
+                      <span>{t('publications.image.loading')}</span>
+                    </>
+                  )}
                 </div>
               )}
 

@@ -607,10 +607,12 @@ public class BubbleService extends Service {
     private View buildEmptyBubble() {
         FrameLayout holder = new FrameLayout(this);
         holder.setLayoutParams(headParams(0));
+        // Aucune conversation : afficher la bulle generique de l'application,
+        // jamais la photo du compte connecte (elle faisait croire a un chat).
         View circle = buildCircle(
-                BubbleSession.photoUrl(this),
-                BubbleSession.userId(this),
-                initial(BubbleSession.userName(this)),
+                "",
+                "",
+                "F",
                 "#10b981"
         );
         holder.addView(circle, new FrameLayout.LayoutParams(
@@ -1019,14 +1021,19 @@ public class BubbleService extends Service {
                 boolean removeFromScreen = deleteTargetVisible;
                 hideDeleteTarget();
                 if (!dragging) {
-                    if (!headsOpen) {
+                    if (chat == null) {
+                        // Bulle vide : ouvrir directement la liste des messages.
+                        openApp("list", "list");
+                    } else if (chats.size() <= 1 || headsOpen) {
+                        // Une seule conversation (ou tete deja choisie) : un
+                        // simple appui ouvre le chat, sans second clic.
+                        openChat(chat);
+                    } else {
+                        // Plusieurs conversations : premier appui pour deployer
+                        // les tetes, le suivant ouvre celle choisie.
                         headsOpen = true;
                         renderStack();
                         updateLayout();
-                    } else if (chat == null) {
-                        openApp("list", "list");
-                    } else {
-                        openChat(chat);
                     }
                 } else if (removeFromScreen) {
                     hideBubbleOverlay();

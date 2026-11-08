@@ -50,6 +50,8 @@ import { GroupsView } from './views/GroupsView';
 import { EventsView } from './views/EventsView';
 import { QuizView } from './views/QuizView';
 import { PublicationsView } from './views/PublicationsView';
+import { TicketsView } from './views/TicketsView';
+import { NewsView } from './views/NewsView';
 import { MembersView } from './views/MembersView';
 import { ProfileView } from './views/ProfileView';
 import { MemberProfileModal } from './components/MemberProfileModal';
@@ -1168,6 +1170,20 @@ const refreshStories = () => {
               stories={allStories}
               onRefreshPublications={refreshPublications}
               onRefreshStories={refreshStories}
+            />
+          )}
+
+          {allowedView === 'news' && (
+            <NewsView />
+          )}
+
+          {allowedView === 'tickets' && (
+            <TicketsView
+              currentUser={currentUser}
+              allMembres={allMembres}
+              allGroupes={allGroupes}
+              publications={allPublications}
+              onRefreshPublications={refreshPublications}
             />
           )}
 

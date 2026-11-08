@@ -55,7 +55,11 @@ function getPasswordHashes(): Record<string, string> {
 }
 
 function setPasswordHashes(hashes: Record<string, string>): void {
-  setStoredItem(PASSWORD_HASHES_KEY, hashes);
+  // Merge with what is already stored: a caller may hold a snapshot taken
+  // before Supabase hydration finished, and writing it verbatim would drop
+  // the hashes that were just downloaded (and could reset a real password).
+  const current = getPasswordHashes();
+  setStoredItem(PASSWORD_HASHES_KEY, { ...current, ...hashes });
 }
 
 // Never let a slow network block the login screen: Supabase Auth is only a
@@ -351,36 +355,12 @@ function ensureInitData(): void {
 }
 
 ensureInitData();
-void ensureDemoPasswordHashes();
 
-/**
- * Seme les hachages SHA-256 des mots de passe par dÃ©faut pour les comptes
- * dÃ©mo existants (admin / tafita, ancien mot de passe 'admin') afin qu'ils
- * puissent toujours se connecter aprÃ©s la suppression du champ en clair.
- * Ne jamais Ã©craser un hachage dÃ©jÃ dÃ©fini par l'utilisateur.
- */
-async function ensureDemoPasswordHashes(): Promise<void> {
-  try {
-    const membres = getStoredItem<Membre[]>(STORAGE_KEYS.MEMBRES, []);
-    const targetCodes = new Set(['GRP-ADM-001', 'GRP-MBR-007']);
-    const toHash = membres.filter((m) => targetCodes.has(m.code_unique));
-    if (toHash.length === 0) return;
-
-    const hashes = getPasswordHashes();
-    let changed = false;
-    const defaultHash = await createPasswordHash('admin');
-    for (const m of toHash) {
-      if (!hashes[m.id]) {
-        hashes[m.id] = defaultHash;
-        changed = true;
-      }
-    }
-    if (changed) setPasswordHashes(hashes);
-  } catch {
-    // Ignore les Ã©checs de semis : l'utilisateur pourra rÃ©initialiser son
-    // mot de passe via l'Ã©cran de profil.
-  }
-}
+// Note: the demo accounts used to receive the default 'admin' hash at every
+// boot. That seed raced with Supabase hydration and could silently reset a
+// real password (the admin password reverting to 'admin'). Accounts without a
+// hash must now set one explicitly (registration, admin reset or "mot de passe
+// oublié"), which is also safer.
 
 // Member pictures share the decoded-picture cache with feed images: the members
 // list is rebuilt often (realtime events, navigation) and re-parsing megabytes
@@ -1814,8 +1794,17 @@ export const StorageService = {
   },
   // Replaces the local/synced base64 picture by a fast CDN URL once the
   // background upload finishes. The row keeps the same `image_ref`.
+  // The URL is also written on the metadata so a device that never received
+  // the picture row can still show the post instead of an endless spinner.
   replacePublicationImage(publicationId: string, url: string): void {
     savePublicationImageRow(publicationId, url);
+    const list = this.getPublications();
+    const publication = list.find(
+      (item) => item.id === publicationId || item.image_ref === publicationId
+    );
+    if (!publication || publication.image_url === url) return;
+    publication.image_url = url;
+    this.savePublications(list);
   },
   updatePublication(publicationId: string, contenu: string): void {
     const list = this.getPublications();
@@ -2127,6 +2116,11 @@ export const StorageService = {
   // Same as replacePublicationImage: swap the synced base64 row for its URL.
   replaceStoryImage(storyId: string, url: string): void {
     saveStoryImageRow(storyId, url);
+    const list = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []);
+    const story = list.find((item) => item.id === storyId || item.image_ref === storyId);
+    if (!story || story.image_url === url) return;
+    story.image_url = url;
+    setStoredItem(STORAGE_KEYS.STORIES, list);
   },
   addStory(auteur_id: string, image_url: string, caption?: string, localDataUrl?: string): Story {
     const list = getStoredItem<Story[]>(STORAGE_KEYS.STORIES, []);

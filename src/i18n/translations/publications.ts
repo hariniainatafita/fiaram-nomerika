@@ -346,6 +346,16 @@ export const publications: TranslationDictionary = {
     fr: "Chargement de l'image...",
     en: 'Loading image...'
   },
+  'publications.image.unavailable': {
+    mg: 'Tsy hita ny sary',
+    fr: "Image indisponible pour le moment",
+    en: 'Image unavailable right now'
+  },
+  'publications.image.retry': {
+    mg: 'Andramo indray',
+    fr: 'Réessayer',
+    en: 'Retry'
+  },
   'publications.ranking.label': {
     mg: 'Laharam-pahavelomana',
     fr: 'Les plus populaires',
@@ -507,5 +517,60 @@ export const publications: TranslationDictionary = {
     mg: 'Ny admin sy ny chef ihany no afaka mitantana tapakila.',
     fr: "Seuls l'admin et les chefs peuvent gérer les billets.",
     en: 'Only the admin and group leaders can manage tickets.'
+  },
+  'publications.event.ticketsSpace': {
+    mg: 'Fivarotana tapakila',
+    fr: 'Billetterie',
+    en: 'Ticketing'
+  },
+  'publications.event.ticketsSpaceSubtitle': {
+    mg: 'Toerana iray hitantana ny tapakila rehetra : mpividy, lisitra miandry, vola azo ary famoahana tapakila.',
+    fr: 'Un seul espace pour suivre les ventes : acheteurs, liste d’attente, recettes et génération des billets.',
+    en: 'One place to track sales: buyers, waiting list, revenue and ticket generation.'
+  },
+  'publications.event.waitingList': {
+    mg: 'Lisitra miandry',
+    fr: 'Liste d’attente',
+    en: 'Waiting list'
+  },
+  'publications.event.noWaiting': {
+    mg: 'Tsy misy mpividy miandry.',
+    fr: 'Aucun acheteur en attente.',
+    en: 'No buyer waiting.'
+  },
+  'publications.event.soldOrders': {
+    mg: 'Fividianana voamarina',
+    fr: 'Commandes validées',
+    en: 'Approved orders'
+  },
+  'publications.event.noSoldOrders': {
+    mg: 'Mbola tsy misy fividianana voamarina.',
+    fr: 'Aucune commande validée pour le moment.',
+    en: 'No approved order yet.'
+  },
+  'publications.event.generateMissing': {
+    mg: 'Avadiho ny tapakila tsy hita',
+    fr: 'Générer les billets manquants',
+    en: 'Generate missing tickets'
+  },
+  'publications.event.generatedCount': {
+    mg: 'Tapakila namboarina : {count}',
+    fr: 'Billets générés : {count}',
+    en: 'Tickets generated: {count}'
+  },
+  'publications.event.noEventsWithTickets': {
+    mg: 'Mbola tsy misy hetsika misy tapakila.',
+    fr: 'Aucun événement avec billetterie pour le moment.',
+    en: 'No ticketed event yet.'
+  },
+  'publications.event.manage': {
+    mg: 'Tantano',
+    fr: 'Gérer',
+    en: 'Manage'
+  },
+  'publications.event.myTicketsSubtitle': {
+    mg: 'Alaivo ary asehoy amin’ny fidirana ny tapakilanao.',
+    fr: 'Téléchargez et présentez vos billets à l’entrée.',
+    en: 'Download your tickets and show them at the entrance.'
   }
 };
