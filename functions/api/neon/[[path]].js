@@ -104,6 +104,18 @@ function eqValue(searchParams) {
   return null;
 }
 
+// PostgREST `in.(a,b,c)` utilisé par `.in('key', SYNCED_KEYS)` à l'hydratation.
+function inValues(searchParams) {
+  const raw = searchParams.get('key');
+  if (typeof raw !== 'string' || !raw.startsWith('in.(') || !raw.endsWith(')')) return null;
+  const inner = raw.slice(4, -1).trim();
+  if (!inner) return [];
+  return inner
+    .split(',')
+    .map((part) => part.trim().replace(/^"(.*)"$/, '$1'))
+    .filter(Boolean);
+}
+
 function limitValue(searchParams) {
   const raw = Number.parseInt(searchParams.get('limit') || '', 10);
   if (!Number.isFinite(raw) || raw <= 0) return 5000;
@@ -139,10 +151,18 @@ function normalizeRows(rows) {
 async function handleGet(sql, request, searchParams) {
   const select = searchParams.get('select') || '*';
   const key = eqValue(searchParams);
+  const keys = inValues(searchParams);
   const limit = limitValue(searchParams);
-  const rows = key
-    ? await sql`SELECT key, value, updated_at FROM app_state WHERE key = ${key} LIMIT 1`
-    : await sql`SELECT key, value, updated_at FROM app_state ORDER BY updated_at ASC LIMIT ${limit}`;
+  let rows;
+  if (key) {
+    rows = await sql`SELECT key, value, updated_at FROM app_state WHERE key = ${key} LIMIT 1`;
+  } else if (keys) {
+    rows = keys.length
+      ? await sql`SELECT key, value, updated_at FROM app_state WHERE key = ANY(${keys}::text[]) ORDER BY updated_at ASC`
+      : [];
+  } else {
+    rows = await sql`SELECT key, value, updated_at FROM app_state ORDER BY updated_at ASC LIMIT ${limit}`;
+  }
   const projected = normalizeRows(rows).map((row) => projectRow(row, select));
 
   if (isSingle(request)) {
