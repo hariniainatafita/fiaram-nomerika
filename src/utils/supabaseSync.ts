@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, supabaseDirect, isSupabaseConfigured } from '../lib/supabase';
 import { STORAGE_KEYS, SYNCED_KEYS, PENDING_IMAGE_UPLOADS, isSyncedKey, isImageKey, isFeedImageKey, messageImageKey, storyImageKey, publicationImageKey, MEMBER_IMAGE_PREFIX, MEMBER_AVATAR_REF, MEMBER_COVER_REF, memberAvatarKey, memberCoverKey } from './storageKeys';
 import { deletedIdsFor, isTombstoneKey, pruneDeletedFromCollections } from './tombstones';
 import { readImageRowAsync, setCachedImageRow, clearCachedImageRow } from './imageRowCache';
@@ -1139,8 +1139,10 @@ export function deleteKey(key: string): void {
  * Returns an unsubscribe function.
  */
 export function subscribeToSupabase(onRemoteChange: (key: string) => void): () => void {
-  if (!isSupabaseConfigured || !supabase) return () => {};
-  const client = supabase;
+  // Realtime stays on the direct project: the failover proxy only relays REST
+  // data, not WebSocket channels.
+  if (!isSupabaseConfigured || !supabaseDirect) return () => {};
+  const client = supabaseDirect;
 
   const channel = client
     .channel('app_state_changes')
