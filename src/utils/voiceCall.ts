@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabaseDirect as supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { Membre } from '../types';
 import { useLanguage } from '../i18n';
 import { StorageService } from './storage';

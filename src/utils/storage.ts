@@ -35,7 +35,7 @@ import {
 import { idbPutImage, idbDeleteImage } from './imageStore';
 import { deletedIdsFor, markDeleted } from './tombstones';
 import { getReactionType } from './reactions';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, supabaseDirect, isSupabaseConfigured } from '../lib/supabase';
 import { createPasswordHash, needsPasswordHashUpgrade, verifyPassword, PasswordCheckTimeoutError } from '../utils/crypto';
 
 const DEFAULT_RESSOURCE_CATEGORIES: CategorieChanson[] = [
@@ -631,12 +631,12 @@ export const StorageService = {
 
     // 3) Supabase Auth only as a fallback, with a timeout so a slow connection
     // can never block the login screen.
-    if (!user && !passwordCheckBlocked && isSupabaseConfigured && supabase) {
+    if (!user && !passwordCheckBlocked && isSupabaseConfigured && supabaseDirect) {
       const email = matches.find((m) => m.email && m.email.includes('@'))?.email;
       if (email) {
         try {
           const result = await withTimeout(
-            supabase.auth.signInWithPassword({ email, password }),
+            supabaseDirect.auth.signInWithPassword({ email, password }),
             5000
           );
           if (result && !result.error && result.data?.user) {
@@ -763,8 +763,8 @@ export const StorageService = {
 
     // Supabase Auth sign-up is optional and must never delay registration:
     // the local hash is already saved and works immediately.
-    if (isSupabaseConfigured && supabase && email) {
-      void supabase.auth.signUp({
+    if (isSupabaseConfigured && supabaseDirect && email) {
+      void supabaseDirect.auth.signUp({
         email,
         password: data.password
       }).catch((e) => {
@@ -847,8 +847,8 @@ export const StorageService = {
 
   logout(): void {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
-    if (isSupabaseConfigured && supabase) {
-      void supabase.auth.signOut();
+    if (isSupabaseConfigured && supabaseDirect) {
+      void supabaseDirect.auth.signOut();
     }
   },
 

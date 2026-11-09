@@ -5,7 +5,7 @@
 // retournée et l'appelant conserve son mode interne (data URL) — aucune
 // régression possible : les médias ne sont pas perdus, simplement localisés.
 
-import { supabase } from '../lib/supabase';
+import { supabaseDirect } from '../lib/supabase';
 import { getServerOrigin, resolveServerUrl } from '../lib/appConfig';
 
 export type MediaKind = 'image' | 'audio' | 'document';
@@ -96,16 +96,16 @@ async function uploadToR2(blob: Blob, kind: MediaKind): Promise<string | undefin
 }
 
 async function uploadToSupabase(blob: Blob, kind: MediaKind): Promise<string | undefined> {
-  if (!supabase) return undefined;
+  if (!supabaseDirect) return undefined;
   const key = buildObjectKey(kind, blob.type);
-  const { error } = await supabase.storage
+  const { error } = await supabaseDirect.storage
     .from(MEDIA_BUCKET)
     .upload(key, blob, { contentType: blob.type || 'application/octet-stream' });
   if (error) {
     console.warn('Téléversement Supabase refusé:', error.message);
     return undefined;
   }
-  const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(key);
+  const { data } = supabaseDirect.storage.from(MEDIA_BUCKET).getPublicUrl(key);
   return data?.publicUrl ?? undefined;
 }
 
