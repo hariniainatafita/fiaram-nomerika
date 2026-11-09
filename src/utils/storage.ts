@@ -363,6 +363,40 @@ function ensureInitData(): void {
 
 ensureInitData();
 
+/**
+ * localStorage is capped at ~5 MB: feed pictures kept there quickly fill it
+ * and make every metadata write fail. Move the existing picture rows to
+ * IndexedDB (large quota, not pruned) and free localStorage. The in-memory
+ * cache keeps the current session instant; later sessions read IndexedDB
+ * asynchronously through `readImageRowAsync`.
+ */
+async function migrateFeedImagesToIndexedDb(): Promise<void> {
+  for (const key of collectImageCacheKeys()) {
+    let value: string | undefined;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (typeof parsed !== 'string' || !parsed) continue;
+      value = parsed;
+    } catch {
+      continue;
+    }
+    // Only drop the localStorage copy once IndexedDB confirmed the write:
+    // otherwise a quota/private-mode failure would lose the picture.
+    const stored = await idbPutImage(key, value);
+    if (!stored) continue;
+    setCachedImageRow(key, value);
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+void migrateFeedImagesToIndexedDb();
+
 // Note: the demo accounts used to receive the default 'admin' hash at every
 // boot. That seed raced with Supabase hydration and could silently reset a
 // real password (the admin password reverting to 'admin'). Accounts without a

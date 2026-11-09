@@ -49,17 +49,17 @@ export async function idbGetImage(key: string): Promise<string | undefined> {
   });
 }
 
-export async function idbPutImage(key: string, value: string): Promise<void> {
-  if (typeof value !== 'string' || !value) return;
+export async function idbPutImage(key: string, value: string): Promise<boolean> {
+  if (typeof value !== 'string' || !value) return false;
   const db = await openDb();
-  if (!db) return;
+  if (!db) return false;
   return new Promise((resolve) => {
     try {
       const request = db.transaction(STORE, 'readwrite').objectStore(STORE).put(value, key);
-      request.onsuccess = () => resolve();
-      request.onerror = () => resolve();
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => resolve(false);
     } catch {
-      resolve();
+      resolve(false);
     }
   });
 }
