@@ -1,10 +1,9 @@
-// Envoi des fichiers média vers Cloudflare R2 (via la fonction Pages
-// `/api/upload`) en priorité, puis vers le bucket Supabase en secours.
-// La fonction retourne une URL https publique du fichier ; si les deux
-// stockages sont indisponibles (binding R2 absent, bucket Supabase non créé,
-// réseau coupé), la valeur undefined est retournée et l'appelant conserve son
-// mode interne (data URL) — aucune régression possible : les médias ne sont
-// pas perdus, simplement localisés.
+// Envoi des fichiers média vers la fonction Pages `/api/upload`, qui choisit
+// automatiquement le premier stockage disponible (R2, puis R2 secondaire, puis
+// fournisseurs S3 déclarés dans `MEDIA_S3`). Si toute la chaîne échoue, on
+// bascule sur le bucket Supabase. En dernier recours, la valeur undefined est
+// retournée et l'appelant conserve son mode interne (data URL) — aucune
+// régression possible : les médias ne sont pas perdus, simplement localisés.
 
 import { supabase } from '../lib/supabase';
 import { getServerOrigin, resolveServerUrl } from '../lib/appConfig';
@@ -51,9 +50,11 @@ function buildObjectKey(kind: MediaKind, mime: string): string {
   return `${kind}_m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}.${ext}`;
 }
 
-// The function returns a relative `/media/<key>` URL. Store an absolute URL so
+// The function returns a relative `/media/<key>` URL for R2, or an absolute URL
+// when a failover S3 provider stored the file. Normalise both to absolute so
 // the value keeps working whatever origin reads it (pages.dev, Android WebView).
 function absoluteMediaUrl(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
   return resolveServerUrl(url);
 }
 
@@ -73,15 +74,15 @@ async function uploadToR2(blob: Blob, kind: MediaKind): Promise<string | undefin
       signal: controller.signal
     });
     if (!res.ok) {
-      // 404/500/503 mean the Pages function or its R2 binding is absent;
-      // 403 means a misconfigured origin. Do not retry on every upload.
+      // 404/500/503 mean the Pages function or its whole storage chain is
+      // absent; 403 means a misconfigured origin. Do not retry on every upload.
       if ([403, 404, 500, 503].includes(res.status)) r2Unavailable = true;
-      console.warn('Téléversement R2 refusé:', res.status);
+      console.warn('Téléversement média refusé:', res.status);
       return undefined;
     }
-    const payload = await res.json() as { url?: unknown };
+    const payload = await res.json() as { url?: unknown; provider?: unknown };
     const url = typeof payload?.url === 'string' ? payload.url : undefined;
-    if (!url || !url.startsWith('/media/')) {
+    if (!url || !(url.startsWith('/media/') || /^https?:\/\//i.test(url))) {
       r2Unavailable = true;
       return undefined;
     }

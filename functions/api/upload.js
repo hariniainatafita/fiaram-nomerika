@@ -1,6 +1,17 @@
-// Réception des médias depuis le navigateur, écriture directe dans le bucket R2.
-// Le reçu envoyé au client est une URL relative /media/<clé> qui sera ensuite
-// servie par la fonction functions/media/[key].js.
+// Réception des médias depuis le navigateur.
+//
+// Chaîne de stockage avec bascule automatique (failover) :
+//   1. bindings R2 `MEDIA`, puis `MEDIA_2`, `MEDIA_3` (si présents) ;
+//   2. fournisseurs compatibles S3 déclarés dans `MEDIA_S3` (JSON), par ex.
+//      Backblaze B2, Wasabi, IDrive e2… dans l'ordre du tableau ;
+//   3. le client bascule ensuite sur Supabase Storage si tout échoue.
+//
+// Chaque fournisseur est essayé dans l'ordre : si l'un est plein ou refuse
+// l'écriture (quota, 403, panne), on passe automatiquement au suivant. Le reçu
+// contient une URL relative `/media/<clé>` pour R2 (servie par
+// functions/media/[key].js) ou une URL absolue pour un fournisseur S3.
+
+import { AwsClient } from 'aws4fetch';
 
 const ALLOWED_MIME = {
   'image/jpeg': 'jpg',
@@ -87,11 +98,94 @@ export async function onRequestOptions({ request }) {
   return new Response(null, { status: 204, headers: corsHeaders(request) });
 }
 
+// --- Fournisseurs de stockage ------------------------------------------------
+
+function r2Bindings(env) {
+  return [env.MEDIA, env.MEDIA_2, env.MEDIA_3].filter(Boolean);
+}
+
+let s3Cache = { raw: '', providers: [] };
+
+function s3Providers(env) {
+  const raw = typeof env.MEDIA_S3 === 'string' ? env.MEDIA_S3.trim() : '';
+  if (!raw) return [];
+  if (s3Cache.raw === raw) return s3Cache.providers;
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    console.warn('MEDIA_S3: JSON invalide, fournisseurs S3 ignorés');
+    return [];
+  }
+  const list = Array.isArray(parsed) ? parsed : [parsed];
+  const providers = list
+    .filter((p) => p && p.bucket && p.accessKeyId && p.secretAccessKey && (p.endpoint || p.region))
+    .map((p) => ({
+      name: String(p.name || 's3'),
+      endpoint: String(p.endpoint || `https://s3.${p.region}.backblazeb2.com`).replace(/\/+$/, ''),
+      region: String(p.region || 'us-east-1'),
+      bucket: String(p.bucket),
+      accessKeyId: String(p.accessKeyId),
+      secretAccessKey: String(p.secretAccessKey),
+      publicUrl: String(p.publicUrl || '').replace(/\/+$/, '')
+    }));
+  s3Cache = { raw, providers };
+  return providers;
+}
+
+async function putToR2(bucket, key, buf, mime) {
+  await bucket.put(key, buf, {
+    httpMetadata: { contentType: mime },
+    customMetadata: { uploaded_at: new Date().toISOString() }
+  });
+  return { url: `/media/${key}`, provider: 'r2' };
+}
+
+async function putToS3(provider, key, buf, mime) {
+  const client = new AwsClient({
+    accessKeyId: provider.accessKeyId,
+    secretAccessKey: provider.secretAccessKey,
+    service: 's3',
+    region: provider.region
+  });
+  const res = await client.fetch(`${provider.endpoint}/${provider.bucket}/${key}`, {
+    method: 'PUT',
+    body: buf,
+    headers: { 'content-type': mime }
+  });
+  if (!res.ok) {
+    throw new Error(`s3 ${res.status}`);
+  }
+  return {
+    url: provider.publicUrl ? `${provider.publicUrl}/${key}` : `${provider.endpoint}/${provider.bucket}/${key}`,
+    provider: provider.name
+  };
+}
+
+// Essaye chaque fournisseur dans l'ordre. Le premier qui accepte l'écriture
+// gagne ; les suivants ne sont sollicités qu'en cas d'échec (quota, panne).
+async function storeWithFailover(env, key, buf, mime) {
+  const r2s = r2Bindings(env);
+  const s3s = s3Providers(env);
+  if (r2s.length === 0 && s3s.length === 0) return null;
+
+  const attempts = [
+    ...r2s.map((bucket, index) => () => putToR2(bucket, key, buf, mime).then((r) => ({ ...r, provider: index === 0 ? 'r2' : `r2-${index + 1}` }))),
+    ...s3s.map((provider) => () => putToS3(provider, key, buf, mime))
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      return await attempt();
+    } catch (error) {
+      console.warn('Stockage média indisponible, bascule vers le suivant:', error);
+    }
+  }
+  return null;
+}
+
 export async function onRequestPost({ request, env }) {
   const cors = corsHeaders(request);
-  if (!env.MEDIA) {
-    return Response.json({ error: 'stockage non configure' }, { status: 500, headers: cors });
-  }
   if (!isAllowedRequest(request)) {
     return Response.json({ error: 'origine refusee' }, { status: 403, headers: cors });
   }
@@ -121,14 +215,14 @@ export async function onRequestPost({ request, env }) {
   let kind = String(form.get('kind') || 'image');
   if (!['image', 'audio', 'document'].includes(kind)) kind = 'image';
   const key = `${kind}_m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}.${ALLOWED_MIME[mime]}`;
-  try {
-    await env.MEDIA.put(key, buf, {
-      httpMetadata: { contentType: mime },
-      customMetadata: { uploaded_at: new Date().toISOString() }
-    });
-  } catch {
-    return Response.json({ error: 'stockage indisponible' }, { status: 503, headers: cors });
+
+  const stored = await storeWithFailover(env, key, buf, mime);
+  if (!stored) {
+    return Response.json({ error: 'stockage non configure' }, { status: 500, headers: cors });
   }
 
-  return Response.json({ key, url: `/media/${key}`, size: bytes.length, contentType: mime }, { headers: cors });
+  return Response.json(
+    { key, url: stored.url, provider: stored.provider, size: bytes.length, contentType: mime },
+    { headers: cors }
+  );
 }
