@@ -2,7 +2,7 @@
   setup-and-build.ps1
   - Installe JDK 17
   - Installe Android SDK (plateforme 35 + build‑tools 35.0.2)
-  - Génère les icônes Android à partir de src/FIARAM NOMERIKA.png
+  - Génère les icônes Android à partir de src/tld-logo.png
   - Compile l’APK debug (gradlew assembleDebug)
   - Installe l’APK sur l’appareil USB (adb install -r)
   Auteur : assistente IA – version 2026‑11‑05
@@ -126,60 +126,8 @@ else {
 # 5. Générer les icônes Android
 Write-Log "--- Étape 4 : Génération des icônes Android ---"
 # On réutilise le script précédent (copie inline pour éviter un fichier externe)
-Add-Type -AssemblyName System.Drawing
-$img = [System.Drawing.Bitmap]::FromFile("E:\FIARAM NOMERIKA\src\FIARAM NOMERIKA.png")
-$max = [math]::Max($img.Width, $img.Height)
-$cropX = [math]::Floor(($img.Width - $max) / 2)
-$cropY = [math]::Floor(($img.Height - $max) / 2)
-$crop = New-Object System.Drawing.Rectangle($cropX, $cropY, $max, $max)
-$cropImg = $img.Clone($crop, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+& (Join-Path $PSScriptRoot 'generate_icons.ps1')
 
-$bData = $cropImg.LockBits(New-Object System.Drawing.Rectangle(0,0,$max,$max),
-    [System.Drawing.Imaging.ImageLockMode]::ReadOnly,
-    [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-$stride = $bData.Stride
-$scan0 = $bData.Scan0
-$pixels = New-Object byte[] $stride * $max
-[System.Runtime.InteropServices.Marshal]::Copy($scan0, $pixels, 0, $pixels.Length)
-$cropImg.UnlockBits($bData)
-
-for ($y = 0; $y -lt $max; $y++) {
-    $row = $y * $stride
-    for ($x = 0; $x -lt $max; $x++) {
-        $i = $row + $x * 4
-        $r = $pixels[$i]
-        $g = $pixels[$i+1]
-        $bcol = $pixels[$i+2]
-        $a = $pixels[$i+3]
-        if ($r -gt 245 -and $g -gt 245 -and $bcol -gt 245 -and $a -gt 10) {
-            $pixels[$i+3] = 0
-        }
-    }
-}
-[System.Runtime.InteropServices.Marshal]::Copy($pixels, 0, $pixels.Length, $pixels)
-
-$outImg = New-Object System.Drawing.Bitmap($max, $max, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-$g = [System.Drawing.Graphics]::FromImage($outImg)
-$g.DrawImage($cropImg, 0, 0)
-
-$densities = @{
-    'mdpi'    = 48
-    'hdpi'    = 72
-    'xhdpi'   = 96
-    'xxhdpi'  = 144
-    'xxxhdpi' = 192
-}
-foreach ($kv in $densities) {
-    $name  = $kv.Key
-    $sz    = $kv.Value
-    $resized = $outImg.GetThumbnailImage($sz, $sz, $null, $null)
-    $resized.SaveFile("E:\FIARAM NOMERIKA\android\app\src\main\res\mipmap-$name\ic_launcher.png")
-    $resized.SaveFile("E:\FIARAM NOMERIKA\android\app\src\main\res\mipmap-$name\ic_launcher_foreground.png")
-    $resized.SaveFile("E:\FIARAM NOMERIKA\android\app\src\main\res\mipmap-$name\ic_launcher_round.png")
-}
-$g.Dispose()
-$img.Dispose()
-Write-Log "✅ Icônes générées pour : $($densities.Keys -join ', ')"
 
 # -------------------------------------------------
 # 6. Compilation de l’APK debug
@@ -188,7 +136,7 @@ Write-Log "--- Étape 5 : Compilation de l’APK debug ---"
 # Gradle : sans cette étape l’APK peut embarquer une ancienne interface même
 # si le site web affiche déjà les nouveautés.
 Write-Log "--- Étape 4b : Build web + synchronisation Capacitor ---"
-Push-Location "E:\FIARAM NOMERIKA"
+Push-Location "$PSScriptRoot"
 try {
     npm run build
     if ($LASTEXITCODE -ne 0) { throw "npm run build a échoué" }
@@ -203,7 +151,7 @@ catch {
 Pop-Location
 
 # On lance gradle depuis le répertoire android
-$gradlew = "E:\FIARAM NOMERIKA\android\gradlew.bat"
+$gradlew = "$PSScriptRoot\android\gradlew.bat"
 if (-NOT (Test-Path $gradlew)) {
     Write-Log "❌ Fichier introuvable : $gradlew"
     exit 1
@@ -212,7 +160,7 @@ Write-Log "Lancement de `.\android\gradlew.bat assembleDebug`..."
 & $gradlew "assembleDebug"
 
 # Vérifier que l’APK a été créé
-$apkPath = "E:\FIARAM NOMERIKA\android\app\build\outputs\apk\debug\app-debug.apk"
+$apkPath = "$PSScriptRoot\android\app\build\outputs\apk\debug\app-debug.apk"
 if (-NOT (Test-Path $apkPath)) {
     Write-Log "❌ L’APK n’a pas été produit. Vérifiez les erreurs ci‑dessus."
     exit 1

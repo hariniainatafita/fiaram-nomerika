@@ -1,4 +1,4 @@
-package mg.fiaram.nomerika;
+package mg.pro.num.tld;
 
 import android.content.Context;
 import android.os.Handler;
@@ -28,15 +28,15 @@ import java.util.TimeZone;
  * lignes a intervalle regulier.
  */
 final class SupabaseRest {
-    private static final String TAG = "FiaramBubble";
+    private static final String TAG = "ProNumTldBubble";
     private static final String TABLE = "app_state";
 
-    static final String MESSAGES_KEY = "fiaram_messages_v2";
-    static final String MEMBERS_KEY = "fiaram_membres_v2";
-    static final String GROUPS_KEY = "fiaram_groupes_v2";
-    static final String PRESENCE_KEY = "fiaram_presence_online_v1";
-    static final String GROUP_READS_KEY = "fiaram_group_reads_v1";
-    private static final String TOKENS_KEY = "fiaram_device_tokens_v1";
+    static final String MESSAGES_KEY = "pronumtld_messages_v2";
+    static final String MEMBERS_KEY = "pronumtld_membres_v2";
+    static final String GROUPS_KEY = "pronumtld_groupes_v2";
+    static final String PRESENCE_KEY = "pronumtld_presence_online_v1";
+    static final String GROUP_READS_KEY = "pronumtld_group_reads_v1";
+    private static final String TOKENS_KEY = "pronumtld_device_tokens_v1";
 
     interface Callback {
         void onResult(boolean success, String error);
@@ -145,7 +145,7 @@ final class SupabaseRest {
                 Log.w(TAG, "sendReply", error);
                 post(callback, false, error.getMessage());
             }
-        }, "fiaram-bubble-reply").start();
+        }, "pronumtld-bubble-reply").start();
     }
 
     static void sendPhotoReply(Context context, String receiverId, String groupId, String dataUrl, Callback callback) {
@@ -158,7 +158,7 @@ final class SupabaseRest {
             try {
                 String messageId = "msg_" + System.currentTimeMillis() + "_"
                         + Long.toString(System.nanoTime(), 36);
-                saveValue(context, "fiaram_msgimg_" + messageId, dataUrl);
+                saveValue(context, "pronumtld_msgimg_" + messageId, dataUrl);
 
                 Row row = fetchRow(context, MESSAGES_KEY);
                 JSONArray current = row.exists ? asArray(row.value) : new JSONArray();
@@ -187,7 +187,7 @@ final class SupabaseRest {
                 Log.w(TAG, "sendPhotoReply", error);
                 post(callback, false, error.getMessage());
             }
-        }, "fiaram-bubble-photo").start();
+        }, "pronumtld-bubble-photo").start();
     }
 
     static void markDirectRead(Context context, String peerId, Callback callback) {
@@ -216,7 +216,7 @@ final class SupabaseRest {
                 Log.w(TAG, "markDirectRead", error);
                 post(callback, false, error.getMessage());
             }
-        }, "fiaram-bubble-read").start();
+        }, "pronumtld-bubble-read").start();
     }
 
     static void markGroupRead(Context context, String groupId, Callback callback) {
@@ -263,7 +263,7 @@ final class SupabaseRest {
                 Log.w(TAG, "markGroupRead", error);
                 post(callback, false, error.getMessage());
             }
-        }, "fiaram-bubble-group-read").start();
+        }, "pronumtld-bubble-group-read").start();
     }
 
     static void heartbeatPresence(Context context, Callback callback) {
@@ -283,7 +283,7 @@ final class SupabaseRest {
                 Log.w(TAG, "heartbeatPresence", error);
                 post(callback, false, error.getMessage());
             }
-        }, "fiaram-bubble-presence").start();
+        }, "pronumtld-bubble-presence").start();
     }
 
     static void registerDeviceToken(Context context, String userId, String token, Callback callback) {
@@ -314,7 +314,7 @@ final class SupabaseRest {
                 Log.w(TAG, "registerDeviceToken", error);
                 post(callback, false, error.getMessage());
             }
-        }, "fiaram-bubble-token").start();
+        }, "pronumtld-bubble-token").start();
     }
 
     static String nowCursor() {

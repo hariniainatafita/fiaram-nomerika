@@ -25,7 +25,7 @@ function isAllowedOrigin(request) {
     const originHost = new URL(origin).host;
     const requestHost = new URL(request.url).host;
     if (originHost === requestHost) return true;
-    if (originHost.endsWith('.pages.dev') && requestHost.endsWith('fiaram-nomerika.pages.dev')) return true;
+    if (originHost.endsWith('.pages.dev') && requestHost.endsWith('pro-num-tld.pages.dev')) return true;
   } catch {
     return false;
   }

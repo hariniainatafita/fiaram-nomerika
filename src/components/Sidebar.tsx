@@ -140,18 +140,18 @@ const navItems = [
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <img
               src={`${import.meta.env.BASE_URL}logo.png`}
-              alt="FIARAM NUMERIQUE"
+              alt="Pro-Num-TLD"
               style={{
                 width: '38px',
                 height: '38px',
                 borderRadius: '11px',
                 objectFit: 'cover',
-                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.35)'
+                boxShadow: '0 4px 12px rgba(212, 175, 55, 0.35)'
               }}
             />
             <div>
               <div style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.01em' }}>
-                FIARAM
+                Pro-Num-TLD
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                 {t('nav.digitalManagement')}
@@ -226,8 +226,8 @@ const navItems = [
                     : '1px solid transparent',
                   background: isActive 
                     ? item.special 
-                      ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(245, 158, 11, 0.1))' 
-                      : 'rgba(245, 158, 11, 0.12)' 
+                      ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(212, 175, 55, 0.1))' 
+                      : 'rgba(212, 175, 55, 0.12)' 
                     : 'transparent',
                   color: isActive ? 'var(--text-main)' : 'var(--text-muted)',
                   cursor: 'pointer',
@@ -240,7 +240,7 @@ const navItems = [
                     size={19} 
                     style={{ 
                       color: isActive 
-                        ? item.special ? '#a78bfa' : '#f59e0b' 
+                        ? item.special ? '#a78bfa' : '#d4af37' 
                         : 'var(--text-dim)' 
                     }} 
                   />
@@ -322,7 +322,7 @@ const navItems = [
           </div>
           
           <div style={{ fontSize: '0.68rem', textAlign: 'center', color: 'var(--text-dim)' }}>
-            FIARAM NUMERIQUE v1.3 · {t('nav.footer')}
+            Pro-Num-TLD v1.3 · {t('nav.footer')}
           </div>
         </div>
       </aside>

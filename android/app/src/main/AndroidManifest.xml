@@ -42,7 +42,7 @@
 
         <!-- Notifications push quand l'application est fermee -->
         <service
-            android:name=".FiaramMessagingService"
+            android:name=".ProNumTldMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

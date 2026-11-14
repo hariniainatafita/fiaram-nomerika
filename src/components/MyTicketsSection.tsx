@@ -141,13 +141,13 @@ export const MyTicketsSection: React.FC<{ currentUser: Membre }> = ({ currentUse
           style={{
             padding: '12px 14px',
             border: '1px solid var(--border-gold)',
-            background: 'rgba(245, 158, 11, 0.08)',
+            background: 'rgba(212, 175, 55, 0.08)',
             display: 'flex',
             alignItems: 'center',
             gap: '10px'
           }}
         >
-          <Clock size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
+          <Clock size={18} style={{ color: '#d4af37', flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{commande.evenement_nom}</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -205,7 +205,7 @@ export const MyTicketsSection: React.FC<{ currentUser: Membre }> = ({ currentUse
             <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
               {billet.evenement_date} · {billet.evenement_lieu}
             </div>
-            <div style={{ fontFamily: 'monospace', fontSize: '0.82rem', fontWeight: 700, color: '#f59e0b' }}>
+            <div style={{ fontFamily: 'monospace', fontSize: '0.82rem', fontWeight: 700, color: '#d4af37' }}>
               {billet.code}
             </div>
             {billet.statut === 'utilise' && billet.used_at && (

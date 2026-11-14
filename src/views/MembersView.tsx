@@ -207,7 +207,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: 'linear-gradient(135deg, #f59e0b, #8b5cf6)',
+                      background: 'linear-gradient(135deg, #d4af37, #8b5cf6)',
                       color: '#ffffff',
                       fontWeight: 800,
                       flexShrink: 0

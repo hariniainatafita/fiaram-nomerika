@@ -15,7 +15,7 @@ import { join, relative, sep } from 'node:path';
 const distDir = 'dist';
 const downloadsDir = join(distDir, 'downloads');
 const bundlePath = join(downloadsDir, 'app-bundle.zip');
-const baseUrl = process.env.LIVE_UPDATE_BASE_URL || 'https://fiaram-nomerika.pages.dev';
+const baseUrl = process.env.LIVE_UPDATE_BASE_URL || 'https://pro-num-tld.pages.dev';
 
 // En CI, l'identifiant est le SHA du commit. En local, il est calcule a partir
 // du contenu du bundle : deux deploiements locaux produisent donc des
@@ -92,7 +92,7 @@ const manifest = {
   minNativeVersionCode,
   notes:
     process.env.LIVE_UPDATE_NOTES ||
-    'Mise a jour des fichiers web de FIARAM NUMERIQUE (aucune nouvelle installation APK).'
+    'Mise a jour des fichiers web de Pro-Num-TLD NUMERIQUE (aucune nouvelle installation APK).'
 };
 
 writeFileSync(join(distDir, 'bundle.json'), JSON.stringify(manifest, null, 2));

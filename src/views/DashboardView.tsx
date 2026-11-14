@@ -108,7 +108,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               width: '52px',
               height: '52px',
               borderRadius: '16px',
-              background: 'linear-gradient(135deg, #f59e0b, #8b5cf6)',
+              background: 'linear-gradient(135deg, #d4af37, #8b5cf6)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -119,7 +119,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h3 style={{ fontSize: '1.25rem', color: '#f59e0b', margin: 0 }}>
+                <h3 style={{ fontSize: '1.25rem', color: '#d4af37', margin: 0 }}>
                    {t('dashboard.superChef.title')}
                 </h3>
                 <span className="badge badge-purple">{t('common.status.active')}</span>
@@ -157,8 +157,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <Sparkles size={18} style={{ color: '#f59e0b' }} />
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <Sparkles size={18} style={{ color: '#d4af37' }} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#d4af37', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {t('dashboard.hero.eyebrow')}
             </span>
           </div>
@@ -167,7 +167,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </h1>
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.92rem' }}>
             {t('dashboard.hero.welcomeIntro')}{' '}
-            <strong style={{ color: 'var(--text-main)' }}>FIARAM NUMERIQUE</strong>.{' '}
+            <strong style={{ color: 'var(--text-main)' }}>Pro-Num-TLD</strong>.{' '}
             {t('dashboard.hero.welcomeToday', { date: formattedDate })}
           </p>
         </div>
@@ -202,7 +202,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontWeight: 600 }}>{t('dashboard.kpi.attendanceRate')}</div>
-              <div style={{ fontSize: '2rem', fontWeight: 900, color: attendanceRate >= 80 ? '#10b981' : '#f59e0b', margin: '4px 0' }}>
+              <div style={{ fontSize: '2rem', fontWeight: 900, color: attendanceRate >= 80 ? '#10b981' : '#d4af37', margin: '4px 0' }}>
                 {attendanceRate}%
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -228,7 +228,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '3px' }}>
               <CheckCircle2 size={12} /> {t('dashboard.kpi.presentCount', { count: presentCount })}
             </span>
-            <span style={{ color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <span style={{ color: '#d4af37', display: 'flex', alignItems: 'center', gap: '3px' }}>
               <Clock size={12} /> {t('dashboard.kpi.lateCount', { count: retardCount })}
             </span>
             <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -290,11 +290,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               width: '44px',
               height: '44px',
               borderRadius: '12px',
-              background: 'rgba(245, 158, 11, 0.15)',
+              background: 'rgba(212, 175, 55, 0.15)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#f59e0b'
+              color: '#d4af37'
             }}>
               <Users size={24} />
             </div>
@@ -303,7 +303,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
             <button
               onClick={() => onSelectView('groups')}
-              style={{ background: 'none', border: 'none', color: '#f59e0b', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+              style={{ background: 'none', border: 'none', color: '#d4af37', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
             >
               <span>{t('dashboard.kpi.viewAllGroups')}</span>
               <ArrowUpRight size={14} />
@@ -467,11 +467,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               width: '46px',
               height: '46px',
               borderRadius: '12px',
-              background: 'rgba(245, 158, 11, 0.15)',
+              background: 'rgba(212, 175, 55, 0.15)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#f59e0b'
+              color: '#d4af37'
             }}>
               <QrCode size={24} />
             </div>
@@ -527,11 +527,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               width: '46px',
               height: '46px',
               borderRadius: '12px',
-              background: 'rgba(245, 158, 11, 0.15)',
+              background: 'rgba(212, 175, 55, 0.15)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#f59e0b'
+              color: '#d4af37'
             }}>
               <BadgeCheck size={24} />
             </div>
@@ -629,7 +629,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <div style={{
                       width: `${percent}%`,
                       height: '100%',
-                      background: 'linear-gradient(90deg, #10b981, #f59e0b)',
+                      background: 'linear-gradient(90deg, #10b981, #d4af37)',
                       borderRadius: '4px',
                       transition: 'width 0.6s ease'
                     }} />

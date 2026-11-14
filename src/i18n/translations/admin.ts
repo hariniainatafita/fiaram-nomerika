@@ -512,9 +512,9 @@ export const admin: TranslationDictionary = {
     en: 'e.g.: 123456...'
   },
   'admin.emailPlaceholder': {
-    mg: 'oh: hasina@fiaram.mg',
-    fr: 'ex. : hasina@fiaram.mg',
-    en: 'e.g.: hasina@fiaram.mg'
+    mg: 'oh: hasina@pro-num-tld.mg',
+    fr: 'ex. : hasina@pro-num-tld.mg',
+    en: 'e.g.: hasina@pro-num-tld.mg'
   },
   'admin.phonePlaceholder': {
     mg: 'oh: +261 34 00 000 00',

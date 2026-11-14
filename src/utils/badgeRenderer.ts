@@ -25,7 +25,7 @@ export const BADGE_STYLES: BadgeStyleConfig[] = [
     id: 'gold_royal',
     name: 'Classique',
     description: 'Cadre sobre, vagues élégantes et plaque numérotée',
-    primaryColor: '#f59e0b',
+    primaryColor: '#d4af37',
     accentColor: '#d4af37',
     bgGradStart: '#101726',
     bgGradMid: '#0a1424',

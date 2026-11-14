@@ -649,7 +649,7 @@ export async function pullKeyFromSupabase(key: string): Promise<void> {
 const messageImageInflight = new Set<string>();
 
 /**
- * A chat image lives in its own row (`fiaram_msgimg_<messageId>`). Realtime
+ * A chat image lives in its own row (`pronumtld_msgimg_<messageId>`). Realtime
  * only pushes it in live, so on-demand HTTP fetch guarantees the picture is
  * also available after a missed event / first connection.
  */
@@ -694,7 +694,7 @@ const IMAGE_FETCH_DELAYS = [300, 700, 1500, 3000, 5000, 8000];
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * Story pictures also live in their own row (`fiaram_storyimg_<storyId>`).
+ * Story pictures also live in their own row (`pronumtld_storyimg_<storyId>`).
  * Members that only received the light STORIES metadata fetch the picture on
  * demand, which works even when the Realtime payload was too large.
  */
@@ -742,7 +742,7 @@ export async function fetchStoryImageIfMissing(storyId: string): Promise<string 
 const memberImageInflight = new Set<string>();
 
 /**
- * Profile / cover photos live in their own rows (`fiaram_memberimg_...`), so a
+ * Profile / cover photos live in their own rows (`pronumtld_memberimg_...`), so a
  * device can rebuild them on demand without downloading the whole members list
  * with inline base64 data.
  */
@@ -817,7 +817,7 @@ const publicationImageInflight = new Set<string>();
 
 /**
  * Publication pictures also live in their own row
- * (`fiaram_pubimg_<publicationId>`). Members that only received the light
+ * (`pronumtld_pubimg_<publicationId>`). Members that only received the light
  * PUBLICATIONS metadata fetch the picture on demand, so the image appears
  * even when the realtime payload was too large or the media bucket is absent.
  */

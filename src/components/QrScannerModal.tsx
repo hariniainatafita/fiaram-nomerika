@@ -372,9 +372,9 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 flex: 1,
                 padding: '8px 10px',
                 borderRadius: '10px',
-                border: selectedStatut === 'retard' ? '2px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.1)',
-                background: selectedStatut === 'retard' ? 'rgba(245, 158, 11, 0.22)' : 'rgba(255, 255, 255, 0.03)',
-                color: selectedStatut === 'retard' ? '#fbbf24' : '#94a3b8',
+                border: selectedStatut === 'retard' ? '2px solid #d4af37' : '1px solid rgba(255, 255, 255, 0.1)',
+                background: selectedStatut === 'retard' ? 'rgba(212, 175, 55, 0.22)' : 'rgba(255, 255, 255, 0.03)',
+                color: selectedStatut === 'retard' ? '#f5d76e' : '#94a3b8',
                 cursor: 'pointer',
                 fontWeight: 700,
                 fontSize: '0.8rem',
@@ -474,7 +474,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
             <div style={{ fontSize: '0.8rem', color: '#e2e8f0', marginBottom: '16px' }}>
               {t('scanner.entryTime')} <strong>{scannedResult.timestamp}</strong> — {t('scanner.resultStatusLabel')} <span style={{ 
-                color: scannedResult.statut === 'present' ? '#34d399' : scannedResult.statut === 'retard' ? '#fbbf24' : '#f87171',
+                color: scannedResult.statut === 'present' ? '#34d399' : scannedResult.statut === 'retard' ? '#f5d76e' : '#f87171',
                 fontWeight: 800 
               }}>
                 {t(STATUS_LABEL_KEYS[scannedResult.statut]).toUpperCase()}
@@ -577,7 +577,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                   right: '15%',
                   height: '2px',
                   background: 'linear-gradient(90deg, transparent, #d4af37, #ffffff, #d4af37, transparent)',
-                  boxShadow: '0 0 10px #d4af37, 0 0 20px #f59e0b',
+                  boxShadow: '0 0 10px #d4af37, 0 0 20px #d4af37',
                   animation: 'laserScan 2.2s ease-in-out infinite',
                   pointerEvents: 'none'
                 }} />

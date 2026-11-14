@@ -6,7 +6,7 @@ on:
 # Shares the keystore cache with the release workflow, so serializing them
 # avoids generating two different signing keys on a cache miss.
 concurrency:
-  group: fiaram-android-apk
+  group: pronumtld-android-apk
   cancel-in-progress: false
 
 jobs:
@@ -102,5 +102,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: fiaram-nomerika-release-apk
+          name: pro-num-tld-release-apk
           path: android/app/build/outputs/apk/github/release/app-github-release.apk

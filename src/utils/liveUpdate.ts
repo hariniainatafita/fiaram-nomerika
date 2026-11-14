@@ -33,7 +33,7 @@ export async function markLiveUpdateReady(): Promise<void> {
 }
 
 function isCallInProgress(): boolean {
-  return Boolean(document.querySelector('[data-fiaram-call-active="true"]'));
+  return Boolean(document.querySelector('[data-pronumtld-call-active="true"]'));
 }
 
 /**

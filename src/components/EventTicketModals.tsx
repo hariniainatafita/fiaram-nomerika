@@ -77,7 +77,7 @@ function ModalHeader({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+        background: 'linear-gradient(135deg, #d4af37, #b8860b)',
         color: '#07101e',
         flexShrink: 0
       }}>
@@ -195,7 +195,7 @@ export const BuyTicketModal: React.FC<{
               </div>
               <div>
                 <div style={labelStyle}>{t('publications.event.prix')}</div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f59e0b' }}>{money(event.prix_billet)}</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#d4af37' }}>{money(event.prix_billet)}</div>
               </div>
             </div>
 
@@ -230,7 +230,7 @@ export const BuyTicketModal: React.FC<{
             <div style={{
               borderRadius: '14px',
               border: '1px solid var(--border-gold)',
-              background: 'rgba(245, 158, 11, 0.08)',
+              background: 'rgba(212, 175, 55, 0.08)',
               padding: '14px',
               display: 'flex',
               flexDirection: 'column',
@@ -246,7 +246,7 @@ export const BuyTicketModal: React.FC<{
                 </div>
                 <div>
                   <div style={labelStyle}>{t('publications.event.reference')}</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f59e0b' }}>{reference}</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: '#d4af37' }}>{reference}</div>
                 </div>
                 <button
                   type="button"
@@ -367,7 +367,7 @@ export const ManageEventTicketsModal: React.FC<{
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
               <div className="glass-card" style={{ padding: '10px', textAlign: 'center' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f59e0b' }}>{valides.reduce((total, commande) => total + commande.quantite, 0)}</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#d4af37' }}>{valides.reduce((total, commande) => total + commande.quantite, 0)}</div>
                 <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>{t('publications.event.ticketsSold')}</div>
               </div>
               <div className="glass-card" style={{ padding: '10px', textAlign: 'center' }}>
@@ -396,7 +396,7 @@ export const ManageEventTicketsModal: React.FC<{
               <button
                 type="button"
                 className="btn btn-ghost"
-                style={{ padding: '9px', fontSize: '0.78rem', color: '#f59e0b' }}
+                style={{ padding: '9px', fontSize: '0.78rem', color: '#d4af37' }}
                 onClick={() => {
                   valides.forEach((commande) => {
                     if (!billets.some((billet) => billet.commande_id === commande.id)) {
@@ -564,7 +564,7 @@ export const TicketScannerModal: React.FC<{
     }
   };
 
-  const resultColor = result?.status === 'valid' ? '#10b981' : result?.status === 'used' ? '#f59e0b' : '#ef4444';
+  const resultColor = result?.status === 'valid' ? '#10b981' : result?.status === 'used' ? '#d4af37' : '#ef4444';
   const resultLabel = result?.status === 'valid'
     ? t('publications.event.ticketValid')
     : result?.status === 'used'
@@ -597,7 +597,7 @@ export const TicketScannerModal: React.FC<{
         />
 
         {cameraError && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b', fontSize: '0.78rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d4af37', fontSize: '0.78rem' }}>
             <Camera size={15} />
             <span>{cameraError}</span>
           </div>
@@ -659,7 +659,7 @@ export const EventTicketSummary: React.FC<{ publication: Publication }> = ({ pub
       margin: '0 18px 14px',
       borderRadius: '14px',
       border: '1px solid var(--border-gold)',
-      background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(139, 92, 246, 0.1))',
+      background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(139, 92, 246, 0.1))',
       padding: '12px 14px',
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
@@ -675,7 +675,7 @@ export const EventTicketSummary: React.FC<{ publication: Publication }> = ({ pub
       </div>
       <div>
         <div style={labelStyle}>{t('publications.event.prix')}</div>
-        <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#f59e0b' }}>{money(event.prix_billet)}</div>
+        <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#d4af37' }}>{money(event.prix_billet)}</div>
       </div>
     </div>
   );

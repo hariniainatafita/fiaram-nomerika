@@ -19,11 +19,11 @@ export function updateFaviconBadge(count: number): void {
   ctx.fill();
 
   ctx.lineWidth = 3;
-  ctx.strokeStyle = '#f59e0b';
+  ctx.strokeStyle = '#d4af37';
   ctx.stroke();
 
   ctx.font = 'bold 34px Arial, sans-serif';
-  ctx.fillStyle = '#f59e0b';
+  ctx.fillStyle = '#d4af37';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('F', 32, 32);

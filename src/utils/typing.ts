@@ -14,7 +14,7 @@ export interface TypingEvent {
 
 const TYPING_TTL_MS = 3500;
 const TYPING_THROTTLE_MS = 1200;
-const BROADCAST_CHANNEL = 'fiaram-chat-typing';
+const BROADCAST_CHANNEL = 'pronumtld-chat-typing';
 
 /**
  * Indicateur « en train d'écrire » façon Messenger.
@@ -55,7 +55,7 @@ export function useTypingIndicator(
     }
 
     if (supabase) {
-      const channel = supabase.channel('fiaram-chat-typing-live', {
+      const channel = supabase.channel('pronumtld-chat-typing-live', {
         config: { broadcast: { self: false } }
       });
       channel.on('broadcast', { event: 'typing' }, (message) => {

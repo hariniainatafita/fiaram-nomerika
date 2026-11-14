@@ -90,7 +90,7 @@ export async function onRequest(context) {
     const timer = setTimeout(() => controller.abort(), 12000);
     response = await fetch(FEED_URL, {
       headers: {
-        'User-Agent': 'FIARAM-NOMERIKA/1.0 (+https://fiaram-nomerika.pages.dev)',
+        'User-Agent': 'Pro-Num-TLD/1.0 (+https://pro-num-tld.pages.dev)',
         'Accept': 'application/rss+xml, application/xml, text/xml'
       },
       signal: controller.signal,

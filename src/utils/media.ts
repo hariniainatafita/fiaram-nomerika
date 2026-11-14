@@ -10,7 +10,7 @@ import { getServerOrigin, resolveServerUrl } from '../lib/appConfig';
 
 export type MediaKind = 'image' | 'audio' | 'document';
 
-const MEDIA_BUCKET = 'fiaram-media';
+const MEDIA_BUCKET = 'pro-num-tld-media';
 const MAX_BYTES = 25 * 1024 * 1024;
 const R2_UPLOAD_TIMEOUT_MS = 30_000;
 
@@ -132,7 +132,7 @@ export async function uploadFile(file: File, kind: MediaKind): Promise<string | 
  * Facebook : le fichier est récupéré puis proposé au téléchargement.
  * En cas de blocage CORS, le média s'ouvre dans un nouvel onglet.
  */
-export async function downloadMedia(url: string, fileName = 'fiaram-media.jpg'): Promise<void> {
+export async function downloadMedia(url: string, fileName = 'pro-num-tld-media.jpg'): Promise<void> {
   try {
     let href = url;
     let objectUrl: string | undefined;

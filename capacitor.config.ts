@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'mg.fiaram.nomerika',
-  appName: 'FIARAM NUMERIQUE',
+  appId: 'mg.pro.num.tld',
+  appName: 'Pro-Num-TLD',
   webDir: 'dist',
   // Les fichiers web sont embarqués dans l'APK : l'application s'ouvre sans
   // réseau. Les appels API/médias et le manifeste de mise à jour ciblent la

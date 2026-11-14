@@ -129,7 +129,7 @@ function MemberAvatar({ membre, size }: { membre?: Membre; size: number }) {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'linear-gradient(135deg, #f59e0b, #8b5cf6)',
+      background: 'linear-gradient(135deg, #d4af37, #8b5cf6)',
       color: '#ffffff',
       fontWeight: 800,
       fontSize: `${Math.max(12, size * 0.38)}px`,
@@ -157,7 +157,7 @@ function StoryCard({
 }) {
   const ring = seen
     ? 'linear-gradient(135deg, #4b5563, #6b7280)'
-    : 'linear-gradient(135deg, #f59e0b, #ec4899, #8b5cf6)';
+    : 'linear-gradient(135deg, #d4af37, #ec4899, #8b5cf6)';
 
   return (
     <button
@@ -182,7 +182,7 @@ function StoryCard({
         <div style={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(160deg, rgba(245, 158, 11, 0.32), rgba(139, 92, 246, 0.28), rgba(7, 13, 30, 1))'
+          background: 'linear-gradient(160deg, rgba(212, 175, 55, 0.32), rgba(139, 92, 246, 0.28), rgba(7, 13, 30, 1))'
         }} />
       ) : imageUrl ? (
         <img
@@ -196,7 +196,7 @@ function StoryCard({
         <div style={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(160deg, rgba(245, 158, 11, 0.5), rgba(139, 92, 246, 0.5))'
+          background: 'linear-gradient(160deg, rgba(212, 175, 55, 0.5), rgba(139, 92, 246, 0.5))'
         }} />
       )}
 
@@ -214,7 +214,7 @@ function StoryCard({
           width: '42px',
           height: '42px',
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+          background: 'linear-gradient(135deg, #d4af37, #b8860b)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1491,7 +1491,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                         style={{ padding: '10px 14px' }}
                         onClick={() => setManageTicketsFor(publication)}
                       >
-                        <Ticket size={16} style={{ color: '#f59e0b' }} />
+                        <Ticket size={16} style={{ color: '#d4af37' }} />
                         <span>{t('publications.event.manageTickets')}</span>
                       </button>
                     )}
@@ -2055,7 +2055,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px',
-                  background: eventMode ? 'rgba(245, 158, 11, 0.08)' : 'transparent'
+                  background: eventMode ? 'rgba(212, 175, 55, 0.08)' : 'transparent'
                 }}>
                   <label style={{
                     display: 'flex',
@@ -2070,7 +2070,7 @@ export const PublicationsView: React.FC<PublicationsViewProps> = ({
                       checked={eventMode}
                       onChange={(checkboxEvent) => setEventMode(checkboxEvent.target.checked)}
                     />
-                    <Ticket size={15} style={{ color: '#f59e0b' }} />
+                    <Ticket size={15} style={{ color: '#d4af37' }} />
                     <span>{t('publications.event.specialToggle')}</span>
                   </label>
 

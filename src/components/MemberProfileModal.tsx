@@ -212,7 +212,7 @@ export const MemberProfileModal: React.FC<MemberProfileModalProps> = ({
         <div style={{
           position: 'relative',
           height: 'clamp(130px, 24vw, 220px)',
-          background: 'linear-gradient(135deg, #1e3a8a 0%, #7c3aed 55%, #d97706 100%)'
+          background: 'linear-gradient(135deg, #1e3a8a 0%, #7c3aed 55%, #b8860b 100%)'
         }}>
           {membre.cover_url && (
             <img

@@ -1,4 +1,4 @@
-package mg.fiaram.nomerika;
+package mg.pro.num.tld;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -95,7 +95,7 @@ public class MainActivity extends BridgeActivity {
             if (dataUrl != null && !dataUrl.isEmpty()) {
                 BubbleService.sendPhotoResult(getApplicationContext(), dataUrl);
             }
-        }, "fiaram-bubble-photo-picker").start();
+        }, "pronumtld-bubble-photo-picker").start();
     }
 
     private String encodePickedImage(Uri uri) {

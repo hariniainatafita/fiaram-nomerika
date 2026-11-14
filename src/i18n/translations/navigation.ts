@@ -15,7 +15,7 @@ export const navigation: TranslationDictionary = {
   'nav.profile': { mg: 'Mombamomba ahy', fr: 'Mon profil', en: 'My profile' },
   'nav.admin': { mg: 'Fandrindrana & Sceptre', fr: 'Administration & Sceptre', en: 'Administration & Sceptre' },
   'nav.superChefPanel': { mg: 'Ivon’ny Super Chef', fr: 'Panneau Super Chef', en: 'Super Chef Panel' },
-  'nav.management': { mg: 'Fitantanana', fr: 'Gestion de groupe', en: 'Group management' },
+  'nav.management': { mg: 'Projet numerique TafLeaDer', fr: 'Projet numerique TafLeaDer', en: 'Projet numerique TafLeaDer' },
   'nav.digitalManagement': { mg: 'Fitantanana nomerika', fr: 'Gestion numérique', en: 'Digital management' },
   'nav.short.dashboard': { mg: 'Tabilao', fr: 'Tableau', en: 'Home' },
   'nav.short.publications': { mg: 'Fil', fr: 'Fil', en: 'Feed' },

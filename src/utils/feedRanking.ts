@@ -26,7 +26,7 @@ const NORMALIZED_KEYWORDS: Record<FeedTopic, string[]> = Object.fromEntries(
   ])
 ) as Record<FeedTopic, string[]>;
 
-const INTEREST_STORAGE_KEY = 'fiaram_feed_interests_v1';
+const INTEREST_STORAGE_KEY = 'pronumtld_feed_interests_v1';
 const MAX_INTEREST_WEIGHT = 8;
 const INTEREST_DECAY = 0.96;
 const TOPIC_CACHE_LIMIT = 500;

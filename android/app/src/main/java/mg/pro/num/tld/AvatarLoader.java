@@ -1,4 +1,4 @@
-package mg.fiaram.nomerika;
+package mg.pro.num.tld;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -24,7 +24,7 @@ import java.util.concurrent.Executors;
 /**
  * Charge les photos de profil pour les bulles. Les avatars peuvent etre une
  * URL http(s), une data URL base64, ou une reference vers la ligne
- * fiaram_memberimg_<id>_avatar. Le resultat est mis en cache et recadre en
+ * pronumtld_memberimg_<id>_avatar. Le resultat est mis en cache et recadre en
  * cercle pour ressembler aux chat heads de Messenger.
  */
 final class AvatarLoader {
@@ -93,7 +93,7 @@ final class AvatarLoader {
         String source = firstNonEmpty(imageUrl, fileUrl);
         if (source.isEmpty() && imageRef != null && !imageRef.isEmpty()) {
             try {
-                SupabaseRest.Row row = SupabaseRest.fetchRow(context, "fiaram_msgimg_" + imageRef);
+                SupabaseRest.Row row = SupabaseRest.fetchRow(context, "pronumtld_msgimg_" + imageRef);
                 if (row.exists && row.value instanceof String) {
                     source = (String) row.value;
                 }
@@ -141,7 +141,7 @@ final class AvatarLoader {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setConnectTimeout(12000);
         connection.setReadTimeout(15000);
-        connection.setRequestProperty("User-Agent", "FIARAM-NOMERIKA-Android");
+        connection.setRequestProperty("User-Agent", "Pro-Num-TLD-Android");
         connection.setInstanceFollowRedirects(true);
         try {
             int status = connection.getResponseCode();
@@ -167,11 +167,11 @@ final class AvatarLoader {
 
     private static Bitmap resolve(Context context, String memberId, String photoUrl) {
         String source = photoUrl == null ? "" : photoUrl.trim();
-        if (source.isEmpty() || source.startsWith("fiaram-image-ref:")) {
+        if (source.isEmpty() || source.startsWith("pronumtld-image-ref:")) {
             if (memberId != null && !memberId.isEmpty()) {
                 try {
                     SupabaseRest.Row row = SupabaseRest.fetchRow(
-                            context, "fiaram_memberimg_" + memberId + "_avatar");
+                            context, "pronumtld_memberimg_" + memberId + "_avatar");
                     if (row.exists && row.value instanceof String) {
                         source = (String) row.value;
                     }
@@ -206,7 +206,7 @@ final class AvatarLoader {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setConnectTimeout(12000);
         connection.setReadTimeout(15000);
-        connection.setRequestProperty("User-Agent", "FIARAM-NOMERIKA-Android");
+        connection.setRequestProperty("User-Agent", "Pro-Num-TLD-Android");
         connection.setInstanceFollowRedirects(true);
         try {
             int status = connection.getResponseCode();

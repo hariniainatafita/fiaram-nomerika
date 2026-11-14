@@ -348,11 +348,11 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
                     width: '44px',
                     height: '44px',
                     borderRadius: '12px',
-                    background: 'rgba(245, 158, 11, 0.15)',
+                    background: 'rgba(212, 175, 55, 0.15)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#f59e0b'
+                    color: '#d4af37'
                   }}>
                     <Music size={22} />
                   </div>
@@ -582,7 +582,7 @@ export const GroupsView: React.FC<GroupsViewProps> = ({
                             type="button"
                             onClick={() => handlePromoteToChef(m)}
                             className="btn btn-ghost"
-                            style={{ fontSize: '0.72rem', padding: '4px 8px', color: '#f59e0b' }}
+                            style={{ fontSize: '0.72rem', padding: '4px 8px', color: '#d4af37' }}
                             title={t('groups.promoteTitle')}
                           >
                             <Crown size={13} />

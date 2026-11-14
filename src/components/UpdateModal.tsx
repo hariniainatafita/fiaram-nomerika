@@ -203,8 +203,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
 
     let storageWrite = false;
     try {
-      localStorage.setItem('fiaram_diag_test', '1');
-      localStorage.removeItem('fiaram_diag_test');
+      localStorage.setItem('pronumtld_diag_test', '1');
+      localStorage.removeItem('pronumtld_diag_test');
       storageWrite = true;
     } catch {
       storageWrite = false;
@@ -271,7 +271,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
           padding: '22px',
           borderRadius: '20px',
           background: 'linear-gradient(180deg, #0e1728 0%, #070d18 100%)',
-          border: '1.5px solid rgba(245, 158, 11, 0.42)',
+          border: '1.5px solid rgba(212, 175, 55, 0.42)',
           boxShadow: '0 24px 60px rgba(0,0,0,0.8)'
         }}
       >
@@ -281,14 +281,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
             height: '44px',
             flexShrink: 0,
             borderRadius: '13px',
-            background: 'linear-gradient(135deg, rgba(245,158,11,.25), rgba(139,92,246,.22))',
-            color: '#f59e0b',
+            background: 'linear-gradient(135deg, rgba(212, 175, 55,.25), rgba(139,92,246,.22))',
+            color: '#d4af37',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
           }}>
             {status === 'checking'
-              ? <RefreshCw size={21} style={{ animation: 'fiaram-spin 0.9s linear infinite' }} />
+              ? <RefreshCw size={21} style={{ animation: 'pronumtld-spin 0.9s linear infinite' }} />
               : upToDate
                 ? <CheckCircle2 size={21} />
                 : <Smartphone size={21} />}
@@ -339,8 +339,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
             marginTop: '12px',
             padding: '12px 14px',
             borderRadius: '12px',
-            background: 'rgba(245, 158, 11, 0.08)',
-            border: '1px solid rgba(245, 158, 11, 0.25)',
+            background: 'rgba(212, 175, 55, 0.08)',
+            border: '1px solid rgba(212, 175, 55, 0.25)',
             fontSize: '0.78rem',
             color: 'var(--text-muted)',
             lineHeight: 1.5
@@ -359,7 +359,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
         )}
 
         {status === 'permission' && (
-          <div style={{ marginTop: '10px', fontSize: '0.78rem', color: '#fbbf24', lineHeight: 1.45 }}>
+          <div style={{ marginTop: '10px', fontSize: '0.78rem', color: '#f5d76e', lineHeight: 1.45 }}>
             {t('update.permission')}
           </div>
         )}
@@ -576,7 +576,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({ onClose }) => {
           </div>
         )}
       </div>
-      <style>{`@keyframes fiaram-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes pronumtld-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 };

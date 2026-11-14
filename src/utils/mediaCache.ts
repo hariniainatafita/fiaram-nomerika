@@ -5,8 +5,8 @@ import { StorageService } from './storage';
 // tous ses fichiers HTML/JS/CSS : ce cache ne concerne que les medias partages
 // par les membres, afin de ne pas consommer de donnees a chaque ouverture.
 
-const CACHE_NAME = 'fiaram-offline-media-v1';
-const LAST_PREFETCH_KEY = 'fiaram_offline_prefetch_at';
+const CACHE_NAME = 'pronumtld-offline-media-v1';
+const LAST_PREFETCH_KEY = 'pronumtld_offline_prefetch_at';
 const PREFETCH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export interface OfflineCacheStats {

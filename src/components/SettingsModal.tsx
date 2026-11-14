@@ -164,9 +164,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           display: 'flex',
           flexDirection: 'column',
           background: 'linear-gradient(180deg, #0e1728 0%, #070d18 100%)',
-          border: '1.5px solid rgba(245, 158, 11, 0.4)',
+          border: '1.5px solid rgba(212, 175, 55, 0.4)',
           borderRadius: '24px',
-          boxShadow: '0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(245, 158, 11, 0.2)',
+          boxShadow: '0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(212, 175, 55, 0.2)',
           overflow: 'hidden'
         }}
       >
@@ -184,12 +184,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               width: '42px',
               height: '42px',
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, #f59e0b, #8b5cf6)',
+              background: 'linear-gradient(135deg, #d4af37, #8b5cf6)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#ffffff',
-              boxShadow: '0 4px 15px rgba(245, 158, 11, 0.35)'
+              boxShadow: '0 4px 15px rgba(212, 175, 55, 0.35)'
             }}>
               <Settings size={22} />
             </div>
@@ -250,7 +250,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     padding: '10px 14px',
                     borderRadius: '10px',
                     border: 'none',
-                    background: active ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                    background: active ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
                     color: active ? 'var(--accent-gold)' : 'var(--text-muted)',
                     fontWeight: active ? 700 : 500,
                     fontSize: '0.82rem',
@@ -530,7 +530,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
 
                 {/* Application & mises à jour */}
-                <div style={{ padding: '14px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.07)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                <div style={{ padding: '14px', borderRadius: '12px', background: 'rgba(212, 175, 55, 0.07)', border: '1px solid rgba(212, 175, 55, 0.3)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '9px', fontWeight: 700, fontSize: '0.86rem', marginBottom: '6px' }}>
                     <Download size={16} style={{ color: 'var(--accent-gold)' }} />
                     <span>{t('settings.update.title')}</span>
@@ -552,7 +552,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       type="button"
                       className="btn btn-ghost"
                       style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}
-                      onClick={() => window.open('https://fiaram-nomerika.pages.dev/privacy-policy.html', '_blank', 'noopener')}
+                      onClick={() => window.open('https://pro-num-tld.pages.dev/privacy-policy.html', '_blank', 'noopener')}
                     >
                       <span>Politique de confidentialité</span>
                     </button>
@@ -560,7 +560,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       type="button"
                       className="btn btn-ghost"
                       style={{ fontSize: '0.74rem', color: '#ef4444' }}
-                      onClick={() => window.open('https://fiaram-nomerika.pages.dev/account-deletion', '_blank', 'noopener')}
+                      onClick={() => window.open('https://pro-num-tld.pages.dev/account-deletion', '_blank', 'noopener')}
                     >
                       <span>Supprimer mon compte</span>
                     </button>

@@ -180,7 +180,7 @@ export const presence: TranslationDictionary = {
     fr: 'Impossible de démarrer la caméra. Vérifiez qu’une autre application ne l’utilise pas.',
     en: 'Unable to start the camera. Check that no other application is using it.'
   },
-  'presence.export.filePrefix': { mg: 'Fahatongavana_FIARAM', fr: 'Presences_FIARAM', en: 'Attendance_FIARAM' },
+  'presence.export.filePrefix': { mg: 'Fahatongavana_Pro-Num-TLD', fr: 'Presences_Pro-Num-TLD', en: 'Attendance_Pro-Num-TLD' },
   'presence.csv.id': { mg: 'ID', fr: 'ID', en: 'ID' },
   'presence.csv.fullName': { mg: "Anarana sy Fanampin'anarana", fr: 'Nom et prénom', en: 'Full name' },
   'presence.csv.code': { mg: 'Kaody', fr: 'Code', en: 'Code' },

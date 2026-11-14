@@ -1,4 +1,4 @@
-package mg.fiaram.nomerika;
+package mg.pro.num.tld;
 
 import android.app.Notification;
 import android.app.Service;
@@ -45,17 +45,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class BubbleService extends Service {
-    private static final String PREFS = "fiaram_bubble_position";
+    private static final String PREFS = "pronumtld_bubble_position";
 
-    static final String ACTION_START = "mg.fiaram.nomerika.BUBBLE_START";
-    static final String ACTION_SHOW = "mg.fiaram.nomerika.BUBBLE_SHOW";
-    static final String ACTION_CLEAR = "mg.fiaram.nomerika.BUBBLE_CLEAR";
-    static final String ACTION_REFRESH = "mg.fiaram.nomerika.BUBBLE_REFRESH";
-    static final String ACTION_PICK_BUBBLE_PHOTO = "mg.fiaram.nomerika.PICK_BUBBLE_PHOTO";
-    static final String ACTION_SEND_BUBBLE_PHOTO = "mg.fiaram.nomerika.SEND_BUBBLE_PHOTO";
-    static final String ACTION_SHOW_CALL = "mg.fiaram.nomerika.BUBBLE_SHOW_CALL";
-    static final String ACTION_HIDE_CALL = "mg.fiaram.nomerika.BUBBLE_HIDE_CALL";
-    static final String ACTION_HIDE_BUBBLE = "mg.fiaram.nomerika.BUBBLE_HIDE_BUBBLE";
+    static final String ACTION_START = "mg.pro.num.tld.BUBBLE_START";
+    static final String ACTION_SHOW = "mg.pro.num.tld.BUBBLE_SHOW";
+    static final String ACTION_CLEAR = "mg.pro.num.tld.BUBBLE_CLEAR";
+    static final String ACTION_REFRESH = "mg.pro.num.tld.BUBBLE_REFRESH";
+    static final String ACTION_PICK_BUBBLE_PHOTO = "mg.pro.num.tld.PICK_BUBBLE_PHOTO";
+    static final String ACTION_SEND_BUBBLE_PHOTO = "mg.pro.num.tld.SEND_BUBBLE_PHOTO";
+    static final String ACTION_SHOW_CALL = "mg.pro.num.tld.BUBBLE_SHOW_CALL";
+    static final String ACTION_HIDE_CALL = "mg.pro.num.tld.BUBBLE_HIDE_CALL";
+    static final String ACTION_HIDE_BUBBLE = "mg.pro.num.tld.BUBBLE_HIDE_BUBBLE";
 
     private static final String EXTRA_MESSAGE_ID = "message_id";
     private static final String EXTRA_PEER_ID = "peer_id";
@@ -413,7 +413,7 @@ public class BubbleService extends Service {
         renderStack();
         if (expanded) renderConversation(true);
         updateServiceNotification(chats.isEmpty()
-                ? "FIARAM actif en arriere-plan"
+                ? "Pro-Num-TLD actif en arriere-plan"
                 : chats.size() + " discussion(s) recente(s)");
     }
 

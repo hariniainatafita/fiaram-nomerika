@@ -6,7 +6,7 @@
 // localStorage cleanup, so it acts as the durable local copy: the feed can
 // still render a picture when Supabase / R2 are unreachable.
 
-const DB_NAME = 'fiaram_images_v1';
+const DB_NAME = 'pronumtld_images_v1';
 const STORE = 'images';
 const DB_VERSION = 1;
 

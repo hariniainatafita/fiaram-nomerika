@@ -82,7 +82,7 @@ export const TicketsView: React.FC<TicketsViewProps> = ({
     <div style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div className="glass-card" style={{ padding: '18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Ticket size={22} style={{ color: '#f59e0b' }} />
+          <Ticket size={22} style={{ color: '#d4af37' }} />
           <div>
             <h2 style={{ margin: 0, fontSize: '1.1rem' }}>{t('publications.event.ticketsSpace')}</h2>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
@@ -150,7 +150,7 @@ export const TicketsView: React.FC<TicketsViewProps> = ({
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
                     <div className="glass-card" style={{ padding: '8px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f59e0b' }}>{sold}</div>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#d4af37' }}>{sold}</div>
                       <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{t('publications.event.ticketsSold')}</div>
                     </div>
                     <div className="glass-card" style={{ padding: '8px', textAlign: 'center' }}>
@@ -164,7 +164,7 @@ export const TicketsView: React.FC<TicketsViewProps> = ({
                       </div>
                     </div>
                     <div className="glass-card" style={{ padding: '8px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f59e0b' }}>{money(revenue)}</div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#d4af37' }}>{money(revenue)}</div>
                       <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{t('common.total')}</div>
                     </div>
                   </div>
@@ -173,7 +173,7 @@ export const TicketsView: React.FC<TicketsViewProps> = ({
                     <button
                       type="button"
                       className="btn btn-ghost"
-                      style={{ padding: '8px 12px', fontSize: '0.76rem', alignSelf: 'flex-start', color: '#f59e0b' }}
+                      style={{ padding: '8px 12px', fontSize: '0.76rem', alignSelf: 'flex-start', color: '#d4af37' }}
                       onClick={() => generateMissing(publication.id)}
                     >
                       <Wand2 size={14} />
@@ -183,7 +183,7 @@ export const TicketsView: React.FC<TicketsViewProps> = ({
 
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', fontWeight: 700, marginBottom: '6px' }}>
-                      <Clock size={14} style={{ color: '#f59e0b' }} />
+                      <Clock size={14} style={{ color: '#d4af37' }} />
                       <span>{t('publications.event.waitingList')} ({waiting.length})</span>
                     </div>
                     {waiting.length === 0 ? (
@@ -228,7 +228,7 @@ export const TicketsView: React.FC<TicketsViewProps> = ({
                                 {t('publications.event.ticketCount', { count: commande.quantite })} · {commande.reference}
                               </div>
                               {codes.length > 0 && (
-                                <div style={{ fontFamily: 'monospace', fontSize: '0.66rem', color: '#f59e0b', wordBreak: 'break-all' }}>
+                                <div style={{ fontFamily: 'monospace', fontSize: '0.66rem', color: '#d4af37', wordBreak: 'break-all' }}>
                                   {codes.join(' · ')}
                                 </div>
                               )}

@@ -488,7 +488,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div style={{
           position: 'relative',
           height: 'clamp(150px, 26vw, 250px)',
-          background: 'linear-gradient(135deg, #1e3a8a 0%, #7c3aed 55%, #d97706 100%)'
+          background: 'linear-gradient(135deg, #1e3a8a 0%, #7c3aed 55%, #b8860b 100%)'
         }}>
           {coverUrl && (
             <img
@@ -544,7 +544,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   width: '34px',
                   height: '34px',
                   borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                  background: 'linear-gradient(135deg, #d4af37, #b8860b)',
                   color: '#070d1e',
                   border: '2px solid var(--bg-primary)',
                   display: 'flex',
@@ -847,7 +847,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 width: '34px',
                 height: '34px',
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                background: 'linear-gradient(135deg, #d4af37, #b8860b)',
                 color: '#070d1e',
                 border: '2px solid var(--bg-primary)',
                 display: 'flex',
@@ -938,10 +938,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             fontSize: '0.82rem'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Fingerprint size={18} style={{ color: fingerprint ? '#10b981' : '#f59e0b' }} />
+              <Fingerprint size={18} style={{ color: fingerprint ? '#10b981' : '#d4af37' }} />
               <span>{t('profile.fingerprint.label')}</span>
             </div>
-            <strong style={{ color: fingerprint ? '#10b981' : '#f59e0b' }}>
+            <strong style={{ color: fingerprint ? '#10b981' : '#d4af37' }}>
               {fingerprint ? t('profile.fingerprint.registered') : t('profile.fingerprint.notRegistered')}
             </strong>
           </div>
@@ -1129,7 +1129,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               borderRadius: '12px',
               overflow: 'hidden',
               marginBottom: '16px',
-              background: 'linear-gradient(135deg, #1e3a8a, #7c3aed, #d97706)'
+              background: 'linear-gradient(135deg, #1e3a8a, #7c3aed, #b8860b)'
             }}>
               {tempCoverUrl && (
                 <img

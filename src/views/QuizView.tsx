@@ -51,7 +51,7 @@ const RECOMMENDED_QUESTIONS: Record<QuizDifficulty, number> = {
 
 const DIFFICULTY_STYLES: Record<QuizDifficulty, { color: string; background: string }> = {
   facile: { color: '#34d399', background: 'rgba(16, 185, 129, 0.15)' },
-  moyen: { color: '#fbbf24', background: 'rgba(245, 158, 11, 0.15)' },
+  moyen: { color: '#f5d76e', background: 'rgba(212, 175, 55, 0.15)' },
   difficile: { color: '#f87171', background: 'rgba(239, 68, 68, 0.15)' }
 };
 
@@ -413,7 +413,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                   gap: '10px',
                   padding: '10px 12px',
                   borderRadius: '10px',
-                  background: isMe ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                  background: isMe ? 'rgba(212, 175, 55, 0.12)' : 'rgba(255, 255, 255, 0.03)',
                   border: isMe ? '1px solid var(--border-gold)' : '1px solid var(--border-color)'
                 }}
               >
@@ -426,7 +426,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                   justifyContent: 'center',
                   fontWeight: 800,
                   fontSize: '0.8rem',
-                  background: index === 0 ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255, 255, 255, 0.08)',
+                  background: index === 0 ? 'linear-gradient(135deg, #d4af37, #b8860b)' : 'rgba(255, 255, 255, 0.08)',
                   color: index === 0 ? '#070d1e' : 'var(--text-main)'
                 }}>
                   {index + 1}
@@ -434,7 +434,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 <span style={{ fontSize: '0.85rem', fontWeight: isMe ? 800 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {memberName(result.membre_id)}
                 </span>
-                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f59e0b', textAlign: 'right' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#d4af37', textAlign: 'right' }}>
                   {result.score}/{result.total}
                 </span>
                 {showTime && (
@@ -501,7 +501,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
             <div style={{
               width: `${progress}%`,
               height: '100%',
-              background: 'linear-gradient(90deg, #f59e0b, #ec4899, #8b5cf6)',
+              background: 'linear-gradient(90deg, #d4af37, #ec4899, #8b5cf6)',
               transition: 'width 0.3s ease'
             }} />
           </div>
@@ -525,7 +525,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                   padding: '12px 14px',
                   borderRadius: '12px',
                   border: isSelected ? '1px solid var(--border-gold)' : '1px solid var(--border-color)',
-                  background: isSelected ? 'rgba(245, 158, 11, 0.14)' : 'rgba(255, 255, 255, 0.03)',
+                  background: isSelected ? 'rgba(212, 175, 55, 0.14)' : 'rgba(255, 255, 255, 0.03)',
                   color: 'var(--text-main)',
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -543,14 +543,14 @@ export const QuizView: React.FC<QuizViewProps> = ({
                   justifyContent: 'center',
                   fontWeight: 800,
                   fontSize: '0.78rem',
-                  background: isSelected ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255, 255, 255, 0.08)',
+                  background: isSelected ? 'linear-gradient(135deg, #d4af37, #b8860b)' : 'rgba(255, 255, 255, 0.08)',
                   color: isSelected ? '#070d1e' : 'var(--text-muted)',
                   flexShrink: 0
                 }}>
                   {OPTION_LABELS[optionIndex] || optionIndex + 1}
                 </span>
                 <span style={{ flex: 1 }}>{option}</span>
-                {isSelected && <CheckCircle2 size={18} style={{ color: '#f59e0b' }} />}
+                {isSelected && <CheckCircle2 size={18} style={{ color: '#d4af37' }} />}
               </button>
             );
           })}
@@ -591,8 +591,8 @@ export const QuizView: React.FC<QuizViewProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(139, 92, 246, 0.25))',
-          color: '#f59e0b'
+          background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.25), rgba(139, 92, 246, 0.25))',
+          color: '#d4af37'
         }}>
           <Trophy size={32} />
         </div>
@@ -603,7 +603,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '22px', flexWrap: 'wrap', marginBottom: '22px' }}>
           <div>
-            <div style={{ fontSize: '2.4rem', fontWeight: 900, lineHeight: 1, color: '#f59e0b' }}>
+            <div style={{ fontSize: '2.4rem', fontWeight: 900, lineHeight: 1, color: '#d4af37' }}>
               {result.score}/{result.total}
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '5px' }}>{t('quiz.yourScore')}</div>
@@ -836,7 +836,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div className="glass-card" style={{ padding: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <Trophy size={20} style={{ color: '#f59e0b' }} />
+              <Trophy size={20} style={{ color: '#d4af37' }} />
               <h2 style={{ margin: 0, fontSize: '1.08rem' }}>{t('quiz.leaderboard.title')}</h2>
             </div>
             <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -878,7 +878,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                       gap: '10px',
                       padding: '10px 12px',
                       borderRadius: '10px',
-                      background: isMe ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                      background: isMe ? 'rgba(212, 175, 55, 0.12)' : 'rgba(255, 255, 255, 0.03)',
                       border: isMe ? '1px solid var(--border-gold)' : '1px solid var(--border-color)'
                     }}
                   >
@@ -891,7 +891,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                       justifyContent: 'center',
                       fontWeight: 800,
                       fontSize: '0.8rem',
-                      background: index === 0 ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255, 255, 255, 0.08)',
+                      background: index === 0 ? 'linear-gradient(135deg, #d4af37, #b8860b)' : 'rgba(255, 255, 255, 0.08)',
                       color: index === 0 ? '#070d1e' : 'var(--text-main)'
                     }}>
                       {index + 1}
@@ -904,7 +904,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                         {t('quiz.completedCount', { count: entry.completed })}
                       </span>
                     </span>
-                    <span style={{ fontSize: '1rem', fontWeight: 900, color: '#f59e0b', textAlign: 'right' }}>
+                    <span style={{ fontSize: '1rem', fontWeight: 900, color: '#d4af37', textAlign: 'right' }}>
                       {t('quiz.points', { count: entry.points })}
                     </span>
                   </div>

@@ -2,9 +2,9 @@ import type { TranslationDictionary } from '../types';
 
 export const auth: TranslationDictionary = {
   'auth.subtitle': {
-    mg: 'Sehatra fitantanana vondrona',
-    fr: 'Plateforme de gestion de groupe',
-    en: 'Group management platform'
+    mg: 'Projet numerique TafLeaDer',
+    fr: 'Projet numerique TafLeaDer',
+    en: 'Projet numerique TafLeaDer'
   },
   'auth.tabLogin': {
     mg: 'Fidirana',
@@ -77,9 +77,9 @@ export const auth: TranslationDictionary = {
     en: 'e.g. rakoto'
   },
   'auth.emailPlaceholder': {
-    mg: 'oh: hasina@fiaram.mg',
-    fr: 'ex : hasina@fiaram.mg',
-    en: 'e.g. hasina@fiaram.mg'
+    mg: 'oh: hasina@pro-num-tld.mg',
+    fr: 'ex : hasina@pro-num-tld.mg',
+    en: 'e.g. hasina@pro-num-tld.mg'
   },
   'auth.phoneLoginHint': {
     mg: 'Ny laharana findraman-telefaona no ampiasainao hiditra later: io laharana io (na ny mailakao) + ny tenimiafina.',

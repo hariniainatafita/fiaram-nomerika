@@ -78,7 +78,7 @@ export const cotisations: TranslationDictionary = {
   'cotisations.method.orange': { mg: 'Orange', fr: 'Orange', en: 'Orange' },
   'cotisations.method.bank': { mg: 'Banky', fr: 'Banque', en: 'Bank' },
   'cotisations.method.cash': { mg: 'Keesy', fr: 'Caisse', en: 'Cash' },
-  'cotisations.method.fiaram': { mg: 'Fiaram', fr: 'Fiaram', en: 'Fiaram' },
+  'cotisations.method.pronumtld': { mg: 'Pro-Num-TLD', fr: 'Pro-Num-TLD', en: 'Pro-Num-TLD' },
   'cotisations.referenceLabel': {
     mg: 'Laharana Fanamarinana (Référence / Tsy voatery):',
     fr: 'Numéro de référence (optionnel) :',
@@ -146,10 +146,10 @@ export const cotisations: TranslationDictionary = {
     fr: 'Imprimer le reçu sur papier',
     en: 'Print the receipt on paper'
   },
-  'cotisations.receiptBrand': { mg: 'FIARAM NUMERIQUE', fr: 'FIARAM NUMERIQUE', en: 'FIARAM NUMERIQUE' },
+  'cotisations.receiptBrand': { mg: 'Pro-Num-TLD', fr: 'Pro-Num-TLD', en: 'Pro-Num-TLD' },
   'cotisations.receiptSubtitle': { mg: 'Reçu de cotisation du groupe', fr: 'Reçu de cotisation du groupe', en: 'Group contribution receipt' },
   'cotisations.receiptTitle': {
-    mg: 'TARATASY FANDRAISAM-BOLA NOMERIKA (REÇU)',
+    mg: 'TARATASY FANDRAISAM-BOLA (REÇU)',
     fr: 'REÇU NUMÉRIQUE DE PAIEMENT',
     en: 'DIGITAL PAYMENT RECEIPT'
   },

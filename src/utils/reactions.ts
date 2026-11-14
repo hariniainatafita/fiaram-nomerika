@@ -10,9 +10,9 @@ export interface ReactionOption {
 export const REACTION_OPTIONS: ReactionOption[] = [
   { type: 'like', emoji: '\u{1F44D}', labelKey: 'publications.reaction.like', color: '#3b82f6' },
   { type: 'love', emoji: '\u2764\uFE0F', labelKey: 'publications.reaction.love', color: '#ef4444' },
-  { type: 'haha', emoji: '\u{1F602}', labelKey: 'publications.reaction.haha', color: '#f59e0b' },
-  { type: 'wow', emoji: '\u{1F62E}', labelKey: 'publications.reaction.wow', color: '#f59e0b' },
-  { type: 'sad', emoji: '\u{1F622}', labelKey: 'publications.reaction.sad', color: '#f59e0b' },
+  { type: 'haha', emoji: '\u{1F602}', labelKey: 'publications.reaction.haha', color: '#d4af37' },
+  { type: 'wow', emoji: '\u{1F62E}', labelKey: 'publications.reaction.wow', color: '#d4af37' },
+  { type: 'sad', emoji: '\u{1F622}', labelKey: 'publications.reaction.sad', color: '#d4af37' },
   { type: 'angry', emoji: '\u{1F621}', labelKey: 'publications.reaction.angry', color: '#dc2626' }
 ];
 

@@ -927,7 +927,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         padding: '9px 12px',
                         borderRadius: '10px',
                         border: isSelected ? '1px solid var(--border-gold)' : '1px solid transparent',
-                        background: isSelected ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                        background: isSelected ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
                         color: 'var(--text-main)',
                         width: '100%',
                         textAlign: 'left',
@@ -946,7 +946,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                           width: '36px',
                           height: '36px',
                           borderRadius: '10px',
-                          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(245, 158, 11, 0.25))',
+                          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(212, 175, 55, 0.25))',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -1024,7 +1024,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     padding: '9px 12px',
                     borderRadius: '10px',
                     border: isSelected ? '1px solid var(--border-gold)' : '1px solid transparent',
-                    background: isSelected ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                    background: isSelected ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
                     color: 'var(--text-main)',
                     width: '100%',
                     textAlign: 'left',
@@ -1109,7 +1109,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     padding: '8px 12px',
                     borderRadius: '10px',
                     border: isSelected ? '1px solid var(--border-gold)' : '1px solid transparent',
-                    background: isSelected ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                    background: isSelected ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
                     color: 'var(--text-main)',
                     width: '100%',
                     textAlign: 'left',
@@ -1730,7 +1730,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           {stagedImage && (
             <div style={{
               padding: '10px 18px',
-              background: 'rgba(245, 158, 11, 0.12)',
+              background: 'rgba(212, 175, 55, 0.12)',
               borderTop: '1px solid var(--border-gold)',
               display: 'flex',
               alignItems: 'center',
@@ -1793,7 +1793,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           {replyingTo && (
             <div style={{
               padding: '10px 18px',
-              background: 'rgba(245, 158, 11, 0.1)',
+              background: 'rgba(212, 175, 55, 0.1)',
               borderTop: '1px solid var(--border-gold)',
               display: 'flex',
               alignItems: 'center',
@@ -2007,7 +2007,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       padding: '8px',
                       borderRadius: '50%',
                       border: mine ? '2px solid var(--accent-gold)' : '2px solid transparent',
-                      background: mine ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.06)',
+                      background: mine ? 'rgba(212, 175, 55,0.15)' : 'rgba(255,255,255,0.06)',
                       cursor: 'pointer',
                       transform: mine ? 'scale(1.15)' : 'scale(1)'
                     }}
@@ -2109,7 +2109,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       style={{
                         display: 'flex', alignItems: 'center', gap: '10px',
                         padding: '8px 10px', borderRadius: '10px', cursor: 'pointer',
-                        background: checked ? 'rgba(245, 158, 11, 0.14)' : 'transparent',
+                        background: checked ? 'rgba(212, 175, 55, 0.14)' : 'transparent',
                         border: `1px solid ${checked ? 'var(--border-gold)' : 'var(--border-color)'}`
                       }}
                     >
@@ -2297,7 +2297,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         padding: '8px 10px', borderRadius: '10px',
                         cursor: locked ? 'default' : 'pointer',
                         opacity: locked ? 0.75 : 1,
-                        background: checked ? 'rgba(245, 158, 11, 0.14)' : 'transparent',
+                        background: checked ? 'rgba(212, 175, 55, 0.14)' : 'transparent',
                         border: `1px solid ${checked ? 'var(--border-gold)' : 'var(--border-color)'}`
                       }}
                     >

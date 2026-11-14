@@ -9,7 +9,7 @@ on:
 # GitHub Release and on the Pages site (cloudflare/wrangler-action@v3 uses
 # CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets).
 concurrency:
-  group: fiaram-android-apk
+  group: pronumtld-android-apk
   cancel-in-progress: false
 
 permissions:
@@ -120,13 +120,13 @@ jobs:
           # Keep the old asset name so installs that still check app-debug.apk
           # receive this release build instead of a 404.
           cp "$apk" release-assets/app-debug.apk
-          cp "$apk" dist/downloads/FIARAM-NOMERIKA-latest.apk
+          cp "$apk" dist/downloads/Pro-Num-TLD-latest.apk
 
       - name: Publish APK as a GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.event.repository.name }}-${{ github.sha }}
-          name: FIARAM ${{ github.sha }}
+          name: Pro-Num-TLD ${{ github.sha }}
           files: release-assets/*
           fail_on_unmatched_files: true
 
@@ -143,7 +143,7 @@ jobs:
           fi
           response=$(curl -sS -w '\n%{http_code}' \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/fiaram-nomerika")
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/pro-num-tld")
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
           if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
@@ -158,12 +158,12 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       # Pages Functions are deployed with the site. The `MEDIA` binding points
-      # at the R2 bucket `fiaram-nomerika-media`; that bucket must exist in the
+      # at the R2 bucket `pro-num-tld-media`; that bucket must exist in the
       # account or Wrangler refuses to publish the Functions bundle.
       - name: Deploy
         run: |
           set +e
-          output=$(npx --yes wrangler@4 pages deploy dist --project-name fiaram-nomerika --branch "${{ steps.cf.outputs.production_branch }}" 2>&1)
+          output=$(npx --yes wrangler@4 pages deploy dist --project-name pro-num-tld --branch "${{ steps.cf.outputs.production_branch }}" 2>&1)
           status=$?
           set -e
           echo "$output"

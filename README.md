@@ -1,50 +1,64 @@
-# React + TypeScript + Vite
+# Pro-Num-TLD (Projet numerique TafLeaDer)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Application de gestion de groupe : membres, activités, finances, cotisations, présence, messagerie, appels et publications.
 
-Currently, two official plugins are available:
+## Identité
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Nom affiché : **Pro-Num-TLD**
+- Nom complet : **Projet numerique TafLeaDer**
+- Domaine web : `https://pro-num-tld.pages.dev`
+- Dépôt GitHub : `https://github.com/hariniainatafita/pro-num-tld`
+- Package Android : `mg.pro.num.tld`
+- Logo source : `src/tld-logo.png`
 
-## Expanding the ESLint configuration
+## Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+- React 18 + TypeScript + Vite
+- Capacitor 7 (Android)
+- Cloudflare Pages + Functions
+- Supabase / Neon pour la synchronisation
+- R2 ou Supabase Storage pour les médias
 
-- Configure the top-level `parserOptions` property like this:
+## Développement
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```powershell
+npm install
+npm run dev
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+## Build web
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+```powershell
+npm run build
+npm run preview
 ```
+
+## Android
+
+```powershell
+npm run cap:sync
+npm run apk:release
+npm run aab:play
+```
+
+## Regénérer le logo et les icônes
+
+Le logo est décliné en favicon, icônes PWA, icônes Android, icônes adaptatives et écrans de démarrage :
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\generate_icons.ps1
+```
+
+## Vérifications
+
+```powershell
+npm run lint
+npm run build
+```
+
+## Ressources externes à provisionner après renommage
+
+- Projet Cloudflare Pages : `pro-num-tld`
+- Bucket R2 : `pro-num-tld-media`
+- Bucket Supabase Storage : `pro-num-tld-media`
+- Secrets GitHub : `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_PROXY_URL`

@@ -11,7 +11,7 @@ on:
 #   ANDROID_KEY_ALIAS
 #   ANDROID_KEY_PASSWORD
 concurrency:
-  group: fiaram-play-aab
+  group: pronumtld-play-aab
   cancel-in-progress: false
 
 permissions:
@@ -82,5 +82,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: fiaram-nomerika-play-aab
+          name: pro-num-tld-play-aab
           path: android/app/build/outputs/bundle/playRelease/app-play-release.aab

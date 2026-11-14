@@ -1,4 +1,4 @@
-package mg.fiaram.nomerika;
+package mg.pro.num.tld;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -15,7 +15,7 @@ import java.util.Set;
  * lecture des messages et a l'envoi rapide d'une reponse.
  */
 final class BubbleSession {
-    private static final String PREFS = "fiaram_messenger_bubble";
+    private static final String PREFS = "pronumtld_messenger_bubble";
 
     private static final String KEY_USER_ID = "user_id";
     private static final String KEY_USER_NAME = "user_name";

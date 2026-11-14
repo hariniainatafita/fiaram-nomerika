@@ -1,6 +1,6 @@
 {
-  "short_name": "FIARAM",
-  "name": "FIARAM NUMERIQUE - Gestion de groupe",
+  "short_name": "Pro-Num-TLD",
+  "name": "Pro-Num-TLD (Projet numerique TafLeaDer) - Gestion de groupe",
   "icons": [
     {
       "src": "logo-192.png",
@@ -24,7 +24,7 @@
   "start_url": "./",
   "scope": "./",
   "background_color": "#070d1e",
-  "theme_color": "#f59e0b",
+  "theme_color": "#d4af37",
   "display": "standalone",
   "orientation": "portrait"
 }

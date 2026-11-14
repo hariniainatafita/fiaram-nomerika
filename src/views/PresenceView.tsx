@@ -651,8 +651,8 @@ export const PresenceView: React.FC<PresenceViewProps> = ({
                 <div style={{
                   padding: '4px 8px',
                   borderRadius: '6px',
-                  background: lastScannedResult.statut === 'present' ? 'rgba(16, 185, 129, 0.2)' : lastScannedResult.statut === 'retard' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                  color: lastScannedResult.statut === 'present' ? '#34d399' : lastScannedResult.statut === 'retard' ? '#fbbf24' : '#f87171',
+                  background: lastScannedResult.statut === 'present' ? 'rgba(16, 185, 129, 0.2)' : lastScannedResult.statut === 'retard' ? 'rgba(212, 175, 55, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                  color: lastScannedResult.statut === 'present' ? '#34d399' : lastScannedResult.statut === 'retard' ? '#f5d76e' : '#f87171',
                   fontWeight: 800,
                   fontSize: '0.74rem',
                   textTransform: 'uppercase'
@@ -693,9 +693,9 @@ export const PresenceView: React.FC<PresenceViewProps> = ({
                     flex: 1,
                     padding: '8px 12px',
                     borderRadius: '8px',
-                    border: selectedStatut === 'retard' ? '2px solid #f59e0b' : '1px solid var(--border-color)',
-                    background: selectedStatut === 'retard' ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
-                    color: selectedStatut === 'retard' ? '#f59e0b' : 'var(--text-muted)',
+                    border: selectedStatut === 'retard' ? '2px solid #d4af37' : '1px solid var(--border-color)',
+                    background: selectedStatut === 'retard' ? 'rgba(212, 175, 55, 0.2)' : 'transparent',
+                    color: selectedStatut === 'retard' ? '#d4af37' : 'var(--text-muted)',
                     cursor: 'pointer',
                     fontWeight: 700,
                     fontSize: '0.82rem'

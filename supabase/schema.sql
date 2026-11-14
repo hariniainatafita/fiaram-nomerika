@@ -1,5 +1,5 @@
 -- =====================================================================
--- FIARAM NUMERIQUE - Synchronisation partagee (Supabase)
+-- Pro-Num-TLD NUMERIQUE - Synchronisation partagee (Supabase)
 -- A executer dans : Supabase Dashboard > SQL Editor > New query
 -- =====================================================================
 

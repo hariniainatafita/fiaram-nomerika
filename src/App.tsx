@@ -278,7 +278,7 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
     }
     if (viewHistoryRef.current === null) {
       window.history.replaceState(
-        { ...window.history.state, fiaramApp: true, fiaramView: activeView },
+        { ...window.history.state, pronumtldApp: true, pronumtldView: activeView },
         ''
       );
       viewHistoryRef.current = activeView;
@@ -286,7 +286,7 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
     }
     if (viewHistoryRef.current !== activeView) {
       window.history.pushState(
-        { fiaramApp: true, fiaramView: activeView },
+        { pronumtldApp: true, pronumtldView: activeView },
         ''
       );
       viewHistoryRef.current = activeView;
@@ -295,21 +295,21 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
 
   useEffect(() => {
     if (!currentUser || !viewedMemberId) return;
-    const state = window.history.state as { fiaramModal?: string } | null;
-    if (state?.fiaramModal) return;
+    const state = window.history.state as { pronumtldModal?: string } | null;
+    if (state?.pronumtldModal) return;
     window.history.pushState(
-      { fiaramApp: true, fiaramView: viewHistoryRef.current ?? activeView, fiaramModal: 'member' },
+      { pronumtldApp: true, pronumtldView: viewHistoryRef.current ?? activeView, pronumtldModal: 'member' },
       ''
     );
   }, [currentUser, viewedMemberId, activeView]);
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      const state = event.state as { fiaramView?: string; fiaramModal?: string } | null;
-      if (!state?.fiaramModal) setViewedMemberId(null);
-      if (state?.fiaramView) {
-        viewHistoryRef.current = state.fiaramView;
-        setActiveView(state.fiaramView);
+      const state = event.state as { pronumtldView?: string; pronumtldModal?: string } | null;
+      if (!state?.pronumtldModal) setViewedMemberId(null);
+      if (state?.pronumtldView) {
+        viewHistoryRef.current = state.pronumtldView;
+        setActiveView(state.pronumtldView);
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -317,8 +317,8 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
   }, []);
 
   const closeMemberProfile = () => {
-    const state = window.history.state as { fiaramModal?: string } | null;
-    if (state?.fiaramModal) {
+    const state = window.history.state as { pronumtldModal?: string } | null;
+    if (state?.pronumtldModal) {
       window.history.back();
     } else {
       setViewedMemberId(null);
@@ -390,9 +390,9 @@ const [allStories, setAllStories] = useState<Story[]>(() => StorageService.getSt
   // Leaving a member profile to write a message replaces the profile history
   // entry, so "back" returns to the view that opened the profile.
   const openChatFromMemberProfile = (membreId: string) => {
-    const state = window.history.state as { fiaramModal?: string } | null;
-    if (state?.fiaramModal) {
-      window.history.replaceState({ fiaramApp: true, fiaramView: 'chat' }, '');
+    const state = window.history.state as { pronumtldModal?: string } | null;
+    if (state?.pronumtldModal) {
+      window.history.replaceState({ pronumtldApp: true, pronumtldView: 'chat' }, '');
       viewHistoryRef.current = 'chat';
     }
     setViewedMemberId(null);
@@ -1065,19 +1065,19 @@ const refreshStories = () => {
   // Titre de l'onglet qui clignote + favicon avec compteur rouge, tant que des
   // nouveautés n'ont pas été consultées.
   useEffect(() => {
-    const baseTitle = 'FIARAM NUMERIQUE - Gestion de groupe';
+    const baseTitle = 'Pro-Num-TLD (Projet numerique TafLeaDer) - Gestion de groupe';
     if (!currentUser || unviewedNotifications <= 0) {
       document.title = baseTitle;
       updateFaviconBadge(0);
       return;
     }
-    document.title = `(${unviewedNotifications}) FIARAM NUMERIQUE - Gestion de groupe`;
+    document.title = `(${unviewedNotifications}) Pro-Num-TLD (Projet numerique TafLeaDer) - Gestion de groupe`;
     updateFaviconBadge(unviewedNotifications);
     let flip = false;
     const blink = window.setInterval(() => {
       flip = !flip;
       document.title = flip
-        ? `(${unviewedNotifications}) FIARAM NUMERIQUE - NOUVEAUX ÉLÉMENTS !`
+        ? `(${unviewedNotifications}) Pro-Num-TLD - NOUVEAUX ÉLÉMENTS !`
         : baseTitle;
     }, 1200);
     return () => window.clearInterval(blink);
@@ -1386,7 +1386,7 @@ const refreshStories = () => {
               padding: '12px 14px',
               borderRadius: '14px',
               background: 'var(--bg-secondary, #101828)',
-              border: '1px solid var(--border-gold, rgba(245,158,11,.45))',
+              border: '1px solid var(--border-gold, rgba(212, 175, 55,.45))',
               boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
               color: 'var(--text-main, #f8fafc)'
             }}
@@ -1448,12 +1448,12 @@ const refreshStories = () => {
               width: '54px',
               height: '54px',
               borderRadius: '50%',
-              background: 'rgba(245, 158, 11, 0.15)',
+              background: 'rgba(212, 175, 55, 0.15)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 14px',
-              color: '#f59e0b'
+              color: '#d4af37'
             }}>
               <AlertTriangle size={26} />
             </div>

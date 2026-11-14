@@ -283,12 +283,12 @@ function removeStoredItem(key: string): void {
 
 export function migrateLegacyDemoData(): void {
   if (typeof localStorage === 'undefined') return;
-  const migrationKey = 'fiaram_generic_brand_v1';
+  const migrationKey = 'pronumtld_generic_brand_v1';
   if (localStorage.getItem(migrationKey)) return;
 
   try {
     const savedSettings = getStoredItem<Partial<AdminSettings>>(STORAGE_KEYS.ADMIN_SETTINGS, {});
-    if (savedSettings.chorale_nom === 'Asafa' && savedSettings.chorale_sigle === 'FIARAM') {
+    if (savedSettings.chorale_nom === 'Asafa' && savedSettings.chorale_sigle === 'Pro-Num-TLD') {
       setStoredItem(STORAGE_KEYS.ADMIN_SETTINGS, {
         ...DEFAULT_ADMIN_SETTINGS,
         ...savedSettings,
@@ -428,7 +428,7 @@ function memberImageRef(kind: 'avatar' | 'cover'): string {
 // date differs from the one stored next to the picture row, the picture must be
 // downloaded again: editing a profile photo replaces the same row, so the
 // cached value alone cannot tell us whether it is still current.
-const MEMBER_IMAGE_SIG_PREFIX = 'fiaram_imgsig_';
+const MEMBER_IMAGE_SIG_PREFIX = 'pronumtld_imgsig_';
 
 function memberImageSignature(member: Membre): string {
   return member.updated_at || member.created_at || '';
@@ -2332,7 +2332,7 @@ export const StorageService = {
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Inter', sans-serif; background: #f8f9fa; padding: 40px; color: #1a1a2e; }
   .receipt { max-width: 500px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); overflow: hidden; }
-  .header { background: linear-gradient(135deg, #f59e0b, #8b5cf6); padding: 28px 24px; text-align: center; color: white; }
+  .header { background: linear-gradient(135deg, #d4af37, #8b5cf6); padding: 28px 24px; text-align: center; color: white; }
   .header h1 { font-size: 1.3rem; font-weight: 900; letter-spacing: 1px; }
   .header p { font-size: 0.85rem; opacity: 0.9; margin-top: 4px; }
   .header .badge { display: inline-block; margin-top: 10px; padding: 4px 16px; background: rgba(255,255,255,0.2); border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
@@ -2351,12 +2351,12 @@ export const StorageService = {
 <body>
 <div class="receipt">
   <div class="header">
-    <h1>FIARAM NUMERIQUE</h1>
+    <h1>Pro-Num-TLD</h1>
     <p>${settings.chorale_sigle} — ${settings.chorale_nom}</p>
     <div class="badge">TARATASY FANDRAISAM-BOLA (REÇU)</div>
   </div>
   <div class="body">
-    <div class="row"><span class="label">Laharana Reçu:</span><span class="value" style="color:#f59e0b">${cotisation.reference}</span></div>
+    <div class="row"><span class="label">Laharana Reçu:</span><span class="value" style="color:#d4af37">${cotisation.reference}</span></div>
     <div class="row"><span class="label">Mpikambana:</span><span class="value">${membre.prenom} ${membre.nom}</span></div>
     <div class="row"><span class="label">Kaody:</span><span class="value">${membre.code_unique}</span></div>
     <div class="row"><span class="label">Karazany:</span><span class="value">${cotisation.type_cotisation === 'journalier' ? 'Isan\'andro (Journalier)' : 'Isam-bolana (Mensuel)'}</span></div>

@@ -1,4 +1,4 @@
-package mg.fiaram.nomerika;
+package mg.pro.num.tld;
 
 import android.Manifest;
 import android.app.Notification;
@@ -19,8 +19,8 @@ import androidx.core.content.ContextCompat;
  * jeu de canaux.
  */
 final class MessageNotifier {
-    static final String CHANNEL_MESSAGES = "fiaram_messages";
-    static final String CHANNEL_SERVICE = "fiaram_messenger_bubble";
+    static final String CHANNEL_MESSAGES = "pronumtld_messages";
+    static final String CHANNEL_SERVICE = "pronumtld_messenger_bubble";
 
     static final String EXTRA_CHAT_TYPE = "chat_type";
     static final String EXTRA_CHAT_ID = "chat_id";
@@ -29,7 +29,7 @@ final class MessageNotifier {
     private static final int SERVICE_NOTIFICATION_ID = 7301;
     private static final int INCOMING_CALL_NOTIFICATION_ID = 8200;
     private static final int MESSAGE_BASE_ID = 8100;
-    private static final String GROUP_KEY = "fiaram_messages_group";
+    private static final String GROUP_KEY = "pronumtld_messages_group";
 
     private MessageNotifier() {
     }
@@ -41,7 +41,7 @@ final class MessageNotifier {
 
         NotificationChannel messages = new NotificationChannel(
                 CHANNEL_MESSAGES,
-                "Messages FIARAM",
+                "Messages Pro-Num-TLD",
                 NotificationManager.IMPORTANCE_HIGH
         );
         messages.setDescription("Notifications des nouveaux messages");
@@ -50,7 +50,7 @@ final class MessageNotifier {
 
         NotificationChannel service = new NotificationChannel(
                 CHANNEL_SERVICE,
-                "Messenger FIARAM",
+                "Messenger Pro-Num-TLD",
                 NotificationManager.IMPORTANCE_LOW
         );
         service.setDescription("Maintient les bulles et la presence en ligne");
@@ -72,8 +72,8 @@ final class MessageNotifier {
                         | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
         );
         return new NotificationCompat.Builder(context, CHANNEL_SERVICE)
-                .setSmallIcon(R.drawable.ic_stat_fiaram)
-                .setContentTitle("FIARAM NUMERIQUE")
+                .setSmallIcon(R.drawable.ic_stat_pronumtld)
+                .setContentTitle("Pro-Num-TLD NUMERIQUE")
                 .setContentText(text)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
@@ -116,7 +116,7 @@ final class MessageNotifier {
         );
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_MESSAGES)
-                .setSmallIcon(R.drawable.ic_stat_fiaram)
+                .setSmallIcon(R.drawable.ic_stat_pronumtld)
                 .setContentTitle(title == null || title.isEmpty() ? "Nouveau message" : title)
                 .setContentText(body)
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
@@ -155,7 +155,7 @@ final class MessageNotifier {
                         | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0)
         );
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_MESSAGES)
-                .setSmallIcon(R.drawable.ic_stat_fiaram)
+                .setSmallIcon(R.drawable.ic_stat_pronumtld)
                 .setContentTitle(peerName == null || peerName.isEmpty() ? "Appel entrant" : peerName)
                 .setContentText("video".equals(callType) ? "Appel vidéo entrant…" : "Appel entrant…")
                 .setContentIntent(pendingIntent)

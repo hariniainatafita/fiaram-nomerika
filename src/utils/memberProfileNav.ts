@@ -1,4 +1,4 @@
-export const OPEN_MEMBER_PROFILE_EVENT = 'fiaram:open-member-profile';
+export const OPEN_MEMBER_PROFILE_EVENT = 'pronumtld:open-member-profile';
 
 /**
  * Opens the read-only profile card of any member, from anywhere in the app

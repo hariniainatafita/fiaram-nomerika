@@ -119,9 +119,9 @@ export const chat: TranslationDictionary = {
     en: 'The Messenger bubble only works on Android.'
   },
   'chat.bubbleOverlayHint': {
-    mg: 'Omeo alalana ny FIARAM hampiseho eo ambonin’ny rindranasa hafa, dia tsindrio indray.',
-    fr: 'Autorisez FIARAM à s’afficher par-dessus les autres applications, puis appuyez à nouveau.',
-    en: 'Allow FIARAM to display over other apps, then tap again.'
+    mg: 'Omeo alalana ny Pro-Num-TLD hampiseho eo ambonin’ny rindranasa hafa, dia tsindrio indray.',
+    fr: 'Autorisez Pro-Num-TLD à s’afficher par-dessus les autres applications, puis appuyez à nouveau.',
+    en: 'Allow Pro-Num-TLD to display over other apps, then tap again.'
   },
   'chat.downloadImageTitle': {
     mg: 'Sintomy ny sary',

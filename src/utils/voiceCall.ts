@@ -259,7 +259,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
   function getSendChannel(peerId: string): SendChannel {
     const existing = sendChannelsRef.current.get(peerId);
     if (existing) return existing;
-    const channel = supabase!.channel(`fiaram-voice-${peerId}`, {
+    const channel = supabase!.channel(`pronumtld-voice-${peerId}`, {
       config: { broadcast: { self: false } }
     });
     const ready = new Promise<boolean>((resolve) => {
@@ -976,7 +976,7 @@ export function useVoiceCall(currentUser: Membre | null): VoiceCallController {
   useEffect(() => {
     if (!currentUserId || !isSupabaseConfigured || !supabase) return;
     const client = supabase;
-    const channel = client.channel(`fiaram-voice-${currentUserId}`, {
+    const channel = client.channel(`pronumtld-voice-${currentUserId}`, {
       config: { broadcast: { self: false } }
     });
     channel.on('broadcast', { event: '*' }, (message) => {

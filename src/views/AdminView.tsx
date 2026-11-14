@@ -356,7 +356,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             width: '56px',
             height: '56px',
             borderRadius: '16px',
-            background: 'linear-gradient(135deg, #f59e0b, #8b5cf6)',
+            background: 'linear-gradient(135deg, #d4af37, #8b5cf6)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -367,7 +367,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h2 style={{ fontSize: '1.4rem', color: '#f59e0b', margin: 0 }}>
+              <h2 style={{ fontSize: '1.4rem', color: '#d4af37', margin: 0 }}>
                 {isAdminUser ? t('admin.titleAdmin') : t('admin.titleSuperChef')}
               </h2>
               <span className={`badge ${isAdminUser ? 'badge-red' : 'badge-purple'}`}>
@@ -391,7 +391,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                background: 'linear-gradient(135deg, #d4af37, #b8860b)',
                 color: '#070d1e',
                 fontWeight: 800
               }}
@@ -453,10 +453,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
           onClick={() => isAdminUser && setActiveTab('dossiers')}
         >
           <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontWeight: 600 }}>{t('admin.dossiersKpi')}</div>
-          <div style={{ fontSize: '2rem', fontWeight: 900, color: '#f59e0b', margin: '4px 0' }}>
+          <div style={{ fontSize: '2rem', fontWeight: 900, color: '#d4af37', margin: '4px 0' }}>
             {dossiersToVerify.length}
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#f59e0b' }}>
+          <div style={{ fontSize: '0.75rem', color: '#d4af37' }}>
             {t('admin.dossiersKpiSub')}
           </div>
         </div>
@@ -527,7 +527,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       {activeTab === 'dossiers' && isAdminUser && (
         <div className="glass-card" style={{ padding: '20px' }}>
           <h3 style={{ fontSize: '1.15rem', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <UserCheck size={20} style={{ color: '#f59e0b' }} />
+            <UserCheck size={20} style={{ color: '#d4af37' }} />
             {t('admin.dossiersTitle', { count: dossiersToVerify.length })}
           </h3>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
@@ -884,7 +884,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                           <button
                             onClick={() => handleBlockMembre(m)}
                             className="btn btn-ghost"
-                            style={{ padding: '5px 8px', fontSize: '0.72rem', color: '#f59e0b' }}
+                            style={{ padding: '5px 8px', fontSize: '0.72rem', color: '#d4af37' }}
                             title={t('admin.blockTitle')}
                           >
                             <Ban size={13} />

@@ -111,7 +111,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
       role="dialog"
       aria-modal="true"
       aria-label={t('calls.title')}
-      data-fiaram-call-active="true"
+      data-pronumtld-call-active="true"
       onClick={unlockAudio}
       style={{
         position: 'fixed',
@@ -129,27 +129,27 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
       }}
     >
       <style>{`
-        @keyframes fiaram-call-pulse {
+        @keyframes pronumtld-call-pulse {
           0% { transform: scale(0.92); opacity: 0.75; }
           70% { transform: scale(1.35); opacity: 0; }
           100% { transform: scale(1.35); opacity: 0; }
         }
-        @keyframes fiaram-call-fade-in {
+        @keyframes pronumtld-call-fade-in {
           from { opacity: 0; transform: translateY(14px) scale(0.98); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .fiaram-call-card {
-          animation: fiaram-call-fade-in 0.22s ease-out;
+        .pronumtld-call-card {
+          animation: pronumtld-call-fade-in 0.22s ease-out;
         }
-        .fiaram-call-pulse {
-          animation: fiaram-call-pulse 1.8s ease-out infinite;
+        .pronumtld-call-pulse {
+          animation: pronumtld-call-pulse 1.8s ease-out infinite;
         }
-        .fiaram-call-action:active { transform: scale(0.94); }
-        .fiaram-call-action:hover { filter: brightness(1.08); }
+        .pronumtld-call-action:active { transform: scale(0.94); }
+        .pronumtld-call-action:hover { filter: brightness(1.08); }
       `}</style>
 
       <section
-        className="fiaram-call-card"
+        className="pronumtld-call-card"
         onClick={(event) => event.stopPropagation()}
         style={{
           position: 'relative',
@@ -186,7 +186,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
         }}>
           {(isIncoming || isRinging) && (
             <span
-              className="fiaram-call-pulse"
+              className="pronumtld-call-pulse"
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -304,9 +304,9 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
               marginTop: '16px',
               padding: '9px 16px',
               borderRadius: '999px',
-              border: '1px solid rgba(245, 158, 11, 0.5)',
-              background: 'rgba(245, 158, 11, 0.14)',
-              color: '#fbbf24',
+              border: '1px solid rgba(212, 175, 55, 0.5)',
+              background: 'rgba(212, 175, 55, 0.14)',
+              color: '#f5d76e',
               fontWeight: 700,
               fontSize: '0.8rem',
               display: 'flex',
@@ -340,7 +340,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
-                  className="fiaram-call-action"
+                  className="pronumtld-call-action"
                   onClick={call.declineCall}
                   title={t('calls.decline')}
                   aria-label={t('calls.decline')}
@@ -355,7 +355,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
-                  className="fiaram-call-action"
+                  className="pronumtld-call-action"
                   onClick={call.acceptCall}
                   title={t('calls.accept')}
                   aria-label={t('calls.accept')}
@@ -377,7 +377,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                     <button
                       type="button"
-                      className="fiaram-call-action"
+                      className="pronumtld-call-action"
                       onClick={() => setVideoLarge((large) => !large)}
                       title={videoLarge ? t('calls.minimizeVideo') : t('calls.enlargeVideo')}
                       aria-label={videoLarge ? t('calls.minimizeVideo') : t('calls.enlargeVideo')}
@@ -396,7 +396,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                     <button
                       type="button"
-                      className="fiaram-call-action"
+                      className="pronumtld-call-action"
                       onClick={call.toggleCamera}
                       title={state.cameraOn ? t('calls.cameraOff') : t('calls.cameraOn')}
                       aria-label={state.cameraOn ? t('calls.cameraOff') : t('calls.cameraOn')}
@@ -404,7 +404,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
                         ...roundButton,
                         background: state.cameraOn
                           ? 'rgba(255, 255, 255, 0.12)'
-                          : 'linear-gradient(135deg, #f59e0b, #b45309)',
+                          : 'linear-gradient(135deg, #d4af37, #a17c1a)',
                         border: '1px solid rgba(255, 255, 255, 0.16)'
                       }}
                     >
@@ -417,7 +417,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                     <button
                       type="button"
-                      className="fiaram-call-action"
+                      className="pronumtld-call-action"
                       onClick={call.switchCamera}
                       title={t('calls.switchCamera')}
                       aria-label={t('calls.switchCamera')}
@@ -438,14 +438,14 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
-                  className="fiaram-call-action"
+                  className="pronumtld-call-action"
                   onClick={call.toggleMute}
                   title={state.muted ? t('calls.unmute') : t('calls.mute')}
                   aria-label={state.muted ? t('calls.unmute') : t('calls.mute')}
                   style={{
                     ...roundButton,
                     background: state.muted
-                      ? 'linear-gradient(135deg, #f59e0b, #b45309)'
+                      ? 'linear-gradient(135deg, #d4af37, #a17c1a)'
                       : 'rgba(255, 255, 255, 0.12)',
                     border: '1px solid rgba(255, 255, 255, 0.16)'
                   }}
@@ -459,7 +459,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
-                  className="fiaram-call-action"
+                  className="pronumtld-call-action"
                   onClick={call.hangUp}
                   title={t('calls.hangUp')}
                   aria-label={t('calls.hangUp')}
@@ -478,7 +478,7 @@ export const VoiceCallOverlay: React.FC<VoiceCallOverlayProps> = ({ call }) => {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
               <button
                 type="button"
-                className="fiaram-call-action"
+                className="pronumtld-call-action"
                 onClick={isFinished ? call.dismiss : call.hangUp}
                 title={isFinished ? t('calls.close') : t('calls.cancel')}
                 aria-label={isFinished ? t('calls.close') : t('calls.cancel')}

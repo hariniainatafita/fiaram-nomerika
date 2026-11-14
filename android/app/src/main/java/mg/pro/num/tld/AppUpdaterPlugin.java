@@ -1,4 +1,4 @@
-package mg.fiaram.nomerika;
+package mg.pro.num.tld;
 
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -89,7 +89,7 @@ public class AppUpdaterPlugin extends Plugin {
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setConnectTimeout(15000);
                 conn.setReadTimeout(30000);
-                conn.setRequestProperty("User-Agent", "FIARAM-NOMERIKA-Android");
+                conn.setRequestProperty("User-Agent", "Pro-Num-TLD-Android");
                 conn.setInstanceFollowRedirects(true);
                 conn.connect();
                 int code = conn.getResponseCode();
@@ -157,7 +157,7 @@ public class AppUpdaterPlugin extends Plugin {
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setConnectTimeout(20000);
                 conn.setReadTimeout(60000);
-                conn.setRequestProperty("User-Agent", "FIARAM-NOMERIKA-Android");
+                conn.setRequestProperty("User-Agent", "Pro-Num-TLD-Android");
                 conn.setInstanceFollowRedirects(true);
                 conn.connect();
                 int code = conn.getResponseCode();
@@ -166,7 +166,7 @@ public class AppUpdaterPlugin extends Plugin {
                     return;
                 }
 
-                File apkFile = new File(getContext().getCacheDir(), "fiaram-update.apk");
+                File apkFile = new File(getContext().getCacheDir(), "pronumtld-update.apk");
                 if (apkFile.exists() && !apkFile.delete()) {
                     reject(call, "Cannot replace previous update file");
                     return;

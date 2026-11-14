@@ -224,8 +224,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
           <div style={{
             padding: '14px 18px',
             borderRadius: '12px',
-            background: 'rgba(245, 158, 11, 0.1)',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
+            background: 'rgba(212, 175, 55, 0.1)',
+            border: '1px solid rgba(212, 175, 55, 0.3)',
             marginBottom: '24px'
           }}>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '4px' }}>{t('auth.memberCodeLabel')}:</div>
@@ -295,7 +295,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <img
             src={fnLogo}
-            alt="FIARAM NUMERIQUE"
+            alt="Pro-Num-TLD"
             style={{
               width: '58px',
               height: '58px',
@@ -303,19 +303,19 @@ export const LoginView: React.FC<LoginViewProps> = ({
               objectFit: 'cover',
               margin: '0 auto 12px',
               display: 'block',
-              boxShadow: '0 8px 24px rgba(245, 158, 11, 0.4)'
+              boxShadow: '0 8px 24px rgba(212, 175, 55, 0.4)'
             }}
           />
 
           <h1 style={{
             fontSize: '1.5rem',
             margin: '0 0 4px',
-            background: 'linear-gradient(135deg, #f59e0b, #ec4899, #8b5cf6)',
+            background: 'linear-gradient(135deg, #d4af37, #ec4899, #8b5cf6)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             letterSpacing: '-0.02em'
           }}>
-            FIARAM NUMERIQUE
+            Pro-Num-TLD
           </h1>
           <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
             {t('auth.subtitle')}
@@ -339,7 +339,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
               padding: '8px',
               borderRadius: '8px',
               border: 'none',
-              background: !isRegisterMode ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+              background: !isRegisterMode ? 'rgba(212, 175, 55, 0.2)' : 'transparent',
               color: !isRegisterMode ? 'var(--accent-gold)' : 'var(--text-dim)',
               fontWeight: 700,
               fontSize: '0.85rem',
@@ -356,7 +356,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
               padding: '8px',
               borderRadius: '8px',
               border: 'none',
-              background: isRegisterMode ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+              background: isRegisterMode ? 'rgba(212, 175, 55, 0.2)' : 'transparent',
               color: isRegisterMode ? 'var(--accent-gold)' : 'var(--text-dim)',
               fontWeight: 700,
               fontSize: '0.85rem',
@@ -485,8 +485,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
               <div style={{
                 padding: '10px 12px',
                 borderRadius: '8px',
-                background: 'rgba(245, 158, 11, 0.1)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
+                background: 'rgba(212, 175, 55, 0.1)',
+                border: '1px solid rgba(212, 175, 55, 0.3)',
                 color: 'var(--accent-gold)',
                 fontSize: '0.8rem'
               }}>
@@ -646,8 +646,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   <div style={{
                     padding: '10px 14px',
                     borderRadius: '8px',
-                    background: 'rgba(245, 158, 11, 0.08)',
-                    border: '1px solid rgba(245, 158, 11, 0.2)',
+                    background: 'rgba(212, 175, 55, 0.08)',
+                    border: '1px solid rgba(212, 175, 55, 0.2)',
                     fontSize: '0.76rem',
                     color: 'var(--text-muted)',
                     lineHeight: 1.5
@@ -680,8 +680,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   <div style={{
                     padding: '10px 14px',
                     borderRadius: '8px',
-                    background: 'rgba(245, 158, 11, 0.08)',
-                    border: '1px solid rgba(245, 158, 11, 0.2)',
+                    background: 'rgba(212, 175, 55, 0.08)',
+                    border: '1px solid rgba(212, 175, 55, 0.2)',
                     fontSize: '0.76rem',
                     color: 'var(--text-muted)',
                     lineHeight: 1.5
@@ -844,8 +844,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   <div style={{
                     padding: '16px',
                     borderRadius: '12px',
-                    background: 'rgba(245, 158, 11, 0.08)',
-                    border: '1px solid rgba(245, 158, 11, 0.2)'
+                    background: 'rgba(212, 175, 55, 0.08)',
+                    border: '1px solid rgba(212, 175, 55, 0.2)'
                   }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '8px', fontSize: '0.78rem' }}>
                       <div>
@@ -883,8 +883,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   <div style={{
                     padding: '10px 14px',
                     borderRadius: '8px',
-                    background: 'rgba(245, 158, 11, 0.08)',
-                    border: '1px solid rgba(245, 158, 11, 0.2)',
+                    background: 'rgba(212, 175, 55, 0.08)',
+                    border: '1px solid rgba(212, 175, 55, 0.2)',
                     fontSize: '0.75rem',
                     color: 'var(--text-muted)',
                     display: 'flex',
@@ -997,7 +997,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
               {t('auth.devCredit.role')}
             </div>
             <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-              Batisa faha-12 FIARAM Ampangabe Tsinjony
+              Batisa faha-12 Pro-Num-TLD Ampangabe Tsinjony
             </div>
             <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>
               {t('auth.devCredit.studies')}
@@ -1017,7 +1017,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         opacity: 0.7,
         textAlign: 'center'
       }}>
-        FIARAM NUMERIQUE • ver 2026-10-31.1
+        Pro-Num-TLD • ver 2026-10-31.1
       </div>
       </div>
     </div>

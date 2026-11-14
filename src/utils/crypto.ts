@@ -5,7 +5,7 @@
 // Sel fixe utilisÃ© pour le hachage des mots de passe (SHA-256).
 // Chaque appareil garde ses hachages localement (jamais synchronisÃ©s sur
 // Supabase) afin qu'aucun tiers ne puisse les dÃ©crypter hors ligne.
-const PASSWORD_SALT = 'fiaram-member-password-v1';
+const PASSWORD_SALT = 'pronumtld-member-password-v1';
 
 // Nombre d'itÃ©rations PBKDF2 pour dÃ©river une clÃ© AES-256 Ã partir d'un mot
 // de passe. 100 000 ralentit les attaques par force brute / dictionnaire.

@@ -256,13 +256,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <img
             src={`${import.meta.env.BASE_URL}logo.png`}
-            alt="FIARAM NUMERIQUE"
+            alt="Pro-Num-TLD"
             style={{
               width: '40px',
               height: '40px',
               borderRadius: '12px',
               objectFit: 'cover',
-              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.35)'
+              boxShadow: '0 4px 12px rgba(212, 175, 55, 0.35)'
             }}
           />
           <div className="nav-brand-text">
@@ -272,11 +272,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 fontWeight: 800,
                 fontSize: '1.15rem',
                 letterSpacing: '-0.02em',
-                background: 'linear-gradient(135deg, #f59e0b, #ec4899, #8b5cf6)',
+                background: 'linear-gradient(135deg, #d4af37, #ec4899, #8b5cf6)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
               }}>
-                FIARAM NUMERIQUE
+                Pro-Num-TLD
               </span>
               
             </div>
@@ -301,8 +301,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             cursor: 'pointer'
           }}
         >
-          <Crown size={15} style={{ color: '#f59e0b' }} />
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f59e0b' }}>
+          <Crown size={15} style={{ color: '#d4af37' }} />
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#d4af37' }}>
             {t('nav.superChefPanel')}
           </span>
           <Sparkles size={13} style={{ color: '#a78bfa' }} />
@@ -457,7 +457,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </span>
                         <span style={{
                           fontSize: '0.66rem',
-                          color: result.sponsored ? '#f59e0b' : 'var(--accent-gold)',
+                          color: result.sponsored ? '#d4af37' : 'var(--accent-gold)',
                           fontWeight: result.sponsored ? 800 : 400,
                           flexShrink: 0
                         }}>
@@ -481,7 +481,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           style={{ width: '38px', height: '38px', padding: 0, borderRadius: '50%' }}
           title={theme === 'dark' ? t('nav.theme.light') : t('nav.theme.dark')}
         >
-          {theme === 'dark' ? <Sun size={18} style={{ color: '#f59e0b' }} /> : <Moon size={18} />}
+          {theme === 'dark' ? <Sun size={18} style={{ color: '#d4af37' }} /> : <Moon size={18} />}
         </button>
 
         {/* Current Logged-in User Profile Pill (No switcher dropdown for security) */}

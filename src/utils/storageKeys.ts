@@ -1,38 +1,38 @@
-export const PENDING_IMAGE_UPLOADS = 'fiaram_pending_image_uploads_v1';
+export const PENDING_IMAGE_UPLOADS = 'pronumtld_pending_image_uploads_v1';
 
 export const STORAGE_KEYS = {
-  DATA_VERSION: 'fiaram_v2_clean',
-  CURRENT_USER_ID: 'fiaram_current_user_id',
-  THEME: 'fiaram_theme',
-  MEMBRES: 'fiaram_membres_v2',
-  MEMBRES_DELETED: 'fiaram_membres_deleted_v1',
-  GROUPES: 'fiaram_groupes_v2',
-  PRESENCES: 'fiaram_presences_v2',
-  FINANCES: 'fiaram_finances_v2',
-  COTISATIONS: 'fiaram_cotisations_v2',
-  CHANSONS: 'fiaram_chansons_v2',
-  MESSAGES: 'fiaram_messages_v2',
-  PRESENCE_ONLINE: 'fiaram_presence_online_v1',
-  EVENEMENTS: 'fiaram_evenements_v2',
-  PUBLICATIONS: 'fiaram_publications_v1',
-  PUBLICATIONS_SEEN: 'fiaram_publications_seen_v1',
-  NOTIFICATIONS: 'fiaram_notifications_v1',
-  PUBLICATIONS_DELETED: 'fiaram_publications_deleted_v1',
-  GROUPES_DELETED: 'fiaram_groupes_deleted_v1',
-  CHANSONS_DELETED: 'fiaram_chansons_deleted_v1',
-  EVENEMENTS_DELETED: 'fiaram_evenements_deleted_v1',
-  QUIZZES_DELETED: 'fiaram_quizzes_deleted_v1',
-  CATEGORIES_DELETED: 'fiaram_ressource_categories_deleted_v1',
-  STORIES_DELETED: 'fiaram_stories_deleted_v1',
-  STORIES: 'fiaram_stories_v1',
-  BILLETS_COMMANDES: 'fiaram_billets_commandes_v1',
-  BILLETS: 'fiaram_billets_v1',
-  QUIZZES: 'fiaram_quizzes_v1',
-  QUIZ_RESULTS: 'fiaram_quiz_results_v1',
-  CATEGORIES_RESSOURCES: 'fiaram_ressource_categories_v1',
-  ADMIN_SETTINGS: 'fiaram_admin_settings_v2',
-  GROUP_READS: 'fiaram_group_reads_v1',
-  PASSWORD_HASHES: 'fiaram_password_hashes_v1'
+  DATA_VERSION: 'pronumtld_v2_clean',
+  CURRENT_USER_ID: 'pronumtld_current_user_id',
+  THEME: 'pronumtld_theme',
+  MEMBRES: 'pronumtld_membres_v2',
+  MEMBRES_DELETED: 'pronumtld_membres_deleted_v1',
+  GROUPES: 'pronumtld_groupes_v2',
+  PRESENCES: 'pronumtld_presences_v2',
+  FINANCES: 'pronumtld_finances_v2',
+  COTISATIONS: 'pronumtld_cotisations_v2',
+  CHANSONS: 'pronumtld_chansons_v2',
+  MESSAGES: 'pronumtld_messages_v2',
+  PRESENCE_ONLINE: 'pronumtld_presence_online_v1',
+  EVENEMENTS: 'pronumtld_evenements_v2',
+  PUBLICATIONS: 'pronumtld_publications_v1',
+  PUBLICATIONS_SEEN: 'pronumtld_publications_seen_v1',
+  NOTIFICATIONS: 'pronumtld_notifications_v1',
+  PUBLICATIONS_DELETED: 'pronumtld_publications_deleted_v1',
+  GROUPES_DELETED: 'pronumtld_groupes_deleted_v1',
+  CHANSONS_DELETED: 'pronumtld_chansons_deleted_v1',
+  EVENEMENTS_DELETED: 'pronumtld_evenements_deleted_v1',
+  QUIZZES_DELETED: 'pronumtld_quizzes_deleted_v1',
+  CATEGORIES_DELETED: 'pronumtld_ressource_categories_deleted_v1',
+  STORIES_DELETED: 'pronumtld_stories_deleted_v1',
+  STORIES: 'pronumtld_stories_v1',
+  BILLETS_COMMANDES: 'pronumtld_billets_commandes_v1',
+  BILLETS: 'pronumtld_billets_v1',
+  QUIZZES: 'pronumtld_quizzes_v1',
+  QUIZ_RESULTS: 'pronumtld_quiz_results_v1',
+  CATEGORIES_RESSOURCES: 'pronumtld_ressource_categories_v1',
+  ADMIN_SETTINGS: 'pronumtld_admin_settings_v2',
+  GROUP_READS: 'pronumtld_group_reads_v1',
+  PASSWORD_HASHES: 'pronumtld_password_hashes_v1'
 };
 
 // Tombstones record hard deletions so the union-merge synchronisation cannot
@@ -86,7 +86,7 @@ export const SYNCED_KEYS: string[] = [
 // Inline chat images are synced too, but each message gets its own row
 // (one base64 image per row) so no collection ever crosses the ~1MB
 // Supabase Realtime payload limit that silently drops "value".
-export const MESSAGE_IMAGE_PREFIX = 'fiaram_msgimg_';
+export const MESSAGE_IMAGE_PREFIX = 'pronumtld_msgimg_';
 
 export const messageImageKey = (messageId: string): string =>
   `${MESSAGE_IMAGE_PREFIX}${messageId}`;
@@ -95,7 +95,7 @@ export const messageImageKey = (messageId: string): string =>
 // light metadata (id, author, dates) while each picture has its own synced
 // row. This keeps stories visible for every member even when the Supabase
 // media bucket is unavailable and the picture is kept as a base64 data URL.
-export const STORY_IMAGE_PREFIX = 'fiaram_storyimg_';
+export const STORY_IMAGE_PREFIX = 'pronumtld_storyimg_';
 
 export const storyImageKey = (storyId: string): string =>
   `${STORY_IMAGE_PREFIX}${storyId}`;
@@ -104,7 +104,7 @@ export const storyImageKey = (storyId: string): string =>
 // only keeps light metadata (author, text, dates) while each picture has its
 // own synced row. This keeps the feed small enough for Supabase Realtime and
 // lets pictures reach every device even without the media bucket.
-export const PUBLICATION_IMAGE_PREFIX = 'fiaram_pubimg_';
+export const PUBLICATION_IMAGE_PREFIX = 'pronumtld_pubimg_';
 
 export const publicationImageKey = (publicationId: string): string =>
   `${PUBLICATION_IMAGE_PREFIX}${publicationId}`;
@@ -112,10 +112,10 @@ export const publicationImageKey = (publicationId: string): string =>
 // Profile and cover photos used to be inlined in the members collection, which
 // made that single row grow to several megabytes and slow every profile edit.
 // They now live in their own rows; the member record keeps a tiny reference.
-export const MEMBER_IMAGE_PREFIX = 'fiaram_memberimg_';
+export const MEMBER_IMAGE_PREFIX = 'pronumtld_memberimg_';
 
-export const MEMBER_AVATAR_REF = 'fiaram-image-ref:avatar';
-export const MEMBER_COVER_REF = 'fiaram-image-ref:cover';
+export const MEMBER_AVATAR_REF = 'pronumtld-image-ref:avatar';
+export const MEMBER_COVER_REF = 'pronumtld-image-ref:cover';
 
 export const memberAvatarKey = (memberId: string): string =>
   `${MEMBER_IMAGE_PREFIX}${memberId}_avatar`;

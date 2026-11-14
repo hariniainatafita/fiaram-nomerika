@@ -61,7 +61,7 @@ function isSameHost(request) {
     return false;
   }
   if (originHost === requestHost) return true;
-  if (originHost.endsWith('.pages.dev') && requestHost.endsWith('fiaram-nomerika.pages.dev')) return true;
+  if (originHost.endsWith('.pages.dev') && requestHost.endsWith('pro-num-tld.pages.dev')) return true;
   return false;
 }
 

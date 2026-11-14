@@ -55,7 +55,7 @@ export const CotisationView: React.FC<CotisationViewProps> = ({
       OrangeMoney: 'cotisations.method.orange',
       'Karatra Banky': 'cotisations.method.bank',
       'Vola Tanan-tanana': 'cotisations.method.cash',
-      Haingo: 'cotisations.method.fiaram'
+      Haingo: 'cotisations.method.pronumtld'
     };
     return keys[method] ? t(keys[method]) : method;
   };
@@ -294,7 +294,7 @@ export const CotisationView: React.FC<CotisationViewProps> = ({
           </div>
           <div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontWeight: 600 }}>{t('cotisations.dailyTotal')}</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f59e0b' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#d4af37' }}>
               {totalJournalier.toLocaleString()} {t('common.currency')}
             </div>
           </div>
@@ -311,11 +311,11 @@ export const CotisationView: React.FC<CotisationViewProps> = ({
                 width: '38px',
                 height: '38px',
                 borderRadius: '10px',
-                background: 'rgba(245, 158, 11, 0.15)',
+                background: 'rgba(212, 175, 55, 0.15)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#f59e0b'
+                color: '#d4af37'
               }}>
                 <Wallet size={20} />
               </div>
@@ -481,7 +481,7 @@ export const CotisationView: React.FC<CotisationViewProps> = ({
                     { id: 'OrangeMoney', key: 'cotisations.method.orange', icon: Smartphone },
                     { id: 'Karatra Banky', key: 'cotisations.method.bank', icon: CreditCard },
                     { id: 'Vola Tanan-tanana', key: 'cotisations.method.cash', icon: Building },
-                    { id: 'Haingo', key: 'cotisations.method.fiaram', icon: Sparkles }
+                    { id: 'Haingo', key: 'cotisations.method.pronumtld', icon: Sparkles }
                   ].map((m) => (
                     <button
                       key={m.id}
@@ -651,7 +651,7 @@ export const CotisationView: React.FC<CotisationViewProps> = ({
 
                       <td style={{ padding: '12px', fontWeight: 700 }}>
                         {isDaily ? (
-                          <span style={{ color: '#f59e0b', fontFamily: 'monospace' }}>
+                          <span style={{ color: '#d4af37', fontFamily: 'monospace' }}>
                             {c.date_jour || c.date_paiement?.split(' ')[0]}
                           </span>
                         ) : (

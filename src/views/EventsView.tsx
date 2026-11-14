@@ -220,7 +220,7 @@ export const EventsView: React.FC<EventsViewProps> = ({
                   <div style={{
                     width: `${percent}%`,
                     height: '100%',
-                    background: 'linear-gradient(90deg, #10b981, #f59e0b)',
+                    background: 'linear-gradient(90deg, #10b981, #d4af37)',
                     borderRadius: '5px',
                     transition: 'width 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
                   }} />

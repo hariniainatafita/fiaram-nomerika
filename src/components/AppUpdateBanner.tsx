@@ -169,7 +169,7 @@ export const AppUpdateBanner: React.FC = () => {
         padding: '14px',
         borderRadius: '16px',
         background: 'var(--bg-secondary, #101828)',
-        border: '1px solid var(--border-gold, rgba(245,158,11,.5))',
+        border: '1px solid var(--border-gold, rgba(212, 175, 55,.5))',
         boxShadow: '0 12px 38px rgba(0,0,0,0.45)',
         color: 'var(--text-main, #f8fafc)'
       }}
@@ -181,8 +181,8 @@ export const AppUpdateBanner: React.FC = () => {
             height: '38px',
             flexShrink: 0,
             borderRadius: '12px',
-            background: 'rgba(245, 158, 11, 0.16)',
-            color: 'var(--accent-gold, #f59e0b)',
+            background: 'rgba(212, 175, 55, 0.16)',
+            color: 'var(--accent-gold, #d4af37)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -207,7 +207,7 @@ export const AppUpdateBanner: React.FC = () => {
                 </div>
               )}
               {status === 'permission' && (
-                <div style={{ fontSize: '0.74rem', color: '#fbbf24', marginTop: '6px', lineHeight: 1.45 }}>
+                <div style={{ fontSize: '0.74rem', color: '#f5d76e', marginTop: '6px', lineHeight: 1.45 }}>
                   {t('update.permission')}
                 </div>
               )}

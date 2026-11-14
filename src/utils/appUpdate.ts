@@ -6,8 +6,8 @@ import {
   resolveServerUrl
 } from '../lib/appConfig';
 
-export const CHECK_APP_UPDATE_EVENT = 'fiaram:check-app-update';
-export const OPEN_APP_UPDATE_EVENT = 'fiaram:open-app-update';
+export const CHECK_APP_UPDATE_EVENT = 'pronumtld:check-app-update';
+export const OPEN_APP_UPDATE_EVENT = 'pronumtld:open-app-update';
 const DISMISSED_VERSION_KEY = 'fn_app_update_dismissed_version';
 
 export interface AppUpdateInfo {

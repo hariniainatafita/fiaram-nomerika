@@ -349,7 +349,7 @@ export const BatchBadgeModal: React.FC<BatchBadgeModalProps> = ({
                     borderRadius: 'var(--radius-full)',
                     fontSize: '0.72rem',
                     cursor: 'pointer',
-                    background: filterMode === 'all' ? '#f59e0b' : 'rgba(255,255,255,0.05)',
+                    background: filterMode === 'all' ? '#d4af37' : 'rgba(255,255,255,0.05)',
                     color: filterMode === 'all' ? '#000' : '#cbd5e1',
                     border: 'none',
                     fontWeight: 700
@@ -365,7 +365,7 @@ export const BatchBadgeModal: React.FC<BatchBadgeModalProps> = ({
                     borderRadius: 'var(--radius-full)',
                     fontSize: '0.72rem',
                     cursor: 'pointer',
-                    background: filterMode === 'ungenerated' ? '#f59e0b' : 'rgba(255,255,255,0.05)',
+                    background: filterMode === 'ungenerated' ? '#d4af37' : 'rgba(255,255,255,0.05)',
                     color: filterMode === 'ungenerated' ? '#000' : '#cbd5e1',
                     border: 'none',
                     fontWeight: 700

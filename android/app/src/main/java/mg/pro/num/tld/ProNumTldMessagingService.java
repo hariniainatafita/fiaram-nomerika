@@ -1,4 +1,4 @@
-package mg.fiaram.nomerika;
+package mg.pro.num.tld;
 
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
@@ -11,7 +11,7 @@ import java.util.Map;
  * Le service de veille (BubbleService) reste la source principale quand
  * Firebase n'est pas configure.
  */
-public class FiaramMessagingService extends FirebaseMessagingService {
+public class ProNumTldMessagingService extends FirebaseMessagingService {
 
     @Override
     public void onNewToken(String token) {
