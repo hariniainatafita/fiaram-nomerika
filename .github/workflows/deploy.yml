@@ -141,6 +141,15 @@ jobs:
             echo "::error::CLOUDFLARE_ACCOUNT_ID is not set in the GitHub repository secrets."
             exit 1
           fi
+          # Cree le projet Pages pro-num-tld s'il n'existe pas encore afin que
+          # le domaine pro-num-tld.pages.dev soit disponible. Un projet deja
+          # existant renvoie une erreur benigne ignoree ici.
+          curl -sS -o /dev/null \
+            -X POST \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"name":"pro-num-tld","production_branch":"master"}' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects" || true
           response=$(curl -sS -w '\n%{http_code}' \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/pro-num-tld")
